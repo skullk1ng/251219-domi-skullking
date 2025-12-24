@@ -1,18 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Private Web</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dominations Calculator</title>
+  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="./style.css" />
 </head>
-<body>
-  <div id="app">
-    <h1>dominations calculator</h1>
-    <p>허용된 사용자만 접근 가능합니다.</p>
-    <button id="loginBtn">로그인</button>
+
+<body class="home-page">
+  <div class="home-wrap">
+
+    <div class="banner-main-wrap">
+      <img
+        class="banner-main"
+        src="./image/banner/Main.png"
+        alt="Dominations Calculator"
+      />
+    </div>
+
+    <section class="notice-box">
+      <div class="notice-head">
+        <span class="notice-badge">공지</span>
+
+        <div class="notice-fixed">
+          • 오류 및 기능 제안 등 모든 문의는 아래 <span class="hl-yellow">‘카카오톡 문의하기’</span>를 이용해주세요.
+        </div>
+      </div>
+
+      <ul class="notice-list">
+        <li><span class="hl-darkgreen">[1.4ver / 2025-12-21]</span> '모든 연구 완료'일괄 체크 버튼 추가</li>
+        <li><span class="hl-darkgreen">[1.4ver / 2025-12-21]</span> 방공시설&파괴전술 활성화</li>
+        <li><span class="hl-darkgreen">[1.3ver / 2025-12-20]</span> 비행기&함정 활성화</li>
+        <li><span class="hl-darkgreen">[1.2ver / 2025-12-20]</span> 배너 이미지 업데이트</li>
+        <li><span class="hl-darkgreen">[1.1ver / 2025-12-19]</span> 고문관 관련 참고테이블 업데이트</li>
+        <li><span class="hl-darkgreen">[1.0ver / 2025-12-19]</span> 미사일격납고&파괴전술 활성화</li>
+      </ul>
+
+      <a class="kakao-btn" href="https://open.kakao.com/o/sA4BQh7h" target="_blank" rel="noopener"
+         aria-label="카카오톡 문의하기 (새 창)">
+        카카오톡 문의하기
+      </a>
+    </section>
+
+    <div class="home-grid">
+      <a class="image-card" href="https://www.dominationsworld.com/news" target="_blank" rel="noopener"
+         aria-label="뉴스 & 패치노트 (새 창)">
+        <img src="./image/banner/News.png" alt="뉴스 & 패치노트" />
+      </a>
+
+      <a class="image-card" href="https://www.dominationsworld.com/web-store" target="_blank" rel="noopener"
+         aria-label="웹스토어 바로가기 (새 창)">
+        <img src="./image/banner/Webstore.png" alt="웹스토어 바로가기" />
+      </a>
+    </div>
+
+    <div class="calc-divider calc-red">
+      CALCULATOR ↓
+    </div>
+
+    <div class="home-grid calc-grid">
+      <a class="menu-card is-live" href="./missile.html" aria-label="미사일 격납고 / 파괴 계산기">
+        <div class="menu-card-media">
+          <img src="./image/banner/MissileCal.png" alt="미사일 격납고 / 파괴 계산기" />
+        </div>
+
+        <div class="menu-card-footer">
+          <div class="menu-card-title">미사일격납고 & 파괴전술</div>
+          <div class="menu-card-meta">
+            <span class="status-badge is-live">사용 가능</span>
+          </div>
+        </div>
+      </a>
+
+      <a class="menu-card is-live" href="./plane.html" aria-label="비행기 / 함정 계산기">
+        <div class="menu-card-media">
+          <img src="./image/banner/PlaneCal.png" alt="비행기 / 함정 계산기" />
+        </div>
+
+        <div class="menu-card-footer">
+          <div class="menu-card-title">비행기 & 함정</div>
+          <div class="menu-card-meta">
+            <span class="status-badge is-live">사용 가능</span>
+          </div>
+        </div>
+      </a>
+
+      <a class="menu-card is-live" href="./airdefense.html" aria-label="방공시설 / 파괴 계산기">
+  <div class="menu-card-media">
+    <img src="./image/banner/AirDefenseCal.png" alt="방공시설 / 파괴 계산기" />
   </div>
 
-  <script src="main.js"></script>
+  <div class="menu-card-footer">
+    <div class="menu-card-title">방공시설 & 파괴전술</div>
+    <div class="menu-card-meta">
+      <span class="status-badge is-live">사용 가능</span>
+    </div>
+  </div>
+</a>
+    </div>
+
+  </div>
 </body>
 </html>

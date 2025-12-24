@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta name="build-mark" content="MISSILE-CALC-OK-20251221-UNIFIED" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dominations Calculator</title>
+  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="./style.css" />
+
+    <!-- Cloudflare Web Analytics -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+  data-cf-beacon='{"token":"2b1e83f1ff33451e962b87aacda98765"}'></script>
+  <!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <nav class="top-nav">
+    <a class="top-nav-btn active" href="./index.html">MAIN</a>
+  </nav>
+
+  <header class="app-header">
+    <h1>미사일격납고 &amp; 파괴전술</h1>
+    <p class="sub notice-hint">입력에 필요한 각종 수치는 최하단 참고테이블 확인</p>
+  </header>
+
+  <div class="container hero">
+    <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="미사일 계산기 배너">
+      <img src="./image/banner/MissileCal.png" alt="미사일격납고 &amp; 파괴전술" />
+    </a>
+  </div>
+
+  <main class="container">
+
+    <!-- =========================
+         A) 미사일 격납고 HP
+    ========================== -->
+    <section class="card">
+      <h2>미사일 격납고 HP</h2>
+
+      <div class="grid2">
+        <div>
+          <label class="label">상대 시대 (기본 HP 자동 적용)</label>
+          <select id="enemyAgeHp" class="input"></select>
+        </div>
+
+        <div>
+          <label class="label">상대 미사일 격납고 기본 HP</label>
+          <input id="baseHp" class="input" type="text" inputmode="numeric" pattern="[0-9,]*" autocomplete="off" value="0" />
+        </div>
+      </div>
+
+      <details class="details">
+        <summary>HP 보너스 - 선택</summary>
+
+        <!-- ✅ AUTO 박스(도서관/의회, 이집트, 길드) -->
+        <div id="hpAutoMount"></div>
+
+        <div id="hpBonusList" class="bonus-list"></div>
+
+        <div class="row actions center">
+          <div class="row no-top">
+            <button id="addHpBonus" class="btn secondary" type="button">+ 항목 추가</button>
+            <button id="resetHpBonuses" class="btn ghost" type="button">항목 초기화</button>
+          </div>
+          <span class="hint nowrap right">[공격수 유물 허용 범위: 0 ~ -85]</span>
+        </div>
+      </details>
+
+      <div class="result">
+        <div class="result-row">
+          <span>합계 HP</span>
+          <b id="totalHp">-</b>
+        </div>
+        <div class="result-row small">
+          <span>총 추가 수치(%)</span>
+          <span id="hpBonusSum">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         B) 파괴 전술 DMG
+    ========================== -->
+    <section class="card">
+      <h2>파괴 전술 DMG</h2>
+
+      <div class="grid2">
+        <div>
+          <label class="label">파괴 전술 레벨 (기본 DMG 자동 적용)</label>
+          <select id="tacticLevel" class="input"></select>
+        </div>
+
+        <div>
+          <label class="label">내 파괴 기본 DMG</label>
+          <input id="baseDmg" class="input" type="text" inputmode="numeric" pattern="[0-9,]*" autocomplete="off" value="0" />
+        </div>
+      </div>
+
+      <details class="details">
+        <summary>DMG 보너스 - 선택</summary>
+
+        <!-- ✅ AUTO 박스(고정 연구, 몽골, 정찰스캔) -->
+        <div id="dmgAutoMount"></div>
+
+        <div id="dmgBonusList" class="bonus-list"></div>
+
+        <div class="row">
+          <button id="addDmgBonus" class="btn secondary" type="button">+ 항목 추가</button>
+          <button id="resetDmgBonuses" class="btn ghost" type="button">항목 초기화</button>
+        </div>
+      </details>
+
+      <div class="result">
+        <div class="result-row">
+          <span>합계 DMG</span>
+          <b id="totalDmg">-</b>
+        </div>
+        <div class="result-row small">
+          <span>총 추가 수치(%)</span>
+          <span id="dmgBonusSum">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         C) 파괴전술 필요 개수
+    ========================== -->
+    <section class="card need-count-card" id="needCountCard">
+      <h2>파괴전술 필요 개수</h2>
+      <div class="need-count-body">
+        <div class="result-row">
+          <span>계산 값</span>
+          <b id="needCountRaw">-</b>
+        </div>
+        <div class="result-row">
+          <span>필요 개수</span>
+          <b id="needCountCeil">-</b>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         D) 참고 테이블
+    ========================== -->
+    <section class="card yellow-accent" id="referenceCard">
+      <details class="details" id="referenceDetails">
+        <summary>참고 테이블</summary>
+
+        <div class="grid2 ref-grid">
+          <div class="ref-box">
+            <h3 class="h3">미사일격납고 HP+ 고문관</h3>
+            <div class="ref-inner">
+              <div id="tableAdvisorsHp" class="mono"></div>
+            </div>
+          </div>
+
+          <div class="ref-box">
+            <h3 class="h3">정찰 스캔 DMG+ 고문관</h3>
+            <div class="ref-inner">
+              <div id="tableAdvisorsScanDmg" class="mono"></div>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+  </main>
+
+  <script src="./missile.js"></script>
+</body>
+</html>

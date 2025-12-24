@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta name="build-mark" content="PLANE-TRAP-CALC-OK-20251221-UNIFIED" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dominations Calculator</title>
+  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="./style.css" />
+
+    <!-- Cloudflare Web Analytics -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+  data-cf-beacon='{"token":"2b1e83f1ff33451e962b87aacda98765"}'></script>
+  <!-- End Cloudflare Web Analytics -->
+</head>
+
+<body>
+  <nav class="top-nav">
+    <a class="top-nav-btn active" href="./index.html">MAIN</a>
+  </nav>
+
+  <header class="app-header">
+    <h1>비행기 &amp; 함정</h1>
+    <p class="sub notice-hint">입력에 필요한 각종 수치는 최하단 참고테이블 확인</p>
+  </header>
+
+  <div class="container hero">
+    <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="비행기/함정 계산기 배너">
+      <img src="./image/banner/PlaneCal.png" alt="비행기 &amp; 함정" />
+    </a>
+  </div>
+
+  <main class="container">
+
+    <!-- =========================
+         A) 비행기 HP
+    ========================== -->
+    <section class="card">
+      <h2>비행기 HP</h2>
+
+      <div class="row no-top radio-row">
+        <label>
+          <input type="radio" name="planeType" id="planeType_transport" value="transport" checked />
+          <span>수송기</span>
+        </label>
+        <label>
+          <input type="radio" name="planeType" id="planeType_bomber" value="bomber" />
+          <span>폭격기</span>
+        </label>
+        <label>
+          <input type="radio" name="planeType" id="planeType_scout" value="scout" />
+          <span>정찰기</span>
+        </label>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <label class="label">비행기 선택 (기본 HP 자동 적용)</label>
+          <select id="planeModel" class="input"></select>
+        </div>
+
+        <div>
+          <label class="label">기본 HP</label>
+          <input id="basePlaneHp" class="input" type="text" inputmode="numeric" pattern="[0-9,]*" autocomplete="off" value="0" />
+        </div>
+      </div>
+
+      <details class="details" id="planeHpDetails">
+        <summary>HP 보너스 - 선택</summary>
+
+        <!-- [AUTO] 연구/길드 -->
+        <div id="planeHpAutoBox"></div>
+
+        <!-- 연맹(미국) -->
+        <div id="usAllianceBox"></div>
+
+        <!-- 협의회/유물/상대 침략 감소 -->
+        <div class="hp-rows">
+          <div class="hp-rowbox hp-yellow">
+            <div class="hp-rowbox-left">[공격수 협의회] 비행장 병력 HP</div>
+            <input id="councilPlaneHpPct" class="hp-rowbox-right" value="0" />
+          </div>
+
+          <div class="hp-rowbox hp-yellow">
+            <div class="hp-rowbox-left">[공격수 유물] 비행장 병력 HP</div>
+            <input id="relicPlaneHpPct" class="hp-rowbox-right" value="0" />
+          </div>
+
+          <div class="hp-rowbox-desc">↑각 비행기 종류에 따라 해당되는 HP 수치 입력↑</div>
+
+          <div class="hp-rowbox hp-red">
+            <div class="hp-rowbox-left">[수비수 유물] 침략 비행기 HP</div>
+            <input id="enemyInvasionPlaneHpNegPct" class="hp-rowbox-right" value="0" />
+          </div>
+
+          <div class="hp-rowbox-subdesc hp-red-sub">[수비수 유물 허용 범위: 0 ~ -85]</div>
+        </div>
+
+        <!-- 제조소 장비 -->
+        <div id="manuBox"></div>
+      </details>
+
+      <div class="result">
+        <div class="result-row">
+          <span>총 HP</span>
+          <b id="totalPlaneHp">-</b>
+        </div>
+        <div class="result-row small">
+          <span>총 추가 수치(%)</span>
+          <span id="planeHpBonusSum">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         B) GCI 레이더 DMG
+    ========================== -->
+    <section class="card">
+      <h2>GCI 레이더 DMG</h2>
+
+      <div class="grid2">
+        <div>
+          <label class="label">상대 시대 (기본 DMG 자동 적용)</label>
+          <select id="gciAge" class="input"></select>
+        </div>
+
+        <div>
+          <label class="label">GCI 기본 DMG</label>
+          <input id="baseGciDmg" class="input" type="text" inputmode="numeric" pattern="[0-9,]*" autocomplete="off" value="0" />
+        </div>
+      </div>
+
+      <details class="details" id="gciDetails">
+        <summary>GCI DMG 보너스 - 선택</summary>
+
+        <!-- ✅ 모든 연구 완료 (GCI) -->
+        <div id="gciAllResearchMount"></div>
+
+        <!-- ✅ 연맹(마오리) -->
+        <div id="maoriAllianceBox"></div>
+
+        <!-- ✅ 길드(합계 포함) + 협의회/유물 : FULL WIDTH로 세로 배치 -->
+        <div id="guildGciBlock"></div>
+
+        <div class="hp-rows">
+          <div class="hp-rowbox hp-yellow">
+            <div class="hp-rowbox-left">[수비수 협의회] 수비병 DMG</div>
+            <input id="councilGciPct" class="hp-rowbox-right" value="0" />
+          </div>
+
+          <div class="hp-rowbox hp-yellow">
+            <div class="hp-rowbox-left">[수비수 유물] 수비병 DMG</div>
+            <input id="relicGciPct" class="hp-rowbox-right" value="0" />
+          </div>
+        </div>
+      </details>
+
+      <div class="result">
+        <div class="result-row">
+          <span>GCI레이더 최종 DMG</span>
+          <b id="totalGciDmg">-</b>
+        </div>
+        <div class="result-row small">
+          <span>받은 피해 감소 적용 후 실제 DMG</span>
+          <span id="gciDmgAfterReduce">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         C) GCI레이더 계산 결과
+    ========================== -->
+    <section class="card need-count-card" id="gciNeedCard">
+      <h2>GCI레이더 계산 결과</h2>
+      <div class="need-count-body">
+        <div class="result-row">
+          <span>계산 값</span>
+          <b id="gciShotsRaw">-</b>
+        </div>
+        <div class="result-row">
+          <span>비행기가 파괴되는 GCI 공격횟수</span>
+          <b id="gciShotsCeil">-</b>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         D) 지대공 미사일 DMG
+    ========================== -->
+    <section class="card">
+      <h2>지대공 미사일 DMG</h2>
+
+      <div class="grid2">
+        <div>
+          <label class="label">상대 시대 (기본 DMG 자동 적용)</label>
+          <select id="samAge" class="input"></select>
+        </div>
+
+        <div>
+          <label class="label">지대공 기본 DMG</label>
+          <input id="baseSamDmg" class="input" type="text" inputmode="numeric" pattern="[0-9,]*" autocomplete="off" value="0" />
+        </div>
+      </div>
+
+      <details class="details" id="samDetails">
+        <summary>지대공 DMG 보너스 - 선택</summary>
+
+        <!-- ✅ 모든 연구 완료 (SAM) -->
+        <div id="samAllResearchMount"></div>
+
+        <!-- ✅ SAM 체크박스 묶음 + 합계 -->
+        <div class="auto-box" id="samBonusBox">
+          <div class="auto-checks">
+            <label class="check-item">
+              <input type="checkbox" id="lib_sam_deception" />
+              <span>도서관 연구: 기만</span>
+            </label>
+            <label class="check-item">
+              <input type="checkbox" id="lib_sam_aa" />
+              <span>도서관 연구: 대공포</span>
+            </label>
+            <label class="check-item">
+              <input type="checkbox" id="lib_sam_early" />
+              <span>도서관 연구: 조기 준비</span>
+            </label>
+
+            <label class="check-item">
+              <input type="checkbox" id="uni_amelia_sam" />
+              <span>유니버시티: 아멜리아 에어하트</span>
+            </label>
+            <label class="check-item">
+              <input type="checkbox" id="law_defensive_interference" />
+              <span>의회: 방어적 방해</span>
+            </label>
+
+            <label class="check-item">
+              <input type="checkbox" id="guild_sam_lv13" />
+              <span>길드 레벨 13</span>
+            </label>
+            <label class="check-item">
+              <input type="checkbox" id="guild_sam_lv21" />
+              <span>길드 레벨 21</span>
+            </label>
+          </div>
+
+          <div class="hint spaced">
+            달성한 길드레벨 모두 체크<br />
+            (예시: 길드레벨 21 → 2개 모두 체크)
+          </div>
+
+          <div class="auto-sum">
+            <span>합계</span>
+            <b id="samAutoOut">0%</b>
+          </div>
+        </div>
+      </details>
+
+      <div class="result">
+        <div class="result-row">
+          <span>지대공미사일 최종 DMG</span>
+          <b id="totalSamDmg">-</b>
+        </div>
+        <div class="result-row small">
+          <span>받은 피해 감소 적용 후 실제 DMG</span>
+          <span id="samDmgAfterReduce">-</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         E) 지대공미사일 계산 결과
+    ========================== -->
+    <section class="card need-count-card" id="samNeedCard">
+      <h2>지대공 미사일 계산 결과</h2>
+      <div class="need-count-body">
+        <div class="result-row">
+          <span>계산 값</span>
+          <b id="samShotsRaw">-</b>
+        </div>
+        <div class="result-row">
+          <span>비행기가 파괴되는 지대공 횟수</span>
+          <b id="samShotsCeil">-</b>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         F) 참고 테이블 (비행기)
+    ========================== -->
+    <div class="card yellow-accent" id="referenceCard">
+      <details class="details" id="referenceDetails">
+        <summary>참고 테이블</summary>
+        <div class="ref-grid">
+          <div class="ref-box">
+            <div class="h3">수비병 DMG 고문관</div>
+            <div class="mono">
+공구 +14%
+락슈미바이 네왈카르 +15%
+선덕여왕 +14%
+알렉산더대왕 +16%
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+  </main>
+
+  <script src="./plane.js"></script>
+</body>
+</html>
