@@ -918,3 +918,19 @@ select.input,
 
 /* 길드 보너스 (GCI DMG) 라벨 위 여백 보정 */
 #guildGciBlock .label{ margin-top: 16px; }
+
+.site-footer {
+  text-align: center;
+  margin: 48px 0 24px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.footer-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}
