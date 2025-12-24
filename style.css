@@ -934,3 +934,8 @@ select.input,
 .footer-link:hover {
   text-decoration: underline;
 }
+.ads-wrapper {
+  max-width: 1200px;
+  margin: 32px auto;
+  padding: 0 12px;
+}
