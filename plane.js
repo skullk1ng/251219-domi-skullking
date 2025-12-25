@@ -1,10 +1,5 @@
 /* =========================================================
-   Dominations Calculator - plane.js (UNIFIED + OPTIMIZED, SAFE)
-   - 비행기 HP / GCI / SAM + 몇 방 계산
-   - "모든 연구 완료(일괄 적용)"은 각 섹션의 하위 항목만 자동 적용
-     ⚠️ GCI/SAM의 상대 시대 드롭다운(gciAge/samAge) 및 기본DMG는 절대 건드리지 않음
-   - GCI 길드 보너스 UI + 합계 출력 JS 렌더 (guildGciBlock)
-   - SAM은 협의회/유물 입력칸 없음(코드에서도 참조 제거)
+   Dominations Calculator - 비행기 & 함정 계산기
    ========================================================= */
 
 (() => {

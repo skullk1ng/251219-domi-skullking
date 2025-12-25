@@ -1,7 +1,5 @@
 /* =========================================================
-   Dominations Calculator - missile.js (UNIFIED + OPTIMIZED, SAFE)
-   - AUTO 박스: style.css의 .auto-box 컴포넌트 사용
-   - inline style 제거
+   Dominations Calculator - 미사일 & 파괴전술 계산기
    ========================================================= */
 
 /* -------------------------------
