@@ -1,244 +1,242 @@
 /* =========================================================
-   Dominations Calculator - UI/UX
+   Dominations Calculator - UI/UX (UNIFIED)
+   build: 20251226-CLEAN-UNIFIED-IMG-RATIO-20-7 + HOME-DONATE-BADGE
    ========================================================= */
 
 /* ------------------------------- 0) Theme ------------------------------- */
 :root{
-  --bg: #000;
-  --text: #fff;
-  --muted: #b6bcc7;
-  --muted2: #9aa4b2;
-  --line: rgba(255,255,255,.12);
-  --line2: rgba(255,255,255,.10);
-  --good: #49d17d;
-  --warn: #ea580c;
-  --yellow: #facc15;
-  --soft-yellow: #fde68a;
-  --red: #ef4444;
+  --bg:#000;
+  --text:#fff;
+  --muted:#b6bcc7;
+  --muted2:#9aa4b2;
+  --line:rgba(255,255,255,.12);
+  --line2:rgba(255,255,255,.10);
+  --good:#49d17d;
+  --warn:#ea580c;
+  --yellow:#facc15;
+  --soft-yellow:#fde68a;
+  --red:#ef4444;
 
-  --menu-img-h: 240px;
+  /* ✅ 배너 이미지 비율: 1000 x 350 = 20 / 7 */
+  --menu-media-ratio: 20 / 7;
+
+  /* footer 최소 높이 */
   --menu-caption-h: 52px;
 
   /* ✅ missile/plane 수치칸 공통 폭 */
-  --hp-right-input-w: 120px;
+  --hp-right-input-w:120px;
 
   /* 공통 폰트 스케일 */
-  --fs-h1: 22px;
-  --fs-h2: 16px;
-  --fs-label: 12px;
-  --fs-body: 13px;
-  --fs-input: 13px;
-  --input-h: 42px;
-  --input-pad-x: 12px;
-  --fs-hint: 12px;
+  --fs-h1:22px;
+  --fs-h2:16px;
+  --fs-label:12px;
+  --fs-body:13px;
+  --fs-input:13px;
+  --input-h:42px;
+  --input-pad-x:12px;
+  --fs-hint:12px;
 
-  --radius-card: 16px;
-  --radius-md: 14px;
-  --radius-sm: 12px;
+  --radius-card:16px;
+  --radius-md:14px;
+  --radius-sm:12px;
 
-  /* UI 제목 / 섹션 / summary */
-  --fw-ui: 800;
+  --fw-ui:800;
+  --fw-input:600;
+  --fw-value:800;
 
-  /* 입력칸 / 드롭다운 */
-  --fw-input: 600;
-
-  /* 결과 숫자 */
-  --fw-value: 800;
-
-  /* ✅ green */
-  --green: #2ecc71;
-  --green-bg1: rgba(46, 204, 113, 0.12);
-  --green-bg2: rgba(46, 204, 113, 0.04);
+  --green:#2ecc71;
+  --green-bg1:rgba(46,204,113,.12);
+  --green-bg2:rgba(46,204,113,.04);
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+html{ overflow-x:hidden; }
 body{
   margin:0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
 }
-a{ color: inherit; }
+a{ color:inherit; }
+img{ max-width:100%; height:auto; display:block; }
 
 /* ------------------------------- 1) Common layout ------------------------------- */
 .app-header{
   padding:24px 16px 10px;
   max-width:980px;
+  width:100%;
   margin:0 auto;
 }
-h1{ margin:0 0 6px; font-size: var(--fs-h1); }
+h1{ margin:0 0 6px; font-size:var(--fs-h1); }
 .sub{ margin:0; color:var(--muted); font-size:13px; }
 
 .container{
   max-width:980px;
+  width:100%;
   margin:0 auto;
   padding:12px 16px 40px;
   display:grid;
   gap:14px;
 }
-
-/* hero banner container */
-.container.hero{
-  padding-top:0;
-  padding-bottom:0;
-}
+.container.hero{ padding-top:0; padding-bottom:0; }
 
 /* ------------------------------- 2) Card ------------------------------- */
 .card{
-  background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.00) 22%), #000;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: var(--radius-card);
+  background:linear-gradient(to bottom, rgba(255,255,255,.03), rgba(255,255,255,0) 22%), #000;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:var(--radius-card);
   padding:16px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(255,255,255,.06), 0 14px 36px rgba(0,0,0,.80);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 14px 36px rgba(0,0,0,.80);
 }
 .card h2{
   margin:0 0 14px;
   padding-bottom:8px;
-  font-size: var(--fs-h2);
+  font-size:var(--fs-h2);
   font-weight:var(--fw-ui);
-  border-bottom: 1px solid rgba(255,255,255,.10);
+  border-bottom:1px solid rgba(255,255,255,.10);
 }
 .h3{ margin:0 0 10px; font-size:14px; color:#e5e7eb; }
 
 /* ------------------------------- 3) Grid / Labels ------------------------------- */
 .grid2{
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
   gap:12px;
-  align-items: stretch;
+  align-items:stretch;
 }
-@media (max-width: 720px){
-  .grid2{ grid-template-columns: 1fr; }
+@media (max-width:720px){
+  .grid2{ grid-template-columns:minmax(0,1fr); }
 }
 
 .label{
   display:block;
-  font-size: var(--fs-label);
+  font-size:var(--fs-label);
   color:var(--muted);
   margin:0 0 6px;
-  font-weight: 600;
+  font-weight:600;
 }
 
 /* ------------------------------- 4) Inputs / Selects ------------------------------- */
 .input{
   width:100%;
-  height: var(--input-h);
-  padding: 0 var(--input-pad-x);
+  height:var(--input-h);
+  padding:0 var(--input-pad-x);
   background:#000;
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:var(--radius-sm);
   outline:none;
-  -webkit-appearance: none;
-  appearance: none;
-  font-size: var(--fs-input);
-  font-weight: var(--fw-input);
-  line-height: 1;
+  -webkit-appearance:none;
+  appearance:none;
+  font-size:var(--fs-input);
+  font-weight:var(--fw-input);
+  line-height:1;
 }
-.input:focus{ border-color: rgba(250,204,21,.55); }
+.input:focus{ border-color:rgba(250,204,21,.55); }
 .input:disabled, .input[readonly]{
-  opacity: 1 !important;
-  -webkit-text-fill-color: inherit;
+  opacity:1 !important;
+  -webkit-text-fill-color:inherit;
 }
 
 input[type="checkbox"],
-input[type="radio"]{
-  accent-color: var(--yellow);
-}
+input[type="radio"]{ accent-color:var(--yellow); }
 
-/* select arrow + weight unify */
 select.input,
 select.input option{
-  font-weight: var(--fw-input) !important;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 14px;
+  font-weight:var(--fw-input) !important;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  padding-right:36px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:14px;
 }
 
 /* ------------------------------- 5) Text helpers ------------------------------- */
 .hint{
   margin:6px 0 0;
-  font-size: var(--fs-hint);
-  color: var(--muted2);
-  line-height: 1.35;
+  font-size:var(--fs-hint);
+  color:var(--muted2);
+  line-height:1.35;
 }
-.hint.spaced{ margin: 12px 0 0 !important; }
-.notice-hint{ color: var(--soft-yellow); font-size: 13px; }
+.hint.spaced{ margin:12px 0 0 !important; }
+.notice-hint{ color:var(--soft-yellow); font-size:13px; }
 .hint.nowrap{ white-space:nowrap; }
 .hint.right{ margin-left:auto; }
 
-label{ line-height: 1.25; }
+label{ line-height:1.25; }
 label:has(input[type="checkbox"]), label:has(input[type="radio"]){
   display:flex;
   align-items:center;
   gap:8px;
 }
 input[type="checkbox"], input[type="radio"]{
-  vertical-align: middle;
+  vertical-align:middle;
   margin:0;
-  transform: translateY(2px);
+  transform:translateY(2px);
 }
 
 /* ------------------------------- 6) Details (open/close) ------------------------------- */
 .details{
   margin-top:12px;
   border:1px dashed rgba(255,255,255,.12);
-  border-radius: var(--radius-md);
+  border-radius:var(--radius-md);
   padding:10px 12px;
 }
 .details > summary{
   cursor:pointer;
   color:#e5e7eb;
-  font-weight: var(--fw-ui);
+  font-weight:var(--fw-ui);
   font-size:13px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
   padding:10px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255,255,255,.03);
-  border: 1px solid rgba(255,255,255,.10);
+  border-radius:var(--radius-sm);
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.10);
 }
 .details:not([open]) > summary{
-  border-color: rgba(250,204,21,.28);
-  box-shadow: 0 0 0 1px rgba(250,204,21,.10), 0 0 18px rgba(250,204,21,.10);
+  border-color:rgba(250,204,21,.28);
+  box-shadow:0 0 0 1px rgba(250,204,21,.10), 0 0 18px rgba(250,204,21,.10);
 }
 .details > summary::after{
-  content: "열기";
+  content:"열기";
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-  color: rgba(250,204,21,.95);
-  border: 1px solid rgba(250,204,21,.35);
-  background: rgba(250,204,21,.08);
+  height:24px;
+  padding:0 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  color:rgba(250,204,21,.95);
+  border:1px solid rgba(250,204,21,.35);
+  background:rgba(250,204,21,.08);
 }
 .details[open] > summary::after{
-  content: "닫기";
-  color: rgba(255,255,255,.80);
-  border-color: rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  box-shadow: none;
+  content:"닫기";
+  color:rgba(255,255,255,.80);
+  border-color:rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);
+  box-shadow:none;
 }
-.details > summary:hover{ border-color: rgba(250,204,21,.40); }
+.details > summary:hover{ border-color:rgba(250,204,21,.40); }
 
-/* ------------------------------- 7) Bonus list (missile) ------------------------------- */
+/* ------------------------------- 7) Bonus list ------------------------------- */
 .bonus-list{ margin-top:10px; display:grid; gap:8px; }
-.bonus-item{ display:grid; grid-template-columns: 1fr 92px; gap:10px; align-items:center; }
+.bonus-item{ display:grid; grid-template-columns:minmax(0,1fr) 92px; gap:10px; align-items:center; }
 .bonus-item .input:last-child{ text-align:right; }
-@media (max-width: 520px){
-  .bonus-item{ grid-template-columns: 1fr 74px; gap:8px; }
+@media (max-width:520px){
+  .bonus-item{ grid-template-columns:minmax(0,1fr) 74px; gap:8px; }
 }
 .tower-hint{ margin:6px 2px 10px; }
 
@@ -256,27 +254,27 @@ input[type="checkbox"], input[type="radio"]{
 
 .btn{
   border:1px solid rgba(255,255,255,.14);
-  background: rgba(0,0,0,.35);
-  color: var(--text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  padding: 0 14px;
-  border-radius: var(--radius-sm);
+  background:rgba(0,0,0,.35);
+  color:var(--text);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:40px;
+  padding:0 14px;
+  border-radius:var(--radius-sm);
   cursor:pointer;
-  font-weight: 800;
-  font-size: 13px;
-  line-height: 1;
+  font-weight:800;
+  font-size:13px;
+  line-height:1;
 }
-.btn.secondary{ border-color: rgba(250,204,21,.35); }
-.btn.ghost{ border-color: rgba(255,255,255,.10); color:var(--muted); }
+.btn.secondary{ border-color:rgba(250,204,21,.35); }
+.btn.ghost{ border-color:rgba(255,255,255,.10); color:var(--muted); }
 
 /* ------------------------------- 9) Result block ------------------------------- */
 .result{
   margin-top:12px;
   padding:12px;
-  border-radius: var(--radius-md);
+  border-radius:var(--radius-md);
   background:#000;
   border:1px solid rgba(255,255,255,.10);
 }
@@ -288,33 +286,34 @@ input[type="checkbox"], input[type="radio"]{
   padding:6px 0;
   font-size:14px;
 }
-.result-row span{ font-weight: var(--fw-ui) !important; color: rgba(255,255,255,.88); }
+.result-row span{ font-weight:var(--fw-ui) !important; color:rgba(255,255,255,.88); }
 .result-row b{
-  font-weight: var(--fw-value);
+  font-weight:var(--fw-value);
   font-size:18px;
-  color: var(--good);
-  text-shadow: 0 0 10px rgba(73,209,125,.35), 0 0 2px rgba(73,209,125,.60);
+  color:var(--good);
+  text-shadow:0 0 10px rgba(73,209,125,.35), 0 0 2px rgba(73,209,125,.60);
 }
 .result-row.small{ font-size:12px; color:var(--muted2); }
 .result-row.small span{ color:var(--muted2); }
 .result-row.small b{ color:var(--text); font-size:12px; }
 
 .mono{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   font-size:12px;
   color:#e5e7eb;
   background:#000;
   border:1px solid rgba(255,255,255,.10);
-  border-radius: var(--radius-sm);
+  border-radius:var(--radius-sm);
   padding:10px;
   white-space:pre-wrap;
 }
 
 /* ------------------------------- 10) Top nav ------------------------------- */
 .top-nav{
-  max-width: 980px;
-  margin: 10px auto 0;
-  padding: 0 18px;
+  max-width:980px;
+  width:100%;
+  margin:10px auto 0;
+  padding:0 18px;
   display:flex;
   gap:8px;
   flex-wrap:wrap;
@@ -322,695 +321,474 @@ input[type="checkbox"], input[type="radio"]{
 .top-nav-btn{
   text-decoration:none;
   padding:10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.35);
-  color: #e5e7eb;
+  border-radius:var(--radius-sm);
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.35);
+  color:#e5e7eb;
   font-size:13px;
-  font-weight: 800;
+  font-weight:800;
 }
-.top-nav-btn:hover{ border-color: rgba(250,204,21,.45); }
+.top-nav-btn:hover{ border-color:rgba(250,204,21,.45); }
 .top-nav-btn.active{
-  border-color: rgba(250,204,21,.75);
-  color: var(--yellow);
-  font-weight: 900;
+  border-color:rgba(250,204,21,.75);
+  color:var(--yellow);
+  font-weight:900;
 }
 
 /* ------------------------------- 11) Reference (yellow accent) ------------------------------- */
 .card.yellow-accent{
-  border: 1px solid rgba(250, 204, 21, 0.34);
-  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.10), 0 0 14px rgba(250, 204, 21, 0.12), 0 16px 34px rgba(0, 0, 0, 0.80);
+  border:1px solid rgba(250,204,21,.34);
+  box-shadow:
+    0 0 0 1px rgba(250,204,21,.10),
+    0 0 14px rgba(250,204,21,.12),
+    0 16px 34px rgba(0,0,0,.80);
 }
-#referenceCard{ border-radius: var(--radius-md); padding: 10px 12px; }
-#referenceCard .details{ border: none; padding: 0; margin: 0; }
+#referenceCard{ border-radius:var(--radius-md); padding:10px 12px; }
+#referenceCard .details{ border:none; padding:0; margin:0; }
 
 #referenceDetails > summary{
-  display: grid !important;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  column-gap: 10px;
-  padding: 10px 12px !important;
-  min-height: 36px;
+  display:grid !important;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  column-gap:10px;
+  padding:10px 12px !important;
+  min-height:36px;
   margin:0;
-  color: var(--yellow);
-  font-weight: 900;
-  font-size: 14px;
-  list-style: none;
-  text-align: left;
+  color:var(--yellow);
+  font-weight:900;
+  font-size:14px;
+  list-style:none;
+  text-align:left;
 }
-#referenceDetails > summary::before{ content: "▶"; color: var(--yellow); font-size: 12px; justify-self: start; }
-#referenceDetails[open] > summary::before{ content: "▼"; }
-#referenceDetails > summary::after{ justify-self: end; }
-#referenceDetails:not([open]) > summary{ border-bottom: none; }
+#referenceDetails > summary::before{ content:"▶"; color:var(--yellow); font-size:12px; justify-self:start; }
+#referenceDetails[open] > summary::before{ content:"▼"; }
+#referenceDetails > summary::after{ justify-self:end; }
+#referenceDetails:not([open]) > summary{ border-bottom:none; }
 #referenceDetails[open] > summary{
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  padding-bottom: 10px;
-  margin-bottom: 10px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  padding-bottom:10px;
+  margin-bottom:10px;
 }
 
 .ref-grid{ margin-top:12px; }
 
 #referenceCard .ref-box{
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  background:transparent;
+  border:0;
+  border-radius:0;
+  padding:10px 0;
+  border-bottom:1px solid rgba(255,255,255,.08);
   display:flex;
-  flex-direction: column;
-  height: 100%;
+  flex-direction:column;
+  height:100%;
 }
-#referenceCard .ref-box:last-child{ border-bottom: 0; }
-#referenceCard .h3{ color: rgba(250, 204, 21, 0.92); margin-bottom: 8px; }
-#referenceCard .ref-inner{ flex: 1; display: flex; min-height: 130px; }
+#referenceCard .ref-box:last-child{ border-bottom:0; }
+#referenceCard .h3{ color:rgba(250,204,21,.92); margin-bottom:8px; }
+#referenceCard .ref-inner{ flex:1; display:flex; min-height:130px; }
 #referenceCard .mono{
-  flex: 1;
-  width: 100%;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  color: #e5e7eb;
+  flex:1;
+  width:100%;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  padding:0;
+  color:#e5e7eb;
 }
 
 /* ------------------------------- 12) HERO image card ------------------------------- */
 .image-card{
-  display: block;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.18);
-  background: #000;
-  box-shadow: 0 0 0 1px rgba(250,204,21,.10), 0 0 24px rgba(250,204,21,.08), 0 14px 36px rgba(0,0,0,.70);
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  display:block;
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.18);
+  background:#000;
+  box-shadow:0 0 0 1px rgba(250,204,21,.10), 0 0 24px rgba(250,204,21,.08), 0 14px 36px rgba(0,0,0,.70);
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 .image-card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(250,204,21,.35);
-  box-shadow: 0 0 0 1px rgba(250,204,21,.18), 0 0 36px rgba(250,204,21,.16), 0 18px 44px rgba(0,0,0,.80);
+  transform:translateY(-1px);
+  border-color:rgba(250,204,21,.35);
+  box-shadow:0 0 0 1px rgba(250,204,21,.18), 0 0 36px rgba(250,204,21,.16), 0 18px 44px rgba(0,0,0,.80);
 }
-.image-card img{
-  width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-}
+.image-card img{ width:100%; height:auto; object-fit:cover; }
 
 /* ------------------------------- 13) Icon button ------------------------------- */
 .icon-btn{
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.04);
-  color: #e5e7eb;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);
+  color:#e5e7eb;
+  cursor:pointer;
+  font-size:18px;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
 }
-.icon-btn:hover{ border-color: rgba(250,204,21,.45); }
+.icon-btn:hover{ border-color:rgba(250,204,21,.45); }
 
 /* ------------------------------- 14) Need Count Card ------------------------------- */
 .need-count-card{
-  background: #000 !important;
-  border: 1px solid rgba(239,68,68,.42) !important;
-  box-shadow: 0 0 0 1px rgba(239,68,68,.14), 0 0 18px rgba(239,68,68,.18), 0 18px 46px rgba(0,0,0,.85) !important;
-  padding: 12px !important;
+  background:#000 !important;
+  border:1px solid rgba(239,68,68,.42) !important;
+  box-shadow:0 0 0 1px rgba(239,68,68,.14), 0 0 18px rgba(239,68,68,.18), 0 18px 46px rgba(0,0,0,.85) !important;
+  padding:12px !important;
 }
-.need-count-card > h2{ color: rgba(239,68,68,.92) !important; margin: 0 0 8px !important; }
-.need-count-body{ padding: 0; margin: 0; }
-.need-count-card .result-row{ padding: 10px 0; margin: 0; line-height: 1.2; }
-.need-count-card .result-row + .result-row{ border-top: 1px solid rgba(255,255,255,.12); }
-.need-count-card .result-row span{ color: rgba(255,255,255,.92) !important; }
-.need-count-card .result-row b{ color: var(--good) !important; }
+.need-count-card > h2{ color:rgba(239,68,68,.92) !important; margin:0 0 8px !important; }
+.need-count-body{ padding:0; margin:0; }
+.need-count-card .result-row{ padding:10px 0; margin:0; line-height:1.2; }
+.need-count-card .result-row + .result-row{ border-top:1px solid rgba(255,255,255,.12); }
+.need-count-card .result-row span{ color:rgba(255,255,255,.92) !important; }
+.need-count-card .result-row b{ color:var(--good) !important; }
 .need-count-card .result{
-  padding: 0 !important;
-  margin: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
+  padding:0 !important;
+  margin:0 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
 }
 
 /* =========================================================
-   ✅ 공통 AUTO 박스 (missile/plane 동일)
+   ✅ 공통 AUTO 박스
    ========================================================= */
 .auto-box{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.02);
+  margin-top:10px;
+  padding:12px;
+  border-radius:var(--radius-md);
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.02);
 }
 .auto-title{
-  font-weight: 900;
-  font-size: var(--fs-body);
-  color: #e5e7eb;
-  margin: 0 0 10px;
+  font-weight:900;
+  font-size:var(--fs-body);
+  color:#e5e7eb;
+  margin:0 0 10px;
 }
 .auto-sub{
-  font-size: var(--fs-hint);
-  color: var(--muted2);
-  line-height: 1.4;
-  margin: -4px 0 10px;
+  font-size:var(--fs-hint);
+  color:var(--muted2);
+  line-height:1.4;
+  margin:-4px 0 10px;
 }
 .auto-checks{ display:grid; gap:8px; }
 .auto-checks .check-item{
-  font-size: var(--fs-body);
-  color: #e5e7eb;
+  font-size:var(--fs-body);
+  color:#e5e7eb;
   display:flex;
   align-items:center;
   gap:8px;
 }
 .auto-sum{
-  margin-top: 10px;
+  margin-top:10px;
   display:flex;
   justify-content:space-between;
   gap:10px;
-  font-size: var(--fs-body);
+  font-size:var(--fs-body);
 }
-.auto-sum span{ color: var(--muted2); }
-.auto-sum b{ color: var(--good); }
+.auto-sum span{ color:var(--muted2); }
+.auto-sum b{ color:var(--good); }
 
-/* =========================================================
-   ✅ 모든 연구 완료 (일괄 적용) - 전 페이지 공통 초록 스타일
-   사용법: <div class="auto-box all-research-box"> ... </div>
-   ========================================================= */
+/* ✅ 모든 연구 완료 박스 */
 .all-research-box{
-  border-color: rgba(46, 204, 113, 0.35);
-  background: linear-gradient(180deg, var(--green-bg1), var(--green-bg2));
+  border-color:rgba(46,204,113,.35);
+  background:linear-gradient(180deg, var(--green-bg1), var(--green-bg2));
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.05),
-    0 0 0 1px rgba(46, 204, 113, 0.10),
-    0 0 18px rgba(46, 204, 113, 0.10);
+    0 0 0 1px rgba(46,204,113,.10),
+    0 0 18px rgba(46,204,113,.10);
 }
-
-/* ✅ 미체크: 글자만 초록 */
-.all-research-box .check-item span{
-  color: var(--green);
-  font-weight: 600;
-}
-
-/* ✅ 체크된 상태: (미사일에서 하던 느낌) 더 진하게 강조 */
+.all-research-box .check-item span{ color:var(--green); font-weight:600; }
 .all-research-box:has(input[type="checkbox"]:checked){
-  border-color: var(--green);
-  background: rgba(46, 204, 113, 0.14);
+  border-color:var(--green);
+  background:rgba(46,204,113,.14);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.06),
-    0 0 0 1px rgba(46, 204, 113, 0.22),
-    0 0 22px rgba(46, 204, 113, 0.18);
+    0 0 0 1px rgba(46,204,113,.22),
+    0 0 22px rgba(46,204,113,.18);
 }
-
-/* 체크된 상태 텍스트(현행 유지: 그대로 초록) */
 .all-research-box:has(input[type="checkbox"]:checked) .check-item span{
-  color: var(--green);
-  font-weight: 700;
+  color:var(--green);
+  font-weight:700;
 }
-
-/* 체크박스 자체도 초록 */
-.all-research-box input[type="checkbox"]{
-  accent-color: var(--green);
-}
-
-/* ------------------------------- 제조소 조건 박스/상태 ------------------------------- */
-.manu-conditions{
-  margin-top: 10px;
-  border-top: 1px solid rgba(255,255,255,.08);
-  padding-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-.manu-cond-row{
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.02);
-}
-.manu-cond-text{
-  font-size: var(--fs-body);
-  color: #e5e7eb;
-  line-height: 1.35;
-  word-break: keep-all;
-}
-.manu-cond-status{
-  min-width: 64px;
-  height: 28px;
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .2px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(0,0,0,.40);
-}
-.manu-cond-status.is-on{
-  color: #baf7d0;
-  border-color: rgba(34,197,94,.45);
-  box-shadow: 0 0 0 1px rgba(34,197,94,.20), 0 0 12px rgba(34,197,94,.25);
-}
-.manu-cond-status.is-off{
-  color: #ffd7d7;
-  border-color: rgba(239,68,68,.45);
-  box-shadow: 0 0 0 1px rgba(239,68,68,.18), 0 0 12px rgba(239,68,68,.20);
-}
-
-/* 제조소 연구 완료 여부 */
-.manu-research-box{
-  padding: 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.02);
-}
-.manu-research-title{
-  font-weight: 900;
-  font-size: var(--fs-body);
-  color: #e5e7eb;
-  margin: 0 0 10px;
-}
-.manu-research-checks{ display: grid; gap: 8px; }
-.manu-research-item{
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--fs-body);
-  color: #e5e7eb;
-}
-
-/* 제조소 장비 슬롯 레이아웃 */
-.manu-block .grid2{
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
-  gap: 10px;
-  align-items: end;
-}
-@media (max-width: 520px){
-  .manu-block .grid2{ grid-template-columns: minmax(0, 1fr) 102px; gap: 8px; }
-}
-
-/* 제조소: 받는 피해 감소(칩) */
-.manu-sub-block{
-  margin-top: 12px;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: var(--radius-md);
-  background: rgba(0,0,0,.35);
-  padding: 12px;
-}
-.manu-sub-block .auto-title,
-.manu-sub-block .hp-bonus-block-title{
-  position: relative;
-  top: -4px;
-  margin: 0 0 10px;
-  font-weight: var(--fw-ui);
-}
-.reduce-wrap{
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-.reduce-chip{
-  width: 100%;
-  min-height: 44px;
-  border-radius: var(--radius-md);
-  background: #000;
-  border: 1px solid rgba(250,204,21,.35);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
-    0 0 0 1px rgba(250,204,21,.18),
-    0 0 12px rgba(250,204,21,.14);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  line-height: 1.1;
-  font-size: var(--fs-body);
-  font-weight: 600;
-  color: #e5e7eb;
-  white-space: normal;
-  word-break: keep-all;
-}
+.all-research-box input[type="checkbox"]{ accent-color:var(--green); }
 
 /* =========================================================
-   ✅ Plane 협의회/유물/침략 감소: 2박스(텍스트/수치) 통일
+   ✅ Home (index.html)
    ========================================================= */
-.hp-rows{ display:grid; gap:10px; margin-top:10px; }
+body.home-page{ background:var(--bg); }
 
-.hp-rowbox{
-  display: grid;
-  grid-template-columns: 1fr var(--hp-right-input-w);
-  gap: 10px;
-  align-items: center;
-}
-.hp-rowbox-left{
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.35);
-  border-radius: var(--radius-card);
-  padding: 12px 14px;
-  font-weight: 900;
-  font-size: 13px;
-  line-height: 1.2;
-  color: #e5e7eb;
-}
-.hp-rowbox-right{
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.35);
-  border-radius: var(--radius-card);
-  height: 44px;
-  padding: 0 14px;
-  text-align: right;
-  font-weight: 900;
-  font-size: 14px;
-  color: #e5e7eb;
-  outline: none;
-  box-shadow: none;
-}
-
-.hp-yellow .hp-rowbox-left, .hp-yellow .hp-rowbox-right{ color: var(--yellow); }
-.hp-red .hp-rowbox-left, .hp-red .hp-rowbox-right{ color: var(--red); }
-
-.hp-rowbox-desc{
-  font-size: var(--fs-hint);
-  color: var(--muted2);
-  text-align: right;
-  padding: 2px 6px 0 0;
-}
-.hp-rowbox-subdesc{
-  font-size: var(--fs-hint);
-  color: var(--muted2);
-  margin-top: -4px;
-  text-align: right;
-  padding-right: 6px;
-}
-
-@media (max-width: 520px){
-  .hp-rowbox{ grid-template-columns: 1fr var(--hp-right-input-w); }
-}
-
-/* plane radio row */
-.radio-row{
-  display:flex;
-  flex-wrap:wrap;
-  gap:14px;
-}
-.radio-row label{
-  font-size: 13px;
-  font-weight: 900;
-  color: #e5e7eb;
-}
-.radio-row input[type="radio"]{
-  transform: translateY(1px);
-}
-
-/* =========================================================
-   ✅ Home (index.html) UI - UNIFIED with calculator theme
-   ========================================================= */
-body.home-page{ background: var(--bg); }
 .home-wrap{
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 14px 16px 44px;
-  display: grid;
-  gap: 14px;
+  max-width:980px;
+  width:100%;
+  margin:0 auto;
+  padding:14px 16px 44px;
+  display:grid;
+  gap:14px;
 }
 
 .banner-main-wrap{
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.14);
-  background: #000;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(255,255,255,.06), 0 14px 36px rgba(0,0,0,.80);
+  border-radius:var(--radius-card);
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.14);
+  background:#000;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 14px 36px rgba(0,0,0,.80);
 }
-.banner-main{
-  width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-}
+.banner-main{ width:100%; height:auto; object-fit:cover; }
 
 .notice-box{
-  background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.00) 22%), #000;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: var(--radius-card);
-  padding: 14px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(255,255,255,.06), 0 14px 36px rgba(0,0,0,.80);
+  background:linear-gradient(to bottom, rgba(255,255,255,.03), rgba(255,255,255,0) 22%), #000;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:var(--radius-card);
+  padding:14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 14px 36px rgba(0,0,0,.80);
 }
-.notice-head{
-  display: grid;
-  gap: 8px;
-  margin-bottom: 10px;
-}
+.notice-head{ display:grid; gap:8px; margin-bottom:10px; }
 .notice-badge{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .2px;
-  color: rgba(250,204,21,.95);
-  border: 1px solid rgba(250,204,21,.35);
-  background: rgba(250,204,21,.08);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:fit-content;
+  height:26px;
+  padding:0 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.2px;
+  color:rgba(250,204,21,.95);
+  border:1px solid rgba(250,204,21,.35);
+  background:rgba(250,204,21,.08);
 }
-.notice-fixed{
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.4;
-}
+.notice-fixed{ color:var(--muted); font-size:13px; line-height:1.4; }
 .notice-list{
-  margin: 10px 0 12px;
-  padding-left: 18px;
-  color: #e5e7eb;
-  font-size: 13px;
-  line-height: 1.45;
+  margin:10px 0 12px;
+  padding-left:18px;
+  color:#e5e7eb;
+  font-size:13px;
+  line-height:1.45;
 }
-.notice-list li{ margin: 6px 0; }
+.notice-list li{ margin:6px 0; }
 
-.hl-yellow{ color: var(--yellow); font-weight: 900; }
-.hl-darkgreen{ color: rgba(73,209,125,.95); font-weight: 900; }
+.hl-yellow{ color:var(--yellow); font-weight:900; }
+.hl-darkgreen{ color:rgba(73,209,125,.95); font-weight:900; }
 
 .kakao-btn{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  text-decoration: none;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.04);
-  color: #e5e7eb;
-  font-weight: 900;
-  font-size: 13px;
-  padding: 12px 14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  text-decoration:none;
+  border-radius:var(--radius-md);
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.04);
+  color:#e5e7eb;
+  font-weight:900;
+  font-size:13px;
+  padding:12px 14px;
 }
-.kakao-btn:hover{ border-color: rgba(250,204,21,.45); }
+.kakao-btn:hover{ border-color:rgba(250,204,21,.45); }
 
 .home-grid{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap:12px;
 }
-@media (max-width: 720px){
-  .home-grid{ grid-template-columns: 1fr; }
+@media (max-width:720px){
+  .home-grid{ grid-template-columns:minmax(0,1fr); }
 }
 
 .calc-divider{
-  border-radius: 999px;
-  padding: 10px 12px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 1000;
-  letter-spacing: .4px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.03);
+  border-radius:999px;
+  padding:10px 12px;
+  text-align:center;
+  font-size:13px;
+  font-weight:1000;
+  letter-spacing:.4px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.03);
 }
 .calc-divider.calc-red{
-  border-color: rgba(239,68,68,.40);
-  box-shadow: 0 0 0 1px rgba(239,68,68,.14), 0 0 18px rgba(239,68,68,.14);
+  border-color:rgba(239,68,68,.40);
+  box-shadow:0 0 0 1px rgba(239,68,68,.14), 0 0 18px rgba(239,68,68,.14);
 }
+.calc-grid{ margin-top:0; }
 
-.calc-grid{ margin-top: 0; }
+/* =========================================================
+   ✅ Menu cards (home & shared)
+   - ✅ 이미지 비율(20:7)로 프레임 생성 → 높이 통일
+   ========================================================= */
 .menu-card{
-  display: block;
-  text-decoration: none;
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.14);
-  background: #000;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(255,255,255,.06), 0 14px 36px rgba(0,0,0,.80);
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  display:flex;
+  flex-direction:column;
+  text-decoration:none;
+  border-radius:var(--radius-card);
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.14);
+  background:#000;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 14px 36px rgba(0,0,0,.80);
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  min-width:0;
 }
 .menu-card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(250,204,21,.35);
-  box-shadow: 0 0 0 1px rgba(250,204,21,.18), 0 0 26px rgba(250,204,21,.12), 0 18px 44px rgba(0,0,0,.80);
-}
-.menu-card-media img{
-  width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-}
-.menu-card-footer{
-  padding: 12px 14px;
-  border-top: 1px solid rgba(255,255,255,.10);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.menu-card-title{
-  font-size: 13px;
-  font-weight: 1000;
-  color: #e5e7eb;
-  line-height: 1.2;
-}
-.menu-card-meta{
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  transform:translateY(-1px);
+  border-color:rgba(250,204,21,.35);
+  box-shadow:0 0 0 1px rgba(250,204,21,.18), 0 0 26px rgba(250,204,21,.12), 0 18px 44px rgba(0,0,0,.80);
 }
 
-.status-badge{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 1000;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.04);
-  color: #e5e7eb;
+/* ✅ 기본 카드 이미지 영역: 20:7 */
+.menu-card-media{
+  width:100%;
+  aspect-ratio: var(--menu-media-ratio);
+  background:#000;
+  overflow:hidden;
 }
+.menu-card-media img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  object-position:center;
+}
+
+.menu-card-footer{
+  min-height:var(--menu-caption-h);
+  margin-top:auto;
+  padding:12px 14px;
+  border-top:1px solid rgba(255,255,255,.10);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.menu-card-title{
+  font-size:13px;
+  font-weight:1000;
+  color:#e5e7eb;
+  line-height:1.2;
+}
+.menu-card-meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+/* ------------------------------- Status badge ------------------------------- */
+.status-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:26px;
+  padding:0 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:1000;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.04);
+  color:#e5e7eb;
+}
+
+/* 기존 "사용 가능" 배지(초록) 유지 */
 .status-badge.is-live{
-  border-color: rgba(73,209,125,.40);
-  background: rgba(73,209,125,.10);
-  color: rgba(186,247,208,.98);
+  border-color:rgba(73,209,125,.40);
+  background:rgba(73,209,125,.10);
+  color:rgba(186,247,208,.98);
+}
+
+/* ✅ Donate CLICK만 주황 */
+.status-badge.is-click{
+  border-color: rgba(234, 88, 12, .98);
+  background: rgba(234, 88, 12, .16);
+  color: rgba(234, 88, 12, .98);
+  box-shadow:
+    0 0 0 1px rgba(234, 88, 12, .22),
+    0 0 18px rgba(234, 88, 12, .35),
+    0 0 36px rgba(234, 88, 12, .25);
 }
 
 /* =========================================================
-   ✅ 추가 보정
+   ✅ Home donate card
+   - 가운데 정렬 유지
+   - footer 없음
+   - CLICK 배지: 이미지 내부 우측 상단
    ========================================================= */
-.radio-row{ margin-bottom: 12px; }
+.home-donate{
+  display:flex;
+  justify-content:center;
+}
 
-/* INPUT / SELECT 전용 폰트 분리 */
+/* 데스크탑: 그리드 2열의 "한 칸" 폭에 맞춤 */
+@media (min-width:721px){
+  .home-donate{
+    max-width: calc((980px - 12px) / 2);
+    margin-left:auto;
+    margin-right:auto;
+    width:100%;
+  }
+}
+
+/* donate 전용 비율: 1536 x 866 */
+.menu-card.is-donate .menu-card-media{
+  aspect-ratio: 1536 / 866;
+  position: relative; /* ✅ 배지 absolute 기준 */
+}
+
+/* 배지 위치 */
+.menu-card.is-donate .donate-badge{
+  position:absolute;
+  top:12px;
+  right:12px;
+  z-index:2;
+  pointer-events:none;
+}
+
+/* =========================================================
+   ✅ Calculator pages donate card (기존 요구 유지)
+   - PC에서 너무 길어지면 폭 제한
+   ========================================================= */
+body:not(.home-page) .menu-card.is-donate{
+  width:100%;
+  max-width:520px;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+/* =========================================================
+   ✅ 추가 보정 (기존 유지)
+   ========================================================= */
 input.input,
 select.input,
 .hp-rowbox-right{
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-               Roboto, "Noto Sans KR", Arial, sans-serif;
-  font-weight: 600;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,sans-serif;
+  font-weight:600;
+}
+#guildGciBlock .label{ margin-top:16px; }
+
+/* ------------------------------- Footer / Ads ------------------------------- */
+.site-footer{
+  text-align:center;
+  margin:48px 0 24px;
+  font-size:13px;
+  opacity:.7;
+}
+.footer-link{ color:inherit; text-decoration:none; }
+.footer-link:hover{ text-decoration:underline; }
+.ads-wrapper{
+  max-width:1200px;
+  margin:32px auto;
+  padding:0 12px;
 }
 
-/* 길드 보너스 (GCI DMG) 라벨 위 여백 보정 */
-#guildGciBlock .label{ margin-top: 16px; }
-
-.site-footer {
-  text-align: center;
-  margin: 48px 0 24px;
-  font-size: 13px;
-  opacity: 0.7;
-}
-
-.footer-link {
-  color: inherit;
-  text-decoration: none;
-}
-
-.footer-link:hover {
-  text-decoration: underline;
-}
-.ads-wrapper {
-  max-width: 1200px;
-  margin: 32px auto;
-  padding: 0 12px;
-}
-
-.donation-link {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-}
-
-.donation-image {
-  width: 100%;
-  max-width: 520px;
-  border-radius: 14px;
-  outline: 2px solid rgba(255, 255, 255, 0.12);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, outline-color 0.15s ease;
-}
-
-.donation-link:hover .donation-image {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
-  outline-color: rgba(255, 255, 255, 0.28);
-}
-
-/* 오른쪽 위 "CLICK" 배지 */
-.donation-link::after {
-  content: "CLICK";
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  border-radius: 999px;
-
-  color: #2b1a00;
-  background: linear-gradient(180deg, #ffd84d, #ffb800);
-  border: 1px solid rgba(255, 200, 0, 0.9);
-
-  box-shadow:
-    0 0 6px rgba(255, 200, 0, 0.6),
-    0 0 14px rgba(255, 170, 0, 0.35);
-
-  animation: clickPulse 2.2s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* 호버 시 강조 */
-.donation-link:hover::after {
-  transform: scale(1.08);
-  box-shadow:
-    0 0 10px rgba(255, 210, 0, 0.9),
-    0 0 22px rgba(255, 180, 0, 0.55);
-}
-
-/* 미세한 펄스 애니메이션 */
-@keyframes clickPulse {
-  0% {
-    box-shadow:
-      0 0 6px rgba(255, 200, 0, 0.55),
-      0 0 14px rgba(255, 170, 0, 0.35);
-  }
-  50% {
-    box-shadow:
-      0 0 10px rgba(255, 220, 0, 0.9),
-      0 0 26px rgba(255, 190, 0, 0.6);
-  }
-  100% {
-    box-shadow:
-      0 0 6px rgba(255, 200, 0, 0.55),
-      0 0 14px rgba(255, 170, 0, 0.35);
-  }
-}
-
-/* 키보드 탭 접근성 */
-.donation-link:focus-visible .donation-image {
-  outline: 3px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 2px;
-}
+/* =========================================================
+   ✅ Artifact page
+   - 여기 아래에 너의 artifact CSS 원본을 그대로 이어붙이면 됨
+   ========================================================= */

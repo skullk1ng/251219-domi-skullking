@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta name="build-mark" content="MISSILE-CALC-20251226-DMG-TWOLINES-PCT-AUTO" />
+  <meta name="build-mark" content="AIRDEFENSE-CALC-20251226-UNIFIED-ALLRESEARCH-SCANFIX" />
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dominations Calculator</title>
-  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon">
+  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon" />
   <link rel="stylesheet" href="./style.css" />
 
   <!-- Cloudflare Web Analytics -->
@@ -25,23 +25,23 @@
   </nav>
 
   <header class="app-header">
-    <h1>미사일 격납고 &amp; 파괴전술</h1>
+    <h1>방공시설 &amp; 파괴전술</h1>
     <p class="sub notice-hint">입력에 필요한 각종 수치는 최하단 참고테이블 확인</p>
   </header>
 
   <div class="container hero">
-    <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="미사일 격납고 계산기 배너">
-      <img src="./image/banner/MissileCal.png" alt="미사일 격납고 & 파괴전술" />
+    <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="방공시설 계산기 배너">
+      <img src="./image/banner/AirDefenseCal.png" alt="방공시설 & 파괴전술" />
     </a>
   </div>
 
   <!-- 광고 1 -->
   <ins class="adsbygoogle"
-    style="display:block"
-    data-ad-client="ca-pub-8903566119278456"
-    data-ad-slot="1549229197"
-    data-ad-format="auto"
-    data-full-width-responsive="true"></ins>
+       style="display:block"
+       data-ad-client="ca-pub-8903566119278456"
+       data-ad-slot="1549229197"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
   <script>
     (adsbygoogle = window.adsbygoogle || []).push({});
   </script>
@@ -49,10 +49,10 @@
   <main class="container">
 
     <!-- =========================
-         A) 미사일 격납고 HP
+         A) 방공시설 HP
     ========================== -->
     <section class="card">
-      <h2>미사일 격납고 HP</h2>
+      <h2>방공시설 HP</h2>
 
       <div class="grid2">
         <div>
@@ -61,7 +61,7 @@
         </div>
 
         <div>
-          <label class="label">상대 미사일격납고 기본 HP</label>
+          <label class="label">상대 방공시설 기본 HP</label>
           <input id="baseHp" class="input" type="text" inputmode="numeric" pattern="[0-9,]*"
                  autocomplete="off" value="0" />
         </div>
@@ -70,13 +70,16 @@
       <details class="details">
         <summary>HP 보너스 - 선택</summary>
 
-        <!-- ✅ AUTO(연구/연맹/길드 + 모든 연구 완료) -->
+        <!-- ✅ AUTO(연구/길드/연맹 + 모든 연구 완료) -->
         <div id="hpAutoMount"></div>
 
-        <!-- (유지용 Mount: 다른 페이지들과 구조 일치) -->
+        <!-- ✅ 협의회/유물/침략(-HP) 입력 -->
         <div id="hpCouncilRelicMount"></div>
 
-        <!-- 사용자 추가 보너스 -->
+        <!-- ✅ 제조소 (2슬롯 / 중복불가) + 연구조건 -->
+        <div id="manuMount"></div>
+
+        <!-- ✅ 사용자 추가 보너스 -->
         <div id="hpBonusList" class="bonus-list"></div>
 
         <div class="row">
@@ -119,10 +122,11 @@
       <details class="details">
         <summary>DMG 보너스 - 선택</summary>
 
-        <!-- ✅ AUTO(고정 연구, 몽골, 정찰기 기본 스캔 + 모든 연구 완료) -->
+        <!-- ✅ AUTO(고정 연구, 몽골, 정찰스캔 + 모든 연구 완료)
+             - "정찰 항공기 +10%", "손자 +20%" 체크는 airdefense.js가 이 박스 안의 '정찰기 스캔' 영역에 생성 -->
         <div id="dmgAutoMount"></div>
 
-        <!-- 사용자 추가 보너스(필요시) -->
+        <!-- ✅ 사용자 추가 보너스 -->
         <div id="dmgBonusList" class="bonus-list"></div>
 
         <div class="row">
@@ -133,12 +137,12 @@
 
       <div class="result">
         <div class="result-row">
-          <span>파괴전술 DMG 합계</span>
+          <span>합계 DMG</span>
           <b id="totalDmg">-</b>
         </div>
-        <div class="result-row">
-          <span>정찰기 스캔 + 파괴전술 DMG</span>
-          <b id="totalDmgScan">-</b>
+        <div class="result-row small">
+          <span>총 추가 수치(%)</span>
+          <span id="dmgBonusSum">-</span>
         </div>
       </div>
     </section>
@@ -169,16 +173,9 @@
 
         <div class="grid2 ref-grid">
           <div class="ref-box">
-            <h3 class="h3">미사일 격납고 HP+ 고문관</h3>
+            <h3 class="h3">방공시설 HP+ 고문관</h3>
             <div class="ref-inner">
-              <div id="tableAdvisorsHp" class="mono"></div>
-            </div>
-          </div>
-
-          <div class="ref-box">
-            <h3 class="h3">정찰 스캔 데미지+ 고문관</h3>
-            <div class="ref-inner">
-              <div id="tableAdvisorsScanDmg" class="mono"></div>
+              <div id="tableAdvisorsAirdefHp" class="mono"></div>
             </div>
           </div>
         </div>
@@ -187,7 +184,7 @@
 
   </main>
 
-  <script src="./missile.js"></script>
+  <script src="./airdefense.js"></script>
 
 <!-- ✅ Donate (main page menu-card style) -->
 <div class="home-grid calc-grid" style="grid-template-columns: 1fr;">

@@ -1,5 +1,6 @@
 /* =========================================================
    Dominations Calculator - 방공시설 & 파괴전술 계산기
+   (20251226 - DMG 2줄표기 + 정찰스캔 합계표기 + 협의회 % 자동)
    ========================================================= */
 
 (() => {
@@ -11,7 +12,8 @@
      Utils
   ------------------------------- */
   function safeNum(v) {
-    const n = Number(String(v ?? "").replace(/,/g, ""));
+    // ✅ 쉼표/공백/% 제거 후 숫자 파싱 (예: "10%" -> 10)
+    const n = Number(String(v ?? "").replace(/[,%\s]/g, ""));
     return Number.isFinite(n) ? n : 0;
   }
   function fmtInt(n) {
@@ -58,6 +60,7 @@
     }, "comma_blur");
   }
 
+  // (기존) 숫자만 입력되는 % 입력(표시에는 %를 붙이지 않음)
   function enablePctInput(inputEl, onCommit) {
     if (!inputEl) return;
 
@@ -72,12 +75,35 @@
     }, "pct_blur");
   }
 
+  // ✅ 입력 시 자동으로 "정수%"로 표기 (예: 10 -> 10%)
+  function enablePctSuffixInput(inputEl, onCommit, min = -999, max = 999) {
+    if (!inputEl) return;
+
+    bindOnce(inputEl, "focus", () => {
+      inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+    }, "pctSuf_focus");
+
+    bindOnce(inputEl, "input", () => {
+      inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+      onCommit?.();
+    }, "pctSuf_input");
+
+    bindOnce(inputEl, "blur", () => {
+      let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+      if (raw === "" || raw === "-") raw = "0";
+      let n = Number(raw);
+      if (!Number.isFinite(n)) n = 0;
+      n = clamp(Math.trunc(n), min, max);
+      inputEl.value = `${n}%`;
+      onCommit?.();
+    }, "pctSuf_blur");
+  }
+
   // ✅ -85 ~ 0 강제(양수 입력해도 blur에서 음수로)
   function enableNegPctRange(inputEl, minNeg, maxNeg, onCommit) {
     if (!inputEl) return;
 
     bindOnce(inputEl, "input", () => {
-      // 입력 중에는 숫자/마이너스만 허용
       inputEl.value = String(inputEl.value ?? "").replace(/[^0-9\-]/g, "");
       onCommit?.();
     }, "neg_input");
@@ -146,10 +172,16 @@
     { id: "g21", label: "길드 레벨 21 (HP +5%)", pct: 5 },
   ];
 
-  // 고정 DMG 체크(파괴전술)
+  // 고정 DMG 체크(파괴전술) — ✅ 전술 DMG에만 해당 (정찰 관련은 scoutBox로)
   const FIXED_DMG_CHECK_ITEMS = [
     { id: "dmg_lib_tactic", pct: 10, name: "[도서관] 연구:전술" },
     { id: "dmg_uni_suleiman", pct: 10, name: "[유니버시티] 쉘레이만 대제: 파괴 데미지" },
+  ];
+
+  // ✅ 정찰 스캔 관련 체크(airdefense에도 추가)
+  const SCOUT_SCAN_CHECK_ITEMS = [
+    { id: "scan_lib_scout", pct: 10, name: "[도서관] 연구:정찰 항공기 (+10%)" },
+    { id: "scan_uni_suntzu", pct: 20, name: "[유니버시티] 손자: 정찰기 스캔 데미지 보너스 (+20%)" },
   ];
 
   /* -------------------------------
@@ -170,12 +202,12 @@
     { key: "supersonic_mk5_info", age: "정보화", name: "초음속 정찰기 Mk 5", pct: 248 },
     { key: "supersonic_mk6_info", age: "정보화", name: "초음속 정찰기 Mk 6", pct: 250 },
 
-    { key: "spearhead_mk1_drone", age: "드론", name: "스피어헤드 정찰기 Mk 1", pct: 250 },
-    { key: "spearhead_mk2_drone", age: "드론", name: "스피어헤드 정찰기 Mk 2", pct: 250 },
-    { key: "spearhead_mk3_drone", age: "드론", name: "스피어헤드 정찰기 Mk 3", pct: 250 },
-    { key: "spearhead_mk4_drone", age: "드론", name: "스피어헤드 정찰기 Mk 4", pct: 250 },
-    { key: "spearhead_mk5_drone", age: "드론", name: "스피어헤드 정찰기 Mk 5", pct: 250 },
-    { key: "spearhead_mk6_drone", age: "드론", name: "스피어헤드 정찰기 Mk 6", pct: 250 },
+    { key: "spearhead_mk1_drone", age: "드론", name: "선봉 정찰기 Mk 1", pct: 250 },
+    { key: "spearhead_mk2_drone", age: "드론", name: "선봉 정찰기 Mk 2", pct: 250 },
+    { key: "spearhead_mk3_drone", age: "드론", name: "선봉 정찰기 Mk 3", pct: 250 },
+    { key: "spearhead_mk4_drone", age: "드론", name: "선봉 정찰기 Mk 4", pct: 250 },
+    { key: "spearhead_mk5_drone", age: "드론", name: "선봉 정찰기 Mk 5", pct: 250 },
+    { key: "spearhead_mk6_drone", age: "드론", name: "선봉 정찰기 Mk 6", pct: 250 },
 
     { key: "captains_mk1_auto", age: "자동화", name: "캡틴스 정찰기 Mk 1", pct: 250 },
     { key: "captains_mk2_auto", age: "자동화", name: "캡틴스 정찰기 Mk 2", pct: 250 },
@@ -184,16 +216,16 @@
     { key: "captains_mk5_auto", age: "자동화", name: "캡틴스 정찰기 Mk 5", pct: 250 },
     { key: "captains_mk6_auto", age: "자동화", name: "캡틴스 정찰기 Mk 6", pct: 250 },
 
-    { key: "majors_mk1_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 1",  pct: 252 },
-    { key: "majors_mk2_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 2",  pct: 252 },
-    { key: "majors_mk3_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 3",  pct: 252 },
-    { key: "majors_mk4_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 4",  pct: 252 },
-    { key: "majors_mk5_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 5",  pct: 252 },
-    { key: "majors_mk6_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 6",  pct: 252 },
-    { key: "majors_mk7_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 7",  pct: 252 },
-    { key: "majors_mk8_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 8",  pct: 252 },
-    { key: "majors_mk9_robot",  age: "로봇공학", name: "메이저스 정찰기 Mk 9",  pct: 252 },
-    { key: "majors_mk10_robot", age: "로봇공학", name: "메이저스 정찰기 Mk 10", pct: 252 },
+    { key: "majors_mk1_robot",  age: "로봇공학", name: "소령 정찰기 Mk 1",  pct: 252 },
+    { key: "majors_mk2_robot",  age: "로봇공학", name: "소령 정찰기 Mk 2",  pct: 252 },
+    { key: "majors_mk3_robot",  age: "로봇공학", name: "소령 정찰기 Mk 3",  pct: 252 },
+    { key: "majors_mk4_robot",  age: "로봇공학", name: "소령 정찰기 Mk 4",  pct: 252 },
+    { key: "majors_mk5_robot",  age: "로봇공학", name: "소령 정찰기 Mk 5",  pct: 252 },
+    { key: "majors_mk6_robot",  age: "로봇공학", name: "소령 정찰기 Mk 6",  pct: 252 },
+    { key: "majors_mk7_robot",  age: "로봇공학", name: "소령 정찰기 Mk 7",  pct: 252 },
+    { key: "majors_mk8_robot",  age: "로봇공학", name: "소령 정찰기 Mk 8",  pct: 252 },
+    { key: "majors_mk9_robot",  age: "로봇공학", name: "소령 정찰기 Mk 9",  pct: 252 },
+    { key: "majors_mk10_robot", age: "로봇공학", name: "소령 정찰기 Mk 10", pct: 252 },
   ];
   const SCOUT_PLANE_SCAN_MAP = Object.fromEntries(SCOUT_PLANE_SCAN_OPTIONS.map(o => [o.key, o]));
   const SCOUT_ALL_RESEARCH_PICK = "majors_mk10_robot"; // ✅ 일괄적용 시 최고값(252%)로 고정
@@ -243,7 +275,7 @@
   let dmgBonuses = [];
 
   /* -------------------------------
-     Recalc scheduler (포커스 끊김 방지)
+     Recalc scheduler
   ------------------------------- */
   let _rafPending = false;
   let _needRerenderBonuses = true;
@@ -325,6 +357,9 @@
   /* -------------------------------
      AUTO Mounts
   ------------------------------- */
+  const FIXED_HP_CHECK_ITEMS_LOCAL = FIXED_HP_CHECK_ITEMS; // keep reference
+  const GUILD_LEVEL_HP_PARTS_LOCAL = GUILD_LEVEL_HP_PARTS;
+
   function mountHpAutoBoxes() {
     const mount = $("hpAutoMount");
     if (!mount) return;
@@ -332,7 +367,6 @@
     mount.dataset.mounted = "1";
 
     mount.innerHTML = `
-      <!-- ✅ 모든 연구 완료(일괄 적용): 초록 텍스트 스타일은 .all-research-box로 통일 -->
       <div class="auto-box all-research-box" id="allHpResearchBox">
         <div class="auto-checks">
           <label class="check-item">
@@ -345,7 +379,7 @@
       <div class="auto-box" id="fixedHpBox">
         <div class="auto-title">[AUTO] 연구/의회 HP+</div>
         <div class="auto-checks">
-          ${FIXED_HP_CHECK_ITEMS.map(it => `
+          ${FIXED_HP_CHECK_ITEMS_LOCAL.map(it => `
             <label class="check-item">
               <input type="checkbox" id="${it.id}" />
               <span>${it.name}</span>
@@ -362,7 +396,7 @@
         <div class="auto-title">[AUTO] 길드 레벨 HP+</div>
         <div class="auto-sub">달성한 길드레벨 모두 체크 (예시: 길드레벨 21 → 3개 모두 체크)</div>
         <div class="auto-checks">
-          ${GUILD_LEVEL_HP_PARTS.map(p => `
+          ${GUILD_LEVEL_HP_PARTS_LOCAL.map(p => `
             <label class="check-item">
               <input type="checkbox" id="guild_${p.id}" />
               <span>${p.label}</span>
@@ -399,7 +433,6 @@
             `).join("")}
           </div>
 
-          <!-- ✅ 요청사항: 합계 수치는 박스 최하단(추가 연구 아래) -->
           <div class="auto-sum" style="margin-top:10px;">
             <span>이집트 합계</span>
             <b id="defEgyptOut">0%</b>
@@ -412,7 +445,6 @@
       </div>
     `;
 
-    // 레벨 옵션 채우기
     const fillAllianceLevelSelect = (selId) => {
       const sel = $(selId);
       if (!sel) return;
@@ -466,7 +498,6 @@
     mount.dataset.mounted = "1";
 
     mount.innerHTML = `
-      <!-- ✅ 모든 연구 완료(일괄 적용) -->
       <div class="auto-box all-research-box" id="allDmgResearchBox">
         <div class="auto-checks">
           <label class="check-item">
@@ -517,20 +548,33 @@
 
       <div class="auto-box" id="scoutBox">
         <div class="auto-title">[AUTO] 정찰기 기본 스캔 데미지</div>
+
         <div>
           <label class="label">정찰기 선택</label>
           <select id="scoutPlane" class="input"></select>
         </div>
-        <div class="auto-sum">
-          <span>수치</span>
-          <b id="scoutAutoOut">0%</b>
+
+        <div class="auto-sub" style="margin-top:10px;">[AUTO] 정찰 스캔 추가 보너스</div>
+        <div class="auto-checks">
+          ${SCOUT_SCAN_CHECK_ITEMS.map(it => `
+            <label class="check-item">
+              <input type="checkbox" id="${it.id}" />
+              <span>${it.name}</span>
+            </label>
+          `).join("")}
         </div>
 
         <div class="hp-rows" style="margin-top:10px;">
           <div class="hp-rowbox hp-yellow">
             <div class="hp-rowbox-left">[공격수 협의회] 정찰 스캔 데미지 보너스</div>
-            <input id="dmg_att_council_scan" class="hp-rowbox-right" value="0" />
+            <input id="dmg_att_council_scan" class="hp-rowbox-right" value="0%" />
           </div>
+        </div>
+
+        <!-- ✅ 요청: 박스 최하단에 "기본 스캔 + 협의회 + 체크 보너스" 합계 표기 -->
+        <div class="auto-sum" style="margin-top:10px;">
+          <span>합계</span>
+          <b id="scoutAutoOut">0%</b>
         </div>
       </div>
     `;
@@ -564,7 +608,8 @@
       scoutSel.value = "";
     }
 
-    enablePctInput($("dmg_att_council_scan"), () => scheduleRecalc(false));
+    // ✅ 협의회 입력: 10 -> 10% 자동
+    enablePctSuffixInput($("dmg_att_council_scan"), () => scheduleRecalc(false), 0, 999);
   }
 
   /* -------------------------------
@@ -912,67 +957,78 @@
     return pct;
   }
 
-  function calcScoutScanSum() {
+  // ✅ 정찰 스캔: "기본 스캔"만
+  function getScoutBaseScanPct() {
     const key = $("scoutPlane")?.value || "";
     const picked = key && key !== "__sep__" ? SCOUT_PLANE_SCAN_MAP[key] : null;
-    const pct = picked ? picked.pct : 0;
+    return picked ? picked.pct : 0;
+  }
+
+  // ✅ 정찰 스캔 추가 체크(도서관/유니버시티)
+  function getScoutExtraScanPctFromChecks() {
+    return SCOUT_SCAN_CHECK_ITEMS.reduce((acc, it) => acc + ($(it.id)?.checked ? it.pct : 0), 0);
+  }
+
+  // ✅ 표시용: (기본 + 체크 + 협의회) 합계 출력
+  function calcAndRenderScoutFinalScanPct() {
+    const base = getScoutBaseScanPct();
+    const extraChecks = getScoutExtraScanPctFromChecks();
+    const council = safeNum($("dmg_att_council_scan")?.value); // "30%"도 safeNum이 30으로 처리
+    const total = base + extraChecks + council;
 
     const out = $("scoutAutoOut");
-    if (out) out.textContent = `${pct}%`;
-    return pct;
+    if (out) out.textContent = `${total}%`;
+
+    return { base, extraChecks, council, total };
   }
 
   /* -------------------------------
      모든 연구 완료 적용
   ------------------------------- */
   function applyAllHpResearchUI(on) {
-    // ✅ 제조소 드롭다운 4개는 절대 건드리지 않음
+    // 제조소 드롭다운 4개는 절대 건드리지 않음
 
-    // 1) 고정 HP 체크
     FIXED_HP_CHECK_ITEMS.forEach(it => {
       const cb = $(it.id);
       if (cb) cb.checked = on;
     });
 
-    // 2) 길드 체크
     GUILD_LEVEL_HP_PARTS.forEach(p => {
       const cb = $(`guild_${p.id}`);
       if (cb) cb.checked = on;
     });
 
-    // 3) 연맹 레벨: 이집트/러시아 8 또는 0
     if ($("defEgyptLevel"))  $("defEgyptLevel").value  = on ? "8" : "0";
     if ($("defRussiaLevel")) $("defRussiaLevel").value = on ? "8" : "0";
 
-    // 4) 연맹 추가 연구(3개)
     ALLIANCE_EXTRA_OPTIONS.forEach(o => {
       const cb = $(`defhp_${o.key}`);
       if (cb) cb.checked = on;
     });
-
-    // 협의회/유물 입력칸 + 사용자 보너스는 일괄 적용 대상에서 제외
   }
 
   function applyAllDmgResearchUI(on) {
-    // 1) 고정 DMG 체크
     FIXED_DMG_CHECK_ITEMS.forEach(it => {
       const cb = $(it.id);
       if (cb) cb.checked = on;
     });
 
-    // 2) 몽골 레벨 8 또는 0
     if ($("mongolLevel")) $("mongolLevel").value = on ? "8" : "0";
 
-    // 3) 몽골 추가 연구 3개
     ALLIANCE_EXTRA_OPTIONS.forEach(o => {
       const cb = $(`mongol_${o.key}`);
       if (cb) cb.checked = on;
     });
 
-    // 4) 정찰기 스캔: 최고값(252%) 또는 해제
     if ($("scoutPlane")) $("scoutPlane").value = on ? SCOUT_ALL_RESEARCH_PICK : "";
 
-    // 5) 정찰 스캔 협의회 입력칸은 일괄 적용 대상에서 제외 (원하면 여기서 처리)
+    // ✅ 정찰 스캔 체크도 "모든 연구 완료"에 포함
+    SCOUT_SCAN_CHECK_ITEMS.forEach(it => {
+      const cb = $(it.id);
+      if (cb) cb.checked = on;
+    });
+
+    // 협의회 입력칸은 제외(기존 정책 유지)
   }
 
   function restoreAllResearchCheckboxes() {
@@ -1020,24 +1076,31 @@
     if ($("hpBonusSum")) $("hpBonusSum").textContent = fmtPctInt(hpSumPct);
     if ($("totalHp")) $("totalHp").textContent = fmtInt(totalHp);
 
-    // DMG
+    // DMG (파괴전술 DMG는 "전술 DMG 보너스"만 적용)
     const dmgAuto =
       calcFixedDmgSum()
-      + calcMongolDmgSum()
-      + calcScoutScanSum()
-      + safeNum($("dmg_att_council_scan")?.value);
+      + calcMongolDmgSum();
 
     const dmgUser = sumBonusPct(dmgBonuses);
     const dmgSumPct = dmgAuto + dmgUser;
 
-    const totalDmg = baseDmg * (1 + dmgSumPct / 100);
+    const tacticDmg = baseDmg * (1 + dmgSumPct / 100); // ✅ 파괴전술 DMG 합계
 
-    // 제조소 “피격 감소”는 파괴전술에만 적용
+    // 정찰 스캔: (기본 + 체크 + 협의회) 합계
+    const scan = calcAndRenderScoutFinalScanPct();
+    const dmgWithScan = tacticDmg * (scan.total / 100); // ✅ 정찰기 스캔 + 파괴전술 DMG
+
+    // 제조소 “피격 감소”는 파괴전술에만 적용(스캔 곱까지 끝난 뒤 동일하게 감소)
     const tacticReduce = (manu?.tacticReduce || 0);
-    const dmgAfterReduce = totalDmg * (1 - tacticReduce / 100);
+    const dmgAfterReduce = dmgWithScan * (1 - tacticReduce / 100);
 
     if ($("dmgBonusSum")) $("dmgBonusSum").textContent = fmtPctInt(dmgSumPct);
-    if ($("totalDmg")) $("totalDmg").textContent = fmtInt(totalDmg);
+
+    // ✅ 기존 id(totalDmg)는 "파괴전술 DMG 합계"로 사용
+    if ($("totalDmg")) $("totalDmg").textContent = fmtInt(tacticDmg);
+
+    // ✅ 새 id(totalDmgScan)가 있으면 "정찰기 스캔 + 파괴전술 DMG" 출력
+    if ($("totalDmgScan")) $("totalDmgScan").textContent = fmtInt(dmgWithScan);
 
     // Need count
     const raw = dmgAfterReduce > 0 ? (totalHp / dmgAfterReduce) : NaN;
@@ -1052,25 +1115,20 @@
     setCommaInputValue("baseHp", 0);
     if ($("enemyAgeHp")) $("enemyAgeHp").value = "";
 
-    // ✅ 모든 연구 완료 해제
     allHpResearchOn = false;
     if ($("allHpResearchApply")) $("allHpResearchApply").checked = false;
 
-    // 연구/의회, 길드
     FIXED_HP_CHECK_ITEMS.forEach(it => { const cb = $(it.id); if (cb) cb.checked = false; });
     GUILD_LEVEL_HP_PARTS.forEach(p => { const cb = $(`guild_${p.id}`); if (cb) cb.checked = false; });
 
-    // 연맹(HP+)
     if ($("defEgyptLevel"))  $("defEgyptLevel").value  = "0";
     if ($("defRussiaLevel")) $("defRussiaLevel").value = "0";
     ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`defhp_${o.key}`); if (cb) cb.checked = false; });
 
-    // 협의회/유물/공격유물
     if ($("hp_def_council_airdef")) $("hp_def_council_airdef").value = "0";
     if ($("hp_def_relic_airdef"))   $("hp_def_relic_airdef").value = "0";
     if ($("hp_att_relic_enemy_tower")) $("hp_att_relic_enemy_tower").value = "0";
 
-    // 제조소(요청사항대로 일괄적용에서도 제외, 초기화는 기존대로 0)
     manuSlot1 = { equip: "", level: 0 };
     manuSlot2 = { equip: "", level: 0 };
     if ($("manuEquip1")) $("manuEquip1").value = "";
@@ -1088,7 +1146,6 @@
     setCommaInputValue("baseDmg", 0);
     if ($("tacticLevel")) $("tacticLevel").value = "";
 
-    // ✅ 모든 연구 완료 해제
     allDmgResearchOn = false;
     if ($("allDmgResearchApply")) $("allDmgResearchApply").checked = false;
 
@@ -1098,7 +1155,9 @@
     ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`mongol_${o.key}`); if (cb) cb.checked = false; });
 
     if ($("scoutPlane")) $("scoutPlane").value = "";
-    if ($("dmg_att_council_scan")) $("dmg_att_council_scan").value = "0";
+    SCOUT_SCAN_CHECK_ITEMS.forEach(it => { const cb = $(it.id); if (cb) cb.checked = false; });
+
+    if ($("dmg_att_council_scan")) $("dmg_att_council_scan").value = "0%";
 
     dmgBonuses = [];
     scheduleRecalc(true);
@@ -1123,7 +1182,7 @@
       scheduleRecalc(false);
     }, "tacticLevel_change");
 
-    // ✅ 모든 연구 완료(HP)
+    // 모든 연구 완료(HP)
     bindOnce($("allHpResearchApply"), "change", (e) => {
       const on = !!e.target.checked;
       allHpResearchOn = on;
@@ -1131,7 +1190,7 @@
       scheduleRecalc(false);
     }, "allHpResearchApply_change");
 
-    // ✅ 모든 연구 완료(DMG)
+    // 모든 연구 완료(DMG)
     bindOnce($("allDmgResearchApply"), "change", (e) => {
       const on = !!e.target.checked;
       allDmgResearchOn = on;
@@ -1153,8 +1212,10 @@
     // DMG: 몽골
     bindOnce($("mongolLevel"), "change", () => scheduleRecalc(false), "mongolLevel_change");
     ALLIANCE_EXTRA_OPTIONS.forEach(o => bindOnce($(`mongol_${o.key}`), "change", () => scheduleRecalc(false), `mongol_${o.key}`));
-    // DMG: 정찰기 선택
+
+    // ✅ 정찰기 선택/정찰체크
     bindOnce($("scoutPlane"), "change", () => scheduleRecalc(false), "scoutPlane_change");
+    SCOUT_SCAN_CHECK_ITEMS.forEach(it => bindOnce($(it.id), "change", () => scheduleRecalc(false), `scan_${it.id}`));
 
     // + 항목 추가
     bindOnce($("addHpBonus"), "click", () => {
