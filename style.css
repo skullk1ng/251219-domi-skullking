@@ -937,3 +937,80 @@ select.input,
   margin: 32px auto;
   padding: 0 12px;
 }
+
+.donation-link {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.donation-image {
+  width: 100%;
+  max-width: 520px;
+  border-radius: 14px;
+  outline: 2px solid rgba(255, 255, 255, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, outline-color 0.15s ease;
+}
+
+.donation-link:hover .donation-image {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  outline-color: rgba(255, 255, 255, 0.28);
+}
+
+/* 오른쪽 위 "CLICK" 배지 */
+.donation-link::after {
+  content: "CLICK";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  border-radius: 999px;
+
+  color: #2b1a00;
+  background: linear-gradient(180deg, #ffd84d, #ffb800);
+  border: 1px solid rgba(255, 200, 0, 0.9);
+
+  box-shadow:
+    0 0 6px rgba(255, 200, 0, 0.6),
+    0 0 14px rgba(255, 170, 0, 0.35);
+
+  animation: clickPulse 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 호버 시 강조 */
+.donation-link:hover::after {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 10px rgba(255, 210, 0, 0.9),
+    0 0 22px rgba(255, 180, 0, 0.55);
+}
+
+/* 미세한 펄스 애니메이션 */
+@keyframes clickPulse {
+  0% {
+    box-shadow:
+      0 0 6px rgba(255, 200, 0, 0.55),
+      0 0 14px rgba(255, 170, 0, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(255, 220, 0, 0.9),
+      0 0 26px rgba(255, 190, 0, 0.6);
+  }
+  100% {
+    box-shadow:
+      0 0 6px rgba(255, 200, 0, 0.55),
+      0 0 14px rgba(255, 170, 0, 0.35);
+  }
+}
+
+/* 키보드 탭 접근성 */
+.donation-link:focus-visible .donation-image {
+  outline: 3px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
