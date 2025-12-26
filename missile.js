@@ -645,7 +645,7 @@ function mountDmgAutoBoxes() {
 
       <!-- ✅ 표시 수치: (정찰기 기본 + 협의회 입력) 합계를 박스 최하단에 표기 -->
       <div class="auto-sum" style="margin-top:12px;">
-        <span>수치</span>
+        <span>합계</span>
         <b id="scoutAutoOut">0%</b>
       </div>
     </div>
@@ -888,7 +888,7 @@ function recalc(rerenderBonuses) {
   if ($("totalDmgScan")) $("totalDmgScan").textContent = fmtInt(totalDmgScan);
 
   // ✅ 스캔 박스 최하단 수치 = (정찰기 기본 + 협의회 입력)
-  if ($("scoutAutoOut")) $("scoutAutoOut").textContent = fmtPctInt(scoutBasePct + councilScanPct);
+if ($("scoutAutoOut")) $("scoutAutoOut").textContent = fmtPctInt(scanTotalPct);
 
   // ✅ 필요 개수 = HP ÷ (정찰기 스캔 + 파괴전술 DMG)
   const raw = Number.isFinite(totalDmgScan) && totalDmgScan > 0 ? (totalHp / totalDmgScan) : NaN;
