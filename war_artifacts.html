@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Artifacts</title>
+  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="./style.css" />
+    <script async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8903566119278456"
+    crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <nav class="top-nav">
+    <a class="top-nav-btn active" href="./index.html">MAIN</a>
+  </nav>
+  <header class="app-header">
+    <h1>뮤지엄 전쟁 유물</h1>
+    <p class="sub">월드워 유물 리스트</p>
+  </header>
+    <div class="container hero">
+    <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="뮤지엄 전쟁 유물 배너">
+      <img src="./image/banner/war_artifacts.png" alt="뮤지엄 전쟁 유물" />
+    </a>
+  </div>
+    <!-- 광고 (필터와 유물 목록 사이) -->
+    <ins class="adsbygoogle"
+      style="display:block"
+      data-ad-client="ca-pub-8903566119278456"
+      data-ad-slot="1549229197"
+      data-ad-format="auto"
+      data-full-width-responsive="true"></ins>
+    <script>
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+
+  <main class="container">
+
+    <section class="card">
+      <h2>필터</h2>
+
+      <div class="grid2">
+        <div>
+          <label class="label" for="artifactSearch">유물 검색</label>
+          <input
+            id="artifactSearch"
+            class="input"
+            type="text"
+            placeholder="ex) 팀파니 / Caligula"
+            autocomplete="off"
+          />
+        </div>
+
+        <div>
+          <label class="label" for="uniqueFilterSearch">옵션 검색</label>
+          <input
+            id="uniqueFilterSearch"
+            class="input"
+            type="text"
+            placeholder="ex) 수비병 소환 시간 / 빠른 승리 제한 시간"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <div class="artifact-filterbar">
+        <label class="artifact-filter-check">
+          <input id="archaeology" type="checkbox" />
+          <span>[도서관] 고고학 위업 적용(+1)</span>
+        </label>
+
+        <button id="clearFilters" class="btn ghost" type="button">필터 초기화</button>
+      </div>
+
+      <div id="uniqueFilters" class="artifact-chip-wrap" style="display:none;"></div>
+    </section>
+
+    <section class="card">
+      <h2>유물 목록</h2>
+
+      <div class="artifact-head">
+        <div>이름</div>
+        <div>영문</div>
+        <div class="center">등급</div>
+        <div>옵션</div>
+        <div class="right">수치</div>
+        <div class="right">가격</div>
+      </div>
+
+      <p class="hint spaced">모든 옵션 수치는 업그레이드가 완료된 기준입니다.</p>
+
+      <div id="artifactList" class="artifact-list"></div>
+    </section>
+
+    <!-- ✅ Donate (main page menu-card style) -->
+    <div class="home-grid calc-grid" style="grid-template-columns: 1fr;">
+      <a class="menu-card is-live is-donate" href="https://buymeacoffee.com/skullking" target="_blank" rel="noopener"
+         aria-label="Donate Crowns (새 창)">
+        <div class="menu-card-media">
+          <img src="./image/banner/donate-crown.png" alt="Donate Crowns" />
+        </div>
+
+        <div class="menu-card-footer">
+          <div class="menu-card-meta">
+            <span class="status-badge is-live">CLICK</span>
+          </div>
+        </div>
+      </a>
+    </div>
+
+  </main>
+
+  <!-- ✅ 파일명 확정: war_artifacts.js -->
+  <script src="./war_artifacts.js"></script>
+</body>
+</html>
