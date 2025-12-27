@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dominations Calculator</title>
+
+  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- Cloudflare Web Analytics -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+    data-cf-beacon='{"token":"2b1e83f1ff33451e962b87aacda98765"}'></script>
+  <!-- End Cloudflare Web Analytics -->
+
+  <!-- AdSense 공통 로더 -->
+  <script async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8903566119278456"
+    crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <nav class="top-nav">
+    <a class="top-nav-btn active" href="./index.html">MAIN</a>
+  </nav>
+
+  <header class="app-header">
+    <h1>유료상품 금액 비교 계산기</h1>
+    <p class="sub notice-hint">특가 및 패키지 상품의 가치를 크라운으로 자동 환산합니다.</p>
+  </header>
+
+  <div class="container hero">
+    <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="크라운 계산기 배너">
+      <img src="./image/banner/Main.png" alt="Crown Calculator" />
+    </a>
+  </div>
+
+  <!-- 광고 1 -->
+  <ins class="adsbygoogle"
+    style="display:block"
+    data-ad-client="ca-pub-8903566119278456"
+    data-ad-slot="1549229197"
+    data-ad-format="auto"
+    data-full-width-responsive="true"></ins>
+  <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  </script>
+
+  <main class="container">
+
+    <!-- =========================
+         A) 비교 기준 (읽기 전용)
+    ========================== -->
+    <section class="card">
+      <h2>비교 기준 (Standard)</h2>
+      <div class="hint">상시 판매되고 있는 가장 저렴한 금액입니다.</div>
+
+      <div class="result" style="margin-top:12px;">
+
+        <div class="result-row small">
+          <span>크라운 180,000개</span>
+          <span><b id="outWebCrownUsd">199.99 USD</b></span>
+        </div>
+
+        <div class="result-row small">
+          <span>전설토큰 120개</span>
+          <span>
+            <b id="outIngameTokenCrowns">8,500 크라운</b>
+            <span class="muted"> / </span>
+            <b id="outIngameTokenUsd">-</b>
+          </span>
+        </div>
+
+        <div class="result-row small" id="rateRow">
+          <span>실시간 환율 (USD→KRW)</span>
+          <span class="rate-right">
+            <b id="outUsdKrwRate">-</b>
+            <button
+              id="btnRefreshRate"
+              type="button"
+              class="icon-btn rate-refresh"
+              aria-label="환율 새로고침"
+              title="환율 새로고침"
+            >⟳</button>
+          </span>
+        </div>
+
+<div class="hint rate-note">*유럽 중앙은행(ECB) 기준</div>
+
+      </div>
+    </section>
+
+<!-- =========================
+     B) 비교 상품
+========================== -->
+<section class="card" id="productCard">
+  <h2>비교 상품 (Comparison)</h2>
+
+  <div class="grid2" style="margin-top:12px;">
+    <div>
+      <label class="label">상품 가격 입력 (KRW)</label>
+      <input id="pkgPriceKrw" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+    </div>
+    <div>
+      <label class="label">자동 환산 (USD)</label>
+      <div class="input" style="display:flex; align-items:center; justify-content:space-between;">
+        <b id="outPkgPriceUsd">-</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:12px;">
+    <div>
+      <label class="label">포함된 크라운 갯수 입력</label>
+      <input id="pkgCrowns" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+    </div>
+    <div>
+      <label class="label">포함된 전설토큰 갯수 입력</label>
+      <input id="pkgTokens" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <label class="label">포함된 스피드업 입력</label>
+    <div class="grid2" style="grid-template-columns: 1fr 1fr; gap:12px;">
+      <div>
+        <input id="pkgSpeedDays" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+        <div class="hint" style="margin-top:6px;">일 (days)</div>
+      </div>
+      <div>
+        <input id="pkgSpeedHours" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+        <div class="hint" style="margin-top:6px;">시간 (hours)</div>
+      </div>
+    </div>
+
+    <div class="result" style="margin-top:10px;">
+      <div class="result-row small">
+        <span>총 스피드업 시간</span>
+        <b id="outSpeedTotalHours">0h</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="auto-box" style="margin-top:14px;">
+    <div class="auto-title">스피드업 효율표</div>
+    <div class="hint">남은 시간 5일 기준(시간 당 10)으로 계산</div>
+    
+  <div class="result-row small">
+    <span><b>즉시 완료 남은 시간</b></span>
+    <span><b>시간 당 크라운</b></span>
+  </div>
+
+  <div class="result-row small">
+    <span>1시간 미만</span>
+    <span>20~25</span>
+  </div>
+
+  <div class="result-row small">
+    <span>1~10시간</span>
+    <span>13~22</span>
+  </div>
+
+  <div class="result-row small">
+    <span>1일 전후</span>
+    <span>12~13</span>
+  </div>
+
+  <div class="result-row small">
+    <span>2~5일</span>
+    <span>7~10</span>
+  </div>
+
+  <div class="result-row small">
+    <span>6~10일</span>
+    <span>6~7</span>
+  </div>
+
+  <div class="result-row small">
+    <span>10일 이상</span>
+    <span>5~6 (하한선)</span>
+  </div>
+</div>
+  </div>
+
+  <div class="row actions" style="margin-top:14px;">
+        <button class="btn" id="btnResetAll" type="button">전체 초기화</button>
+  </div>
+</section>
+
+
+    <!-- =========================
+         C) 결과
+    ========================== -->
+    <section class="card need-count-card" id="resultCard">
+      <h2>결과 (Result)</h2>
+     
+      <div class="result">
+        <div class="result-row">
+          <span>총 가치</span>
+          <b id="outPkgValueCrowns" class="value-with-icon">
+  -
+  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
+</b>
+        </div>
+
+        <div class="result-row small">
+          <span>· 포함 크라운</span>
+          <span id="outValueCrownsPart" class="value-with-icon">
+  -
+  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
+</span>
+        </div>
+        <div class="result-row small">
+          <span>· 전설토큰 → 크라운</span>
+          <span id="outValueTokenPart" class="value-with-icon">
+  -
+  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
+</span>
+        </div>
+        <div class="result-row small">
+          <span>· 스피드업 → 크라운</span>
+          <span id="outValueSpeedPart" class="value-with-icon">
+  -
+  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
+</span>
+        </div>
+
+        <div class="result-row small">
+          <span>· 손익(%)</span>
+          <span id="outDiffPct">-</span>
+        </div>
+        <div class="row" style="justify-content:center; margin-top:10px;">
+  <span id="outRecommendBadge" class="status-badge is-good">추천</span>
+</div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="./crown.js"></script>
+
+  <!-- ✅ Donate -->
+  <div class="home-grid calc-grid">
+    <a class="menu-card is-donate" href="https://buymeacoffee.com/skullking" target="_blank" rel="noopener"
+      aria-label="Donate Crowns (새 창)">
+      <div class="menu-card-media">
+        <img src="./image/banner/donate-crown.png" alt="Donate Crowns" />
+        <span class="status-badge is-click donate-badge">CLICK</span>
+      </div>
+    </a>
+  </div>
+</body>
+</html>
