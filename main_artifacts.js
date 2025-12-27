@@ -12,7 +12,8 @@ const TOKEN_ICON_SRC = "/image/icon/token.png";
 
 /* Ctrl+F -> DATA_API_URL */
 const DATA_API_URL =
-  "https://script.google.com/macros/s/AKfycbwIDx-aPZ7Uy285yUHq2eDnjs5CzAwHZiauYrbghoirGTGhx0aaZsKbG8GJRp2yYbwMAw/exec?tab=War";
+  "https://script.google.com/macros/s/AKfycbwIDx-aPZ7Uy285yUHq2eDnjs5CzAwHZiauYrbghoirGTGhx0aaZsKbG8GJRp2yYbwMAw/exec?tab=Main";
+
 let ARTIFACTS = [];
 
 /* ---------- util ---------- */
@@ -345,7 +346,7 @@ async function loadArtifacts() {
   if (list) list.innerHTML = `<div class="artifact-empty">데이터 불러오는 중...</div>`;
 
   try {
-    const res = await fetch(DATA_API_URL, { cache: "no-store" });
+const res = await fetch(`${DATA_API_URL}&_=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
