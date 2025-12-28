@@ -51,206 +51,246 @@
     <!-- =========================
          A) 비교 기준 (읽기 전용)
     ========================== -->
-    <section class="card">
+    <section class="card" id="standardCard">
       <h2>비교 기준 (Standard)</h2>
       <div class="hint">상시 판매되고 있는 가장 저렴한 금액입니다.</div>
 
       <div class="result" style="margin-top:12px;">
 
         <div class="result-row small">
-          <span>크라운 180,000개</span>
-          <span><b id="outWebCrownUsd">199.99 USD</b></span>
+          <!-- ✅ JS가 이 라벨을 통째로 바꿈 -->
+          <span id="outWebCrowns">-</span>
+          <span><b id="outWebCrownUsd">-</b></span>
         </div>
 
         <div class="result-row small">
-          <span>전설토큰 120개</span>
+          <!-- ✅ JS가 이 라벨을 통째로 바꿈 -->
+          <span id="outIngameTokenLabel">-</span>
           <span>
-            <b id="outIngameTokenCrowns">8,500 크라운</b>
+            <b id="outIngameTokenCrowns">-</b>
             <span class="muted"> / </span>
             <b id="outIngameTokenUsd">-</b>
           </span>
         </div>
 
-        <div class="result-row small" id="rateRow">
+        <div class="result-row small rate-sep" aria-hidden="true"></div>
+
+<!-- ✅ 환율: 오른쪽에 2줄을 한 번에 묶기 -->
+<!-- ✅ 환율: 숫자만 로딩 스피너 -->
+<div class="result-row small" id="rateRow">
   <span>실시간 환율 정보</span>
-  <span class="rate-right">
-    <b id="outUsdKrwText">-</b>
+
+  <!-- 오른쪽 2줄 묶음 -->
+  <span class="rate-stack">
+    <span class="rate-line">
+      <span class="rate-fixed">1 USD =</span>
+      <span class="rate-value">
+        <span id="outUsdKrwNum" class="rate-number">-</span>
+        <span class="rate-unit">KRW</span>
+
+        <!-- 로딩 스피너(숫자 자리에서만 표시) -->
+        <span class="rate-spinner" aria-hidden="true">
+          <!-- 둥근 바 12개짜리 스피너(SVG) -->
+          <svg class="spinner-svg" viewBox="0 0 100 100">
+            <g>
+              <rect x="46" y="6"  width="8" height="22" rx="4" />
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(30 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(60 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(90 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(120 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(150 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(180 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(210 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(240 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(270 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(300 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(330 50 50)"/>
+            </g>
+          </svg>
+        </span>
+      </span>
+    </span>
+
+    <span class="rate-line">
+      <span class="rate-fixed">1 USD =</span>
+      <span class="rate-value">
+        <span id="outUsdCnyNum" class="rate-number">-</span>
+        <span class="rate-unit">CNY</span>
+
+        <!-- 같은 스피너를 같이 쓰고 싶으면 복붙(로딩 시 둘 다 보여도 됨) -->
+        <span class="rate-spinner" aria-hidden="true">
+          <svg class="spinner-svg" viewBox="0 0 100 100">
+            <g>
+              <rect x="46" y="6"  width="8" height="22" rx="4" />
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(30 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(60 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(90 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(120 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(150 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(180 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(210 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(240 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(270 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(300 50 50)"/>
+              <rect x="46" y="6"  width="8" height="22" rx="4" transform="rotate(330 50 50)"/>
+            </g>
+          </svg>
+        </span>
+      </span>
+    </span>
   </span>
 </div>
 
-<div class="result-row small">
-  <span>
-    <button
-      id="btnRefreshRate"
-      type="button"
-      class="icon-btn rate-refresh"
-      aria-label="환율 새로고침"
-      title="환율 새로고침"
-    >⟳</button>
-  </span>
-  <span class="rate-right">
-    <b id="outUsdCnyText">-</b>
-  </span>
+<div class="hint rate-note">
+  <button id="btnRefreshRate" type="button" class="rate-refresh-btn">환율 새로고침</button>
+  <span class="rate-note-text">*유럽 중앙은행(ECB) 기준</span>
 </div>
 
-<div class="hint rate-note">*유럽 중앙은행(ECB) 기준</div>
-
-      </div>
     </section>
 
-<!-- =========================
-     B) 비교 상품
-========================== -->
-<section class="card" id="productCard">
-  <h2>비교 상품 (Comparison)</h2>
+    <!-- =========================
+         B) 비교 상품
+    ========================== -->
+    <section class="card" id="productCard">
+      <h2>비교 상품 (Comparison)</h2>
 
-<div class="grid2" style="margin-top:12px; grid-template-columns: 1fr 160px;">
-  <div>
-    <label class="label">상품 가격 (입력)</label>
-    <input id="pkgPrice" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
-  </div>
+      <div class="grid2" style="margin-top:12px; grid-template-columns: 1fr 160px;">
+        <div>
+          <label class="label">상품 가격 (입력)</label>
+          <input id="pkgPrice" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+        </div>
 
-  <div>
-    <label class="label">통화 (선택)</label>
-    <select id="pkgCurrency" class="input">
-      <option value="KRW" selected>KRW</option>
-      <option value="USD">USD</option>
-      <option value="CNY">CNY</option>
-    </select>
-  </div>
-</div>
-
-<div style="margin-top:12px;">
-  <label class="label">USD 자동 환산 (AUTO)</label>
-  <div class="input" style="display:flex; align-items:center; justify-content:space-between;">
-    <b id="outPkgPriceUsd">-</b>
-  </div>
-</div>
-  </div>
-
-  <div class="grid2" style="margin-top:12px;">
-    <div>
-      <label class="label">포함된 크라운 갯수 (입력)</label>
-      <input id="pkgCrowns" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
-    </div>
-    <div>
-      <label class="label">포함된 전설토큰 갯수 (입력)</label>
-      <input id="pkgTokens" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
-    </div>
-  </div>
-
-  <div style="margin-top:12px;">
-    <label class="label">포함된 스피드업 (입력)</label>
-    <div class="grid2" style="grid-template-columns: 1fr 1fr; gap:12px;">
-      <div>
-        <input id="pkgSpeedDays" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
-        <div class="hint" style="margin-top:6px;">일 (days)</div>
+        <div>
+          <label class="label">통화 (선택)</label>
+          <select id="pkgCurrency" class="input">
+            <option value="KRW" selected>KRW</option>
+            <option value="USD">USD</option>
+            <option value="CNY">CNY</option>
+          </select>
+        </div>
       </div>
-      <div>
-        <input id="pkgSpeedHours" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
-        <div class="hint" style="margin-top:6px;">시간 (hours)</div>
+
+      <div style="margin-top:12px;">
+        <label class="label">USD 자동 환산 (AUTO)</label>
+        <div class="input" style="display:flex; align-items:center; justify-content:space-between;">
+          <b id="outPkgPriceUsd">-</b>
+        </div>
       </div>
-    </div>
 
-    <div class="result" style="margin-top:10px;">
-      <div class="result-row small">
-        <span>총 스피드업 시간</span>
-        <b id="outSpeedTotalHours">0h</b>
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label class="label">포함된 크라운 갯수 (입력)</label>
+          <input id="pkgCrowns" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+        </div>
+        <div>
+          <label class="label">포함된 전설토큰 갯수 (입력)</label>
+          <input id="pkgTokens" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+        </div>
       </div>
-    </div>
-  </div>
 
-  <div class="auto-box" style="margin-top:14px;">
-    <div class="auto-title">스피드업 효율표</div>
-    <div class="hint">남은 시간 5일 기준(시간 당 10)으로 계산</div>
-    
-  <div class="result-row small">
-    <span><b>즉시 완료 남은 시간</b></span>
-    <span><b>시간 당 크라운</b></span>
-  </div>
+      <div style="margin-top:12px;">
+        <label class="label">포함된 스피드업 (입력)</label>
 
-  <div class="result-row small">
-    <span>1시간 미만</span>
-    <span>20~25</span>
-  </div>
+        <div class="grid2" style="grid-template-columns: 1fr 1fr; gap:12px;">
+          <div>
+            <input id="pkgSpeedDays" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+            <div class="hint" style="margin-top:6px;">일 (days)</div>
+          </div>
+          <div>
+            <input id="pkgSpeedHours" class="input" type="text" inputmode="numeric" autocomplete="off" value="0" />
+            <div class="hint" style="margin-top:6px;">시간 (hours)</div>
+          </div>
+        </div>
 
-  <div class="result-row small">
-    <span>1~10시간</span>
-    <span>13~22</span>
-  </div>
+        <div class="result" style="margin-top:10px;">
+          <div class="result-row small">
+            <span>총 스피드업 시간</span>
+            <b id="outSpeedTotalHours">0h</b>
+          </div>
+        </div>
+      </div>
 
-  <div class="result-row small">
-    <span>1일 전후</span>
-    <span>12~13</span>
-  </div>
+      <div class="auto-box" style="margin-top:14px;">
+        <div class="auto-title">스피드업 효율표</div>
+        <div class="hint">남은 시간 5일 기준(시간 당 10)으로 계산</div>
 
-  <div class="result-row small">
-    <span>2~5일</span>
-    <span>7~10</span>
-  </div>
+        <!-- ✅ 표 디자인 유지용: result-row small 그대로 -->
+        <div class="result-row small" style="margin-top:10px;">
+          <span><b>즉시 완료 남은 시간</b></span>
+          <span><b>시간 당 크라운</b></span>
+        </div>
 
-  <div class="result-row small">
-    <span>6~10일</span>
-    <span>6~7</span>
-  </div>
+        <div class="result-row small">
+          <span>1시간 미만</span>
+          <span>20~25</span>
+        </div>
 
-  <div class="result-row small">
-    <span>10일 이상</span>
-    <span>5~6 (하한선)</span>
-  </div>
-</div>
-  </div>
+        <div class="result-row small">
+          <span>1~10시간</span>
+          <span>13~22</span>
+        </div>
 
-  <div class="row actions" style="margin-top:14px;">
+        <div class="result-row small">
+          <span>1일 전후</span>
+          <span>12~13</span>
+        </div>
+
+        <div class="result-row small">
+          <span>2~5일</span>
+          <span>7~10</span>
+        </div>
+
+        <div class="result-row small">
+          <span>6~10일</span>
+          <span>6~7</span>
+        </div>
+
+        <div class="result-row small">
+          <span>10일 이상</span>
+          <span>5~6 (하한선)</span>
+        </div>
+      </div>
+
+      <div class="row actions" style="margin-top:14px;">
         <button class="btn" id="btnResetAll" type="button">전체 초기화</button>
-  </div>
-</section>
-
+      </div>
+    </section>
 
     <!-- =========================
          C) 결과
     ========================== -->
     <section class="card need-count-card" id="resultCard">
       <h2>결과 (Result)</h2>
-     
+
       <div class="result">
         <div class="result-row">
           <span>총 가치</span>
-          <b id="outPkgValueCrowns" class="value-with-icon">
-  -
-  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
-</b>
+          <b id="outPkgValueCrowns">-</b>
         </div>
 
         <div class="result-row small">
           <span>· 포함 크라운</span>
-          <span id="outValueCrownsPart" class="value-with-icon">
-  -
-  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
-</span>
+          <span id="outValueCrownsPart">-</span>
         </div>
+
         <div class="result-row small">
           <span>· 전설토큰 → 크라운</span>
-          <span id="outValueTokenPart" class="value-with-icon">
-  -
-  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
-</span>
+          <span id="outValueTokenPart">-</span>
         </div>
+
         <div class="result-row small">
           <span>· 스피드업 → 크라운</span>
-          <span id="outValueSpeedPart" class="value-with-icon">
-  -
-  <img src="./image/icon/crown.png" alt="crown" class="crown-icon">
-</span>
+          <span id="outValueSpeedPart">-</span>
         </div>
 
         <div class="result-row small">
           <span>· 손익(%)</span>
           <span id="outDiffPct">-</span>
         </div>
+
         <div class="row" style="justify-content:center; margin-top:10px;">
-  <span id="outRecommendBadge" class="status-badge is-good">추천</span>
-</div>
+          <span id="outRecommendBadge" class="status-badge is-good">추천</span>
+        </div>
       </div>
     </section>
 

@@ -73,17 +73,16 @@
 
   /* -------------------------------
      Read-only base data (관리자 고정)
+     ✅ 여기만 바꾸면 Standard 전체가 바뀜
   ------------------------------- */
   const BASE = {
     web: {
-      crowns: 180000,
-      crownsUsd: 199.99,
-      token: 420,
-      tokenUsd: 99.99,
+      crowns: 225000,     // 예: 180000 -> 260000 으로 변경 가능
+      crownsUsd: 199.99,  // 웹 크라운 팩 USD 가격
     },
     ingame: {
-      token: 120,
-      tokenCrowns: 8500,
+      token: 120,         // 전설토큰 개수
+      tokenCrowns: 8500,  // 토큰팩 크라운 가격
     },
   };
 
@@ -96,7 +95,7 @@
   /* -------------------------------
      Exchange rate cache
   ------------------------------- */
-  const RATE_CACHE_KEY = "crownCalc_fx_cache_v2";
+  const RATE_CACHE_KEY = "crownCalc_fx_cache_v3";
   const RATE_CACHE_MS = 60 * 60 * 1000;
 
   function setRateLoading(isLoading) {
@@ -172,40 +171,56 @@
   // FX: USD 기준 환율
   let FX = { usdKrw: 0, usdCny: 0 };
 
-  async function applyAutoRate({ force = false } = {}) {
-    const rateOut = $("outUsdKrwRate");
-    if (!rateOut) return;
+  function renderRateTexts() {
+    const krwEl = $("outUsdKrwRate");
+    const cnyEl = $("outUsdCnyRate");
 
-    if (!force) {
-      const cached = loadRateCache();
-      if (cached?.usdKrw && cached?.usdCny) {
-        FX = cached;
-        rateOut.textContent = fmtFloat(FX.usdKrw, 2);
-        recalc();
-        return;
-      }
+    if (krwEl) {
+      krwEl.textContent =
+        FX.usdKrw > 0 ? `1 USD = ${fmtFloat(FX.usdKrw, 2)} KRW` : "-";
     }
-
-    setRateLoading(true);
-    setRateBtnDisabled(true);
-
-    try {
-      const rates = await fetchFxRates();
-      FX = rates;
-      rateOut.textContent = fmtFloat(FX.usdKrw, 2);
-
-      const cnyOut = $("outUsdCnyRate");
-if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
-      
-      saveRateCache(rates);
-    } catch {
-      if (!rateOut.textContent) rateOut.textContent = "-";
-    } finally {
-      setRateLoading(false);
-      setRateBtnDisabled(false);
-      recalc();
+    if (cnyEl) {
+      cnyEl.textContent =
+        FX.usdCny > 0 ? `1 USD = ${fmtFloat(FX.usdCny, 4)} CNY` : "-";
     }
   }
+
+async function applyAutoRate({ force = false } = {}) {
+  const krwNum = $("outUsdKrwNum");
+  const cnyNum = $("outUsdCnyNum");
+  if (!krwNum || !cnyNum) return;
+
+  if (!force) {
+    const cached = loadRateCache();
+    if (cached?.usdKrw && cached?.usdCny) {
+      FX = cached;
+      krwNum.textContent = fmtFloat(FX.usdKrw, 2);
+      cnyNum.textContent = fmtFloat(FX.usdCny, 4);
+      recalc();
+      return;
+    }
+  }
+
+  setRateLoading(true);
+  setRateBtnDisabled(true);
+
+  try {
+    const rates = await fetchFxRates(); // {usdKrw, usdCny}
+    FX = rates;
+
+    // ✅ 숫자만 변경 (KRW/CNY 텍스트는 HTML 고정)
+    krwNum.textContent = fmtFloat(FX.usdKrw, 2);
+    cnyNum.textContent = fmtFloat(FX.usdCny, 4);
+
+    saveRateCache(rates);
+  } catch {
+    // 실패 시 숫자 유지(필요하면 '-'로 바꾸고 싶으면 여기서 처리)
+  } finally {
+    setRateLoading(false);
+    setRateBtnDisabled(false);
+    recalc();
+  }
+}
 
   /* -------------------------------
      Recommend badge
@@ -233,9 +248,18 @@ if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
      Core recalculation
   ------------------------------- */
   function recalc() {
-    // (A) 고정 기준값 출력
-    if ($("outWebCrownUsd")) $("outWebCrownUsd").textContent = `${BASE.web.crownsUsd.toFixed(2)} USD`;
+    // (A) Standard(비교기준) 라벨/가격 전부 JS에서 세팅
+    if ($("outWebCrowns")) {
+      $("outWebCrowns").textContent = `크라운 ${BASE.web.crowns.toLocaleString("ko-KR")}개`;
+    }
+    if ($("outWebCrownUsd")) {
+      $("outWebCrownUsd").textContent = `${fmtFloat(BASE.web.crownsUsd, 2)} USD`;
+    }
 
+    // ✅ 토큰 라벨도 JS에서 세팅 (지금 네 HTML id는 outIngameTokenLabel)
+    if ($("outIngameTokenLabel")) {
+      $("outIngameTokenLabel").textContent = `전설토큰 ${BASE.ingame.token.toLocaleString("ko-KR")}개`;
+    }
     if ($("outIngameTokenCrowns")) {
       $("outIngameTokenCrowns").textContent = `${BASE.ingame.tokenCrowns.toLocaleString("ko-KR")} 크라운`;
     }
@@ -246,10 +270,11 @@ if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
     // 인게임 기준: 토큰 1개당 크라운 가치
     const crownPerToken = BASE.ingame.token > 0 ? BASE.ingame.tokenCrowns / BASE.ingame.token : 0;
 
-    // 인게임 토큰팩 USD 환산: (8,500 크라운) / (크라운/USD)
+    // 인게임 토큰팩 USD 환산
     const ingameTokenPackUsd = crownsPerUsd > 0 ? BASE.ingame.tokenCrowns / crownsPerUsd : 0;
     if ($("outIngameTokenUsd")) {
-      $("outIngameTokenUsd").textContent = ingameTokenPackUsd > 0 ? `${fmtFloat(ingameTokenPackUsd, 2)} USD` : "-";
+      $("outIngameTokenUsd").textContent =
+        ingameTokenPackUsd > 0 ? `${fmtFloat(ingameTokenPackUsd, 2)} USD` : "-";
     }
 
     // (B) 비교 상품 가격 -> USD 자동 환산 (통화 선택)
@@ -259,8 +284,8 @@ if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
     let priceUsdFromInput = 0;
     if (price > 0) {
       if (cur === "USD") priceUsdFromInput = price;
-      else if (cur === "KRW") priceUsdFromInput = FX.usdKrw > 0 ? (price / FX.usdKrw) : 0;
-      else if (cur === "CNY") priceUsdFromInput = FX.usdCny > 0 ? (price / FX.usdCny) : 0;
+      else if (cur === "KRW") priceUsdFromInput = FX.usdKrw > 0 ? price / FX.usdKrw : 0;
+      else if (cur === "CNY") priceUsdFromInput = FX.usdCny > 0 ? price / FX.usdCny : 0;
     }
 
     if ($("outPkgPriceUsd")) {
@@ -276,26 +301,25 @@ if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
 
     // 스피드업 총 시간
     const totalSpeedHours = Math.max(0, spdDays) * 24 + Math.max(0, spdHours);
-    if ($("outSpeedTotalHours")) $("outSpeedTotalHours").textContent = `${fmtFloat(totalSpeedHours, 2)}h`;
+    if ($("outSpeedTotalHours")) {
+      $("outSpeedTotalHours").textContent = `${fmtFloat(totalSpeedHours, 2)}h`;
+    }
 
-    // (D) 패키지 가치(크라운) 계산
+    // (D) 패키지 가치(크라운)
     const valueCrownsPart = Math.max(0, pkgCrowns);
     const valueTokenPart = Math.max(0, pkgTokens) * Math.max(0, crownPerToken);
     const valueSpeedPart = Math.max(0, totalSpeedHours) * SPEED_CROWNS_PER_HOUR;
 
     const pkgValueCrowns = valueCrownsPart + valueTokenPart + valueSpeedPart;
 
-    // 결과 출력(각 파트는 파트 값으로!)
     if ($("outPkgValueCrowns")) $("outPkgValueCrowns").innerHTML = crownValueHtml(pkgValueCrowns);
     if ($("outValueCrownsPart")) $("outValueCrownsPart").innerHTML = crownValueHtml(valueCrownsPart);
     if ($("outValueTokenPart")) $("outValueTokenPart").innerHTML = crownValueHtml(valueTokenPart);
     if ($("outValueSpeedPart")) $("outValueSpeedPart").innerHTML = crownValueHtml(valueSpeedPart);
 
-    // (E) 손익(%) 계산
-    // baseline = 같은 돈(상시구매 기준)으로 살 수 있는 크라운
-    // 가격은 "입력 통화 -> USD"로 바꾼 값 사용!
+    // (E) 손익(%) (입력 통화->USD 변환값 기준)
     const baselineCrowns =
-      (priceUsdFromInput > 0 && crownsPerUsd > 0) ? (priceUsdFromInput * crownsPerUsd) : 0;
+      priceUsdFromInput > 0 && crownsPerUsd > 0 ? priceUsdFromInput * crownsPerUsd : 0;
 
     let diffPct = NaN;
     if (baselineCrowns > 0) {
@@ -306,7 +330,6 @@ if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
       $("outDiffPct").textContent = Number.isFinite(diffPct) ? `${fmtFloat(diffPct, 2)}%` : "-";
     }
 
-    // 추천/비추천 캡슐
     setRecommendBadgeByPct(diffPct);
   }
 
@@ -344,6 +367,8 @@ if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
   ------------------------------- */
   (function start() {
     bindHandlers();
+    // 처음에는 "-" 상태로 보이니, 표기 먼저 렌더
+    renderRateTexts();
     applyAutoRate({ force: false });
     recalc();
   })();
