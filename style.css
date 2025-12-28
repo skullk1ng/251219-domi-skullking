@@ -1326,5 +1326,15 @@ body:not(.home-page) .home-grid.calc-grid{
 }
 /* 환율 안내 문구 여백 조정 */
 .rate-note{
-  margin-top:-7px;   /* 기존 6px → 2px */
+  margin-top:-1px;   /* 기존 6px → 2px */
+  text-align:right;
+
+}
+/* 환율 새로고침 버튼 크기 축소 */
+.rate-refresh{
+  width:22px;
+  height:22px;
+  font-size:14px;   /* 아이콘 크기 */
+  padding:0;
+  line-height:1;
 }

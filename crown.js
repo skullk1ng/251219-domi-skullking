@@ -40,20 +40,35 @@
   function enableCommaInt(inputEl, onCommit) {
     if (!inputEl) return;
 
-    bindOnce(inputEl, "focus", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
-    }, "comma_focus");
+    bindOnce(
+      inputEl,
+      "focus",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
+      },
+      "comma_focus"
+    );
 
-    bindOnce(inputEl, "input", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
-      onCommit?.();
-    }, "comma_input");
+    bindOnce(
+      inputEl,
+      "input",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+        onCommit?.();
+      },
+      "comma_input"
+    );
 
-    bindOnce(inputEl, "blur", () => {
-      const raw = String(inputEl.value ?? "").replace(/,/g, "");
-      inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
-      onCommit?.();
-    }, "comma_blur");
+    bindOnce(
+      inputEl,
+      "blur",
+      () => {
+        const raw = String(inputEl.value ?? "").replace(/,/g, "");
+        inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
+        onCommit?.();
+      },
+      "comma_blur"
+    );
   }
 
   /* -------------------------------
@@ -79,9 +94,9 @@
   const SPEED_CROWNS_PER_HOUR = 10;
 
   /* -------------------------------
-     Exchange rate (USD->KRW) + cache
+     Exchange rate cache
   ------------------------------- */
-  const RATE_CACHE_KEY = "crownCalc_usdKrw_cache_v1";
+  const RATE_CACHE_KEY = "crownCalc_fx_cache_v2";
   const RATE_CACHE_MS = 60 * 60 * 1000;
 
   function setRateLoading(isLoading) {
@@ -103,41 +118,59 @@
       const raw = localStorage.getItem(RATE_CACHE_KEY);
       if (!raw) return null;
       const obj = JSON.parse(raw);
-      if (!obj || !Number.isFinite(obj.rate) || !Number.isFinite(obj.ts)) return null;
+      if (!obj || !Number.isFinite(obj.ts)) return null;
       if (Date.now() - obj.ts > RATE_CACHE_MS) return null;
-      return obj.rate;
+
+      const usdKrw = Number(obj.usdKrw);
+      const usdCny = Number(obj.usdCny);
+      if (!Number.isFinite(usdKrw) || usdKrw <= 0) return null;
+      if (!Number.isFinite(usdCny) || usdCny <= 0) return null;
+
+      return { usdKrw, usdCny };
     } catch {
       return null;
     }
   }
 
-  function saveRateCache(rate) {
+  function saveRateCache({ usdKrw, usdCny }) {
     try {
-      localStorage.setItem(RATE_CACHE_KEY, JSON.stringify({ rate, ts: Date.now() }));
+      localStorage.setItem(
+        RATE_CACHE_KEY,
+        JSON.stringify({ usdKrw, usdCny, ts: Date.now() })
+      );
     } catch {}
   }
 
-  async function fetchUsdKrwRate() {
-    // 1) Frankfurter
+  async function fetchFxRates() {
+    // 1) Frankfurter (base USD -> KRW,CNY)
     try {
-      const url1 = "https://api.frankfurter.app/latest?from=USD&to=KRW";
+      const url1 = "https://api.frankfurter.app/latest?from=USD&to=KRW,CNY";
       const res1 = await fetch(url1, { cache: "no-store" });
       if (res1.ok) {
         const data1 = await res1.json();
-        const rate1 = Number(data1?.rates?.KRW);
-        if (Number.isFinite(rate1) && rate1 > 0) return rate1;
+        const krw = Number(data1?.rates?.KRW);
+        const cny = Number(data1?.rates?.CNY);
+        if (Number.isFinite(krw) && krw > 0 && Number.isFinite(cny) && cny > 0) {
+          return { usdKrw: krw, usdCny: cny };
+        }
       }
     } catch {}
 
-    // 2) exchangerate.host fallback
-    const url2 = "https://api.exchangerate.host/latest?base=USD&symbols=KRW";
+    // 2) fallback: exchangerate.host
+    const url2 = "https://api.exchangerate.host/latest?base=USD&symbols=KRW,CNY";
     const res2 = await fetch(url2, { cache: "no-store" });
     if (!res2.ok) throw new Error("rate fetch failed");
     const data2 = await res2.json();
-    const rate2 = Number(data2?.rates?.KRW);
-    if (!Number.isFinite(rate2) || rate2 <= 0) throw new Error("rate invalid");
-    return rate2;
+    const krw = Number(data2?.rates?.KRW);
+    const cny = Number(data2?.rates?.CNY);
+    if (!Number.isFinite(krw) || krw <= 0 || !Number.isFinite(cny) || cny <= 0) {
+      throw new Error("rate invalid");
+    }
+    return { usdKrw: krw, usdCny: cny };
   }
+
+  // FX: USD 기준 환율
+  let FX = { usdKrw: 0, usdCny: 0 };
 
   async function applyAutoRate({ force = false } = {}) {
     const rateOut = $("outUsdKrwRate");
@@ -145,23 +178,27 @@
 
     if (!force) {
       const cached = loadRateCache();
-      if (Number.isFinite(cached) && cached > 0) {
-        rateOut.textContent = fmtFloat(cached, 2);
+      if (cached?.usdKrw && cached?.usdCny) {
+        FX = cached;
+        rateOut.textContent = fmtFloat(FX.usdKrw, 2);
         recalc();
         return;
       }
     }
 
-    // 로딩 모션 시작
     setRateLoading(true);
     setRateBtnDisabled(true);
 
     try {
-      const rate = await fetchUsdKrwRate();
-      rateOut.textContent = fmtFloat(rate, 2);
-      saveRateCache(rate);
+      const rates = await fetchFxRates();
+      FX = rates;
+      rateOut.textContent = fmtFloat(FX.usdKrw, 2);
+
+      const cnyOut = $("outUsdCnyRate");
+if (cnyOut) cnyOut.textContent = fmtFloat(FX.usdCny, 4);
+      
+      saveRateCache(rates);
     } catch {
-      // 실패하면 기존 값 유지, 없으면 "-"
       if (!rateOut.textContent) rateOut.textContent = "-";
     } finally {
       setRateLoading(false);
@@ -186,6 +223,13 @@
   }
 
   /* -------------------------------
+     Crown icon HTML helper
+  ------------------------------- */
+  function crownValueHtml(n) {
+    return `${fmtInt(n)} <img src="./image/icon/crown.png" class="crown-icon" alt="crown">`;
+  }
+
+  /* -------------------------------
      Core recalculation
   ------------------------------- */
   function recalc() {
@@ -202,53 +246,56 @@
     // 인게임 기준: 토큰 1개당 크라운 가치
     const crownPerToken = BASE.ingame.token > 0 ? BASE.ingame.tokenCrowns / BASE.ingame.token : 0;
 
-    // (환율)
-    const usdKrw = safeNum($("outUsdKrwRate")?.textContent);
-
     // 인게임 토큰팩 USD 환산: (8,500 크라운) / (크라운/USD)
     const ingameTokenPackUsd = crownsPerUsd > 0 ? BASE.ingame.tokenCrowns / crownsPerUsd : 0;
     if ($("outIngameTokenUsd")) {
       $("outIngameTokenUsd").textContent = ingameTokenPackUsd > 0 ? `${fmtFloat(ingameTokenPackUsd, 2)} USD` : "-";
     }
 
-    // (B) 입력값 읽기
-    const priceKrw = safeNum($("pkgPriceKrw")?.value);
+    // (B) 비교 상품 가격 -> USD 자동 환산 (통화 선택)
+    const price = safeNum($("pkgPrice")?.value);
+    const cur = $("pkgCurrency")?.value || "KRW";
+
+    let priceUsdFromInput = 0;
+    if (price > 0) {
+      if (cur === "USD") priceUsdFromInput = price;
+      else if (cur === "KRW") priceUsdFromInput = FX.usdKrw > 0 ? (price / FX.usdKrw) : 0;
+      else if (cur === "CNY") priceUsdFromInput = FX.usdCny > 0 ? (price / FX.usdCny) : 0;
+    }
+
+    if ($("outPkgPriceUsd")) {
+      $("outPkgPriceUsd").textContent =
+        priceUsdFromInput > 0 ? `${fmtFloat(priceUsdFromInput, 2)} USD` : "-";
+    }
+
+    // (C) 구성품 입력
     const pkgCrowns = safeNum($("pkgCrowns")?.value);
     const pkgTokens = safeNum($("pkgTokens")?.value);
     const spdDays = safeNum($("pkgSpeedDays")?.value);
     const spdHours = safeNum($("pkgSpeedHours")?.value);
 
-    // 가격 USD 자동환산
-    const priceUsd = (usdKrw > 0) ? (priceKrw / usdKrw) : 0;
-    if ($("outPkgPriceUsd")) {
-      $("outPkgPriceUsd").textContent = (priceUsd > 0) ? `${fmtFloat(priceUsd, 2)} USD` : "-";
-    }
-
     // 스피드업 총 시간
     const totalSpeedHours = Math.max(0, spdDays) * 24 + Math.max(0, spdHours);
     if ($("outSpeedTotalHours")) $("outSpeedTotalHours").textContent = `${fmtFloat(totalSpeedHours, 2)}h`;
 
-    // (C) 패키지 가치(크라운) 계산
+    // (D) 패키지 가치(크라운) 계산
     const valueCrownsPart = Math.max(0, pkgCrowns);
     const valueTokenPart = Math.max(0, pkgTokens) * Math.max(0, crownPerToken);
     const valueSpeedPart = Math.max(0, totalSpeedHours) * SPEED_CROWNS_PER_HOUR;
 
     const pkgValueCrowns = valueCrownsPart + valueTokenPart + valueSpeedPart;
 
-    if ($("outPkgValueCrowns")) $("outPkgValueCrowns").innerHTML =
-  `${fmtInt(pkgValueCrowns)} <img src="./image/icon/crown.png" class="crown-icon" alt="crown">`;
-    if ($("outValueCrownsPart")) $("outValueCrownsPart").innerHTML =
-  `${fmtInt(pkgValueCrowns)} <img src="./image/icon/crown.png" class="crown-icon" alt="crown">`;
-    if ($("outValueTokenPart")) $("outValueTokenPart").innerHTML =
-  `${fmtInt(pkgValueCrowns)} <img src="./image/icon/crown.png" class="crown-icon" alt="crown">`;
-    if ($("outValueSpeedPart")) $("outValueSpeedPart").innerHTML =
-  `${fmtInt(pkgValueCrowns)} <img src="./image/icon/crown.png" class="crown-icon" alt="crown">`;
+    // 결과 출력(각 파트는 파트 값으로!)
+    if ($("outPkgValueCrowns")) $("outPkgValueCrowns").innerHTML = crownValueHtml(pkgValueCrowns);
+    if ($("outValueCrownsPart")) $("outValueCrownsPart").innerHTML = crownValueHtml(valueCrownsPart);
+    if ($("outValueTokenPart")) $("outValueTokenPart").innerHTML = crownValueHtml(valueTokenPart);
+    if ($("outValueSpeedPart")) $("outValueSpeedPart").innerHTML = crownValueHtml(valueSpeedPart);
 
-    // (D) 손익(%) 계산
-    // baseline = 같은 돈으로(웹사이트 크라운 기준) 살 수 있는 크라운
-    const baselineCrowns = (usdKrw > 0 && crownsPerUsd > 0 && priceKrw > 0)
-      ? (priceKrw / usdKrw) * crownsPerUsd
-      : 0;
+    // (E) 손익(%) 계산
+    // baseline = 같은 돈(상시구매 기준)으로 살 수 있는 크라운
+    // 가격은 "입력 통화 -> USD"로 바꾼 값 사용!
+    const baselineCrowns =
+      (priceUsdFromInput > 0 && crownsPerUsd > 0) ? (priceUsdFromInput * crownsPerUsd) : 0;
 
     let diffPct = NaN;
     if (baselineCrowns > 0) {
@@ -259,8 +306,7 @@
       $("outDiffPct").textContent = Number.isFinite(diffPct) ? `${fmtFloat(diffPct, 2)}%` : "-";
     }
 
-    // (E) 추천/비추천 캡슐
-    // 손익(%) 기준: 0 이상 추천, 0 미만 비추천
+    // 추천/비추천 캡슐
     setRecommendBadgeByPct(diffPct);
   }
 
@@ -268,7 +314,8 @@
      Reset
   ------------------------------- */
   function resetAll() {
-    if ($("pkgPriceKrw")) $("pkgPriceKrw").value = "0";
+    if ($("pkgPrice")) $("pkgPrice").value = "0";
+    if ($("pkgCurrency")) $("pkgCurrency").value = "KRW";
     if ($("pkgCrowns")) $("pkgCrowns").value = "0";
     if ($("pkgTokens")) $("pkgTokens").value = "0";
     if ($("pkgSpeedDays")) $("pkgSpeedDays").value = "0";
@@ -280,14 +327,15 @@
      Wiring
   ------------------------------- */
   function bindHandlers() {
-    enableCommaInt($("pkgPriceKrw"), recalc);
+    enableCommaInt($("pkgPrice"), recalc);
+    bindOnce($("pkgCurrency"), "change", recalc, "pkgCurrency");
+
     enableCommaInt($("pkgCrowns"), recalc);
     enableCommaInt($("pkgTokens"), recalc);
     enableCommaInt($("pkgSpeedDays"), recalc);
     enableCommaInt($("pkgSpeedHours"), recalc);
 
     bindOnce($("btnResetAll"), "click", resetAll, "resetAll");
-
     bindOnce($("btnRefreshRate"), "click", () => applyAutoRate({ force: true }), "refreshRate");
   }
 
