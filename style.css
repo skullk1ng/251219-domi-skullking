@@ -1466,16 +1466,24 @@ body:not(.home-page) .home-grid.calc-grid{
 .value-with-icon{
   display:inline-flex;
   align-items:center;
+  justify-content:flex-end;
   gap:6px;
+  white-space:nowrap;
+}
+
+.value-text{
+  display:inline-block;
+  line-height:1;
 }
 
 .crown-icon{
-  width:14px;
-  height:14px;
-  object-fit:contain;
-  opacity:.9;
-  transform: translateY(1px);
+  width:16px;
+  height:16px;
+  display:inline-block;      /* ✅ block 금지 (줄바꿈 원인) */
+  vertical-align:middle;
+  flex:0 0 auto;
 }
+
 /* 환율 안내 문구 여백 조정 */
 .rate-note{
   margin-top:-1px;   /* 기존 6px → 2px */
