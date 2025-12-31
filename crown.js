@@ -38,38 +38,58 @@
   }
 
   function enableCommaInt(inputEl, onCommit) {
-    if (!inputEl) return;
+  if (!inputEl) return;
 
-    bindOnce(
-      inputEl,
-      "focus",
-      () => {
-        inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
-      },
-      "comma_focus"
-    );
+  // ✅ 포커스 시: 콤마 제거 + 전체 선택(0이어도 바로 덮어쓰기 가능)
+  bindOnce(
+    inputEl,
+    "focus",
+    () => {
+      inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
 
-    bindOnce(
-      inputEl,
-      "input",
-      () => {
-        inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
-        onCommit?.();
-      },
-      "comma_input"
-    );
+      // iOS/모바일에서 selection 타이밍 이슈가 있어 setTimeout 사용
+      setTimeout(() => {
+        try { inputEl.select(); } catch {}
+      }, 0);
+    },
+    "comma_focus"
+  );
 
-    bindOnce(
-      inputEl,
-      "blur",
-      () => {
-        const raw = String(inputEl.value ?? "").replace(/,/g, "");
-        inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
-        onCommit?.();
-      },
-      "comma_blur"
-    );
-  }
+  // ✅ 엔터/완료/줄바꿈 누르면 키패드 내리기(blur)
+  bindOnce(
+    inputEl,
+    "keydown",
+    (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        inputEl.blur();
+      }
+    },
+    "enter_blur"
+  );
+
+  bindOnce(
+    inputEl,
+    "input",
+    () => {
+      inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+      onCommit?.();
+    },
+    "comma_input"
+  );
+
+  bindOnce(
+    inputEl,
+    "blur",
+    () => {
+      const raw = String(inputEl.value ?? "").replace(/,/g, "");
+      inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
+      onCommit?.();
+    },
+    "comma_blur"
+  );
+}
+
 
   /* -------------------------------
      Read-only base data (관리자 고정)

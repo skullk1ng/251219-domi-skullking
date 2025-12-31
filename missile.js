@@ -3,6 +3,7 @@
    (FIX: 정찰 스캔 데미지 곱연산 반영 + 체크박스 이동 + DMG 2줄 표기
          + [공격수 협의회] 입력을 스캔 박스 내부로 이동 + % 자동표기
          + (정찰기 스캔 + 파괴전술 DMG) 하단 "총 추가 수치" 미표기용(JS는 값만 계산)
+         + ✅ FIX: 미사일격납고 HP 박스(노란/빨간) 덮어쓰기 + % 자동표기 + 계산반영 완전수정
    ========================================================= */
 
 /* -------------------------------
@@ -80,14 +81,16 @@ const GUILD_LEVEL_HP_PARTS = [
 
 /* -------------------------------
    2) 보너스 정의(id 기반)
+   ✅ FIX: hpCouncilRelicMount에 따로 보여줄 3개는 리스트에서 숨김
 ------------------------------- */
 const BONUS_DEFS = {
   hp_lib_rocket:   { name: "[도서관] 연구:로켓공학", pctDefault: 0, hideInList: true },
   hp_lib_guided:   { name: "[도서관] 연구:유도미사일", pctDefault: 0, hideInList: true },
   hp_law_overwhelm:{ name: "[의회] 압도적인 사격", pctDefault: 0, hideInList: true },
 
-  hp_def_council_tower: { name: "[수비수 협의회] 모든 방어타워 HP", pctDefault: 0, lockName: true, color: "#facc15" },
-  hp_def_relic_tower:   { name: "[수비수 유물] 모든 방어타워 HP", pctDefault: 0, lockName: true, color: "#facc15" },
+  // ✅ HP 노란/빨간 3개: 리스트 숨김 + hpCouncilRelicMount에서 % 자동 처리
+  hp_def_council_tower: { name: "[수비수 협의회] 모든 방어타워 HP", pctDefault: 0, lockName: true, color: "#facc15", hideInList: true },
+  hp_def_relic_tower:   { name: "[수비수 유물] 모든 방어타워 HP", pctDefault: 0, lockName: true, color: "#facc15", hideInList: true },
 
   hp_att_relic_enemy_tower: {
     name: "[공격수 유물] 모든 적 방어타워 -HP",
@@ -97,6 +100,7 @@ const BONUS_DEFS = {
     enforceNegative: true,
     min: -85,
     max: 0,
+    hideInList: true,
   },
 
   hp_auto_egypt: { name: "[AUTO] 연맹:이집트", pctDefault: 0, hideInList: true, lockName: true, color: "#e5e7eb" },
@@ -124,7 +128,6 @@ const DEFAULT_HP_BONUS_IDS = [
   "hp_auto_egypt","hp_auto_guild",
 ];
 
-// ✅ DMG 리스트에는 "파괴전술 DMG에 직접 더해지는 것" + (스캔계산에 필요한 것들) 포함
 const DEFAULT_DMG_BONUS_IDS = [
   "dmg_auto_mongol",
   "dmg_lib_tactic",
@@ -191,12 +194,16 @@ function normalizePctNegativeOnly(raw, min, max) {
 
 function enableCommaFormatting(inputEl, onBlurCommit) {
   if (!inputEl) return;
-
   if (inputEl.dataset.boundComma === "1") return;
   inputEl.dataset.boundComma = "1";
 
   inputEl.addEventListener("focus", () => {
     inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
+    setTimeout(() => { try { inputEl.select(); } catch {} }, 0);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); inputEl.blur(); }
   });
 
   inputEl.addEventListener("input", () => {
@@ -205,18 +212,97 @@ function enableCommaFormatting(inputEl, onBlurCommit) {
 
   inputEl.addEventListener("blur", () => {
     const raw = String(inputEl.value ?? "").replace(/,/g, "");
-    if (raw === "") {
-      inputEl.value = "0";
-      onBlurCommit?.();
-      return;
-    }
-    inputEl.value = Number(raw).toLocaleString("ko-KR");
+    inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
     onBlurCommit?.();
   });
 }
 
 function makeUserBonusId(prefix) {
   return `${prefix}_user_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+/* ✅ % 자동표기 + 포커스시 전체선택(덮어쓰기) */
+function enablePctSuffixInput(inputEl, onCommit, min = -999, max = 999) {
+  if (!inputEl) return;
+  if (inputEl.dataset.boundPctSuf === "1") return;
+  inputEl.dataset.boundPctSuf = "1";
+
+  inputEl.addEventListener("focus", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+    setTimeout(() => { try { inputEl.select(); } catch {} }, 0);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); inputEl.blur(); }
+  });
+
+  inputEl.addEventListener("input", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    onCommit?.();
+  });
+
+  inputEl.addEventListener("blur", () => {
+    let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    if (raw === "" || raw === "-") raw = "0";
+
+    let n = Number(raw);
+    if (!Number.isFinite(n)) n = 0;
+
+    n = Math.trunc(n);
+    if (n < min) n = min;
+    if (n > max) n = max;
+
+    inputEl.value = `${n}%`;
+    onCommit?.();
+  });
+
+  const initRaw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "") || "0";
+  const initNum = Number(initRaw);
+  inputEl.value = `${Number.isFinite(initNum) ? Math.trunc(initNum) : 0}%`;
+}
+
+/* ✅ 음수 전용(양수 입력해도 음수로) + % 자동표기 + 덮어쓰기 */
+function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
+  if (!inputEl) return;
+  if (inputEl.dataset.boundNegPct === "1") return;
+  inputEl.dataset.boundNegPct = "1";
+
+  inputEl.addEventListener("focus", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+    setTimeout(() => { try { inputEl.select(); } catch {} }, 0);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); inputEl.blur(); }
+  });
+
+  inputEl.addEventListener("input", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    onCommit?.();
+  });
+
+  inputEl.addEventListener("blur", () => {
+    let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    if (raw === "" || raw === "-") raw = "0";
+
+    let n = Number(raw);
+    if (!Number.isFinite(n)) n = 0;
+
+    if (n !== 0) n = -Math.abs(n);
+    if (n < minNeg) n = minNeg;
+    if (n > maxNeg) n = maxNeg;
+
+    inputEl.value = `${Math.trunc(n)}%`;
+    onCommit?.();
+  });
+
+  const initRaw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "") || "0";
+  let initNum = Number(initRaw);
+  if (!Number.isFinite(initNum)) initNum = 0;
+  if (initNum !== 0) initNum = -Math.abs(initNum);
+  if (initNum < minNeg) initNum = minNeg;
+  if (initNum > maxNeg) initNum = maxNeg;
+  inputEl.value = `${Math.trunc(initNum)}%`;
 }
 
 /* ✅ [공격수 협의회] 정찰 스캔 입력: 10 -> 10% 자동 표기 */
@@ -227,6 +313,11 @@ function enablePercentFormatting(inputEl, onCommit) {
 
   inputEl.addEventListener("focus", () => {
     inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+    setTimeout(() => { try { inputEl.select(); } catch {} }, 0);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); inputEl.blur(); }
   });
 
   inputEl.addEventListener("input", () => {
@@ -244,7 +335,6 @@ function enablePercentFormatting(inputEl, onCommit) {
     onCommit?.();
   });
 
-  // 초기 표시도 %로
   const initRaw = String(inputEl.value ?? "").replace(/[^\d]/g, "");
   const initNorm = normalizePctGeneral(initRaw);
   const initStr = initNorm.typingDash ? "0" : initNorm.valueStr;
@@ -381,7 +471,6 @@ function sumBonusPct(bonuses) {
   return bonuses.reduce((acc, b) => acc + safeNum(b.pct), 0);
 }
 
-// ✅ 특정 id 제외 합산
 function sumBonusPctExcept(bonuses, excludeIds) {
   const ex = new Set(excludeIds || []);
   return bonuses.reduce((acc, b) => (ex.has(b.id) ? acc : acc + safeNum(b.pct)), 0);
@@ -445,13 +534,11 @@ const FIXED_HP_CHECK_ITEMS = [
   { id: "hp_law_overwhelm", pct: 5 },
 ];
 
-// ✅ 파괴전술 DMG에 직접 더해지는 체크만 유지
 const FIXED_DMG_CHECK_ITEMS = [
   { id: "dmg_lib_tactic",   pct: 10 },
   { id: "dmg_uni_suleiman", pct: 10 },
 ];
 
-// ✅ 스캔 데미지 효과에 더해지는 체크(요청사항)
 const FIXED_SCAN_CHECK_ITEMS = [
   { id: "dmg_lib_scout", pct: 10, label: "[도서관] 연구:정찰 항공기 (+10%)" },
   { id: "dmg_uni_sunja", pct: 20, label: "[유니버시티] 손자: 정찰기 스캔 데미지 보너스 (+20%)" },
@@ -459,6 +546,42 @@ const FIXED_SCAN_CHECK_ITEMS = [
 
 function findBonusIndex(list, id) {
   return list.findIndex(b => b.id === id);
+}
+
+/* ✅ FIX: HP 노란/빨간 입력 박스 mount + 포맷 적용 */
+function mountHpCouncilRelicRows() {
+  const mount = $("hpCouncilRelicMount");
+  if (!mount) return;
+  if (mount.dataset.mounted === "1") return;
+  mount.dataset.mounted = "1";
+
+  mount.innerHTML = `
+    <div class="hp-rows">
+      <div class="hp-rowbox hp-yellow">
+        <div class="hp-rowbox-left">[수비수 협의회] 미사일격납고 HP</div>
+        <input id="hp_def_council_tower" class="hp-rowbox-right" value="0%" />
+      </div>
+
+      <div class="hp-rowbox hp-yellow">
+        <div class="hp-rowbox-left">[수비수 유물] 미사일격납고 HP</div>
+        <input id="hp_def_relic_tower" class="hp-rowbox-right" value="0%" />
+      </div>
+
+      <div class="hp-rowbox hp-red">
+        <div class="hp-rowbox-left">[공격수 유물] 모든 적 방어타워 -HP</div>
+        <input id="hp_att_relic_enemy_tower" class="hp-rowbox-right" value="0%" />
+      </div>
+
+      <div class="hp-rowbox-subdesc">[공격수 유물 허용 범위: 0 ~ -85]</div>
+    </div>
+  `;
+
+  // 노란 2개: 일반 % + 덮어쓰기
+  enablePctSuffixInput($("hp_def_council_tower"), () => scheduleRecalc(false), -999, 999);
+  enablePctSuffixInput($("hp_def_relic_tower"),   () => scheduleRecalc(false), -999, 999);
+
+  // 빨간 1개: 음수 강제 + 범위 0 ~ -85
+  enableNegPctSuffixRange($("hp_att_relic_enemy_tower"), -85, 0, () => scheduleRecalc(false));
 }
 
 function mountHpAutoBoxes() {
@@ -635,7 +758,6 @@ function mountDmgAutoBoxes() {
         `).join("")}
       </div>
 
-      <!-- ✅ [공격수 협의회] 입력: 스캔 박스 내부 -->
       <div class="hp-rows" style="margin-top:12px;">
         <div class="hp-rowbox hp-yellow">
           <div class="hp-rowbox-left">[공격수 협의회] 정찰 스캔 데미지 보너스</div>
@@ -643,7 +765,6 @@ function mountDmgAutoBoxes() {
         </div>
       </div>
 
-      <!-- ✅ 표시 수치: (정찰기 기본 + 협의회 입력) 합계를 박스 최하단에 표기 -->
       <div class="auto-sum" style="margin-top:12px;">
         <span>합계</span>
         <b id="scoutAutoOut">0%</b>
@@ -687,7 +808,6 @@ function mountDmgAutoBoxes() {
     $(`scancheck_${it.id}`)?.addEventListener("change", () => scheduleRecalc(false));
   });
 
-  // ✅ 협의회 입력 % 자동표기
   enablePercentFormatting($("councilScanInput"), () => scheduleRecalc(false));
 
   $("allDmgResearchApply")?.addEventListener("change", (e) => {
@@ -724,9 +844,8 @@ function mountDmgAutoBoxes() {
       if (cb) cb.checked = on;
     });
 
-    // 협의회 입력도 on/off 시 초기값(원하면 유지로 바꿀 수 있음)
     const council = $("councilScanInput");
-    if (council) council.value = on ? "0%" : "0%";
+    if (council) council.value = "0%";
 
     applyFixedDmgToBonuses();
     applyMongolAutoToDmgBonus();
@@ -838,13 +957,32 @@ function applyScoutAutoToBonus() {
 
 /* -------------------------------
    9) 계산/렌더
+   ✅ FIX: hpCouncilRelicMount 입력값을 hpBonuses에 동기화해서 계산에 반영
 ------------------------------- */
+function syncHpCouncilRelicToBonuses() {
+  const councilPct = safeNum($("hp_def_council_tower")?.value);
+  const relicPct   = safeNum($("hp_def_relic_tower")?.value);
+  const enemyPct   = safeNum($("hp_att_relic_enemy_tower")?.value); // 음수로 들어옴
+
+  const i1 = findBonusIndex(hpBonuses, "hp_def_council_tower");
+  if (i1 >= 0) hpBonuses[i1].pct = String(councilPct);
+
+  const i2 = findBonusIndex(hpBonuses, "hp_def_relic_tower");
+  if (i2 >= 0) hpBonuses[i2].pct = String(relicPct);
+
+  const i3 = findBonusIndex(hpBonuses, "hp_att_relic_enemy_tower");
+  if (i3 >= 0) hpBonuses[i3].pct = String(enemyPct);
+}
+
 function recalc(rerenderBonuses) {
   if (rerenderBonuses) {
     const onChange = (needRerender) => scheduleRecalc(!!needRerender);
     renderBonusList($("hpBonusList"), hpBonuses, onChange);
     renderBonusList($("dmgBonusList"), dmgBonuses, onChange);
   }
+
+  // ✅ HP 노란/빨간 박스 값 → 실제 hpBonuses에 반영
+  syncHpCouncilRelicToBonuses();
 
   const baseHp = safeNum($("baseHp")?.value);
   const baseDmg = safeNum($("baseDmg")?.value);
@@ -853,47 +991,50 @@ function recalc(rerenderBonuses) {
   const hpSumPct = sumBonusPct(hpBonuses);
   const totalHp = baseHp * (1 + hpSumPct / 100);
 
-  // ✅ 파괴전술 DMG 합산(스캔 관련은 제외)
+  // 파괴전술 DMG (스캔 관련 제외)
   const DMG_EXCLUDE_IDS = ["dmg_auto_scoutscan", "dmg_lib_scout", "dmg_uni_sunja", "dmg_att_council_scan"];
   const dmgSumPct = sumBonusPctExcept(dmgBonuses, DMG_EXCLUDE_IDS);
   const totalDmg = baseDmg * (1 + dmgSumPct / 100);
 
-  // ✅ 협의회 입력값(스캔용)
+  // 협의회 입력값(스캔용)
   const councilScanPct = safeNum($("councilScanInput")?.value);
 
-  // 내부 값도 동기화(계산/리셋 일관성)
   const cIdx = findBonusIndex(dmgBonuses, "dmg_att_council_scan");
   if (cIdx >= 0) dmgBonuses[cIdx].pct = String(councilScanPct);
 
-  // ✅ 정찰 스캔 데미지 효과 총 수치(%) = (정찰기 기본 + 체크2개 + 협의회 입력)
+  // 정찰 스캔 총 수치(%)
   const scoutBasePct = getBonusPctById(dmgBonuses, "dmg_auto_scoutscan");
   const scanScoutResearchPct = ($("scancheck_dmg_lib_scout")?.checked ? 10 : 0);
   const scanSunjaPct         = ($("scancheck_dmg_uni_sunja")?.checked ? 20 : 0);
-
   const scanTotalPct = scoutBasePct + scanScoutResearchPct + scanSunjaPct + councilScanPct;
 
-  // ✅ "정찰기 스캔 + 파괴전술 DMG" (표기/계산용)
+  // 정찰기 스캔 + 파괴전술 DMG
   const totalDmgScan = (totalDmg > 0 && scanTotalPct > 0) ? (totalDmg * (scanTotalPct / 100)) : NaN;
 
-  // 표시값(퍼센트)
+  // 표시값
   if ($("hpBonusSum")) $("hpBonusSum").textContent = fmtPctInt(hpSumPct);
-  if ($("dmgBonusSum")) $("dmgBonusSum").textContent = fmtPctInt(dmgSumPct); // (파괴전술 DMG) 총 추가 수치만 유지
-  // (정찰기 스캔 + 파괴전술 DMG) 하단 "총 추가 수치"는 HTML에서 제거하면 됨(JS는 따로 출력 안함)
+  if ($("dmgBonusSum")) $("dmgBonusSum").textContent = fmtPctInt(dmgSumPct);
 
-  // 표시값(숫자)
   if ($("totalHp")) $("totalHp").textContent = fmtInt(totalHp);
 
-  // ✅ DMG 2줄 표기
   if ($("totalDmg")) $("totalDmg").textContent = fmtInt(totalDmg);
   if ($("totalDmgScan")) $("totalDmgScan").textContent = fmtInt(totalDmgScan);
 
-  // ✅ 스캔 박스 최하단 수치 = (정찰기 기본 + 협의회 입력)
-if ($("scoutAutoOut")) $("scoutAutoOut").textContent = fmtPctInt(scanTotalPct);
+  if ($("scoutAutoOut")) $("scoutAutoOut").textContent = fmtPctInt(scanTotalPct);
 
-  // ✅ 필요 개수 = HP ÷ (정찰기 스캔 + 파괴전술 DMG)
-  const raw = Number.isFinite(totalDmgScan) && totalDmgScan > 0 ? (totalHp / totalDmgScan) : NaN;
+    // ✅ 필요 개수
+  // - 스캔%가 있으면: HP ÷ (파괴전술DMG × 스캔%)
+  // - 스캔%가 0이면:  HP ÷ 파괴전술DMG (fallback)
+  const denom =
+    (Number.isFinite(totalDmgScan) && totalDmgScan > 0)
+      ? totalDmgScan
+      : (Number.isFinite(totalDmg) && totalDmg > 0 ? totalDmg : NaN);
+
+  const raw = Number.isFinite(denom) ? (totalHp / denom) : NaN;
+
   if ($("needCountRaw")) $("needCountRaw").textContent = Number.isFinite(raw) ? raw.toFixed(2) : "-";
   if ($("needCountCeil")) $("needCountCeil").textContent = Number.isFinite(raw) ? Math.ceil(raw).toLocaleString("ko-KR") : "-";
+
 }
 
 /* -------------------------------
@@ -905,19 +1046,17 @@ function setCommaInputValue(id, valueNumber) {
   el.value = Number(valueNumber || 0).toLocaleString("ko-KR");
 }
 
-function setPercentInputValue(id, valueNumber) {
-  const el = $(id);
-  if (!el) return;
-  const n = Math.max(0, Math.min(999, Number(valueNumber || 0)));
-  el.value = `${n}%`;
-}
-
 function resetHpSectionToZero() {
   if ($("allHpResearchApply")) $("allHpResearchApply").checked = false;
   setCommaInputValue("baseHp", 0);
   if ($("enemyAgeHp")) $("enemyAgeHp").value = "";
 
   hpBonuses = makeDefaultBonuses(DEFAULT_HP_BONUS_IDS);
+
+  // ✅ HP 노란/빨간 입력도 초기화(표시 + 데이터)
+  if ($("hp_def_council_tower")) $("hp_def_council_tower").value = "0%";
+  if ($("hp_def_relic_tower")) $("hp_def_relic_tower").value = "0%";
+  if ($("hp_att_relic_enemy_tower")) $("hp_att_relic_enemy_tower").value = "0%";
 
   FIXED_HP_CHECK_ITEMS.forEach(it => { const cb = $(`fixedhp_${it.id}`); if (cb) cb.checked = false; });
   if ($("egyptLevel")) $("egyptLevel").value = "0";
@@ -946,8 +1085,7 @@ function resetDmgSectionToZero() {
 
   FIXED_SCAN_CHECK_ITEMS.forEach(it => { const cb = $(`scancheck_${it.id}`); if (cb) cb.checked = false; });
 
-  // ✅ 협의회 입력 초기화
-  setPercentInputValue("councilScanInput", 0);
+  if ($("councilScanInput")) $("councilScanInput").value = "0%";
   const cIdx = findBonusIndex(dmgBonuses, "dmg_att_council_scan");
   if (cIdx >= 0) dmgBonuses[cIdx].pct = "0";
 
@@ -968,7 +1106,6 @@ function wireEvents() {
   setCommaInputValue("baseHp", safeNum($("baseHp")?.value) || 0);
   setCommaInputValue("baseDmg", safeNum($("baseDmg")?.value) || 0);
 
-  // ✅ 협의회 입력 % 포맷 (혹시 mount 전에 호출되더라도 안전)
   enablePercentFormatting($("councilScanInput"), () => scheduleRecalc(false));
 
   $("enemyAgeHp")?.addEventListener("change", (e) => {
@@ -1005,6 +1142,8 @@ function wireEvents() {
   renderReferenceTables();
 
   mountHpAutoBoxes();
+  mountHpCouncilRelicRows();  // ✅ FIX: 실제 mount 호출
+
   mountDmgAutoBoxes();
 
   scheduleRecalc(true);

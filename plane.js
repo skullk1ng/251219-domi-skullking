@@ -1,5 +1,6 @@
 /* =========================================================
    Dominations Calculator - 비행기 & 함정 계산기
+   (FIX: % 자동표기/덮어쓰기/Enter=blur + 침공 -HP 음수강제(0~-85) + safeNum가 % 처리)
    ========================================================= */
 
 (() => {
@@ -11,7 +12,7 @@
      Utils
   ------------------------------- */
   function safeNum(v) {
-    const n = Number(String(v ?? "").replace(/,/g, ""));
+    const n = Number(String(v ?? "").replace(/,/g, "").replace(/%/g, ""));
     return Number.isFinite(n) ? n : 0;
   }
   function fmtInt(n) {
@@ -31,31 +32,53 @@
     el.addEventListener(evt, handler);
   }
 
-  function enableCommaFormatting(inputEl, onBlurCommit) {
+  function enableCommaFormatting(inputEl, onCommit) {
     if (!inputEl) return;
 
+    // 포커스: 콤마 제거 + 전체선택
     bindOnce(inputEl, "focus", () => {
       inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
+      setTimeout(() => { try { inputEl.select(); } catch {} }, 0);
     }, "comma_focus");
+
+    // Enter -> blur
+    bindOnce(inputEl, "keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        inputEl.blur();
+      }
+    }, "comma_enter");
 
     bindOnce(inputEl, "input", () => {
       inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+      onCommit?.();
     }, "comma_input");
 
     bindOnce(inputEl, "blur", () => {
       const raw = String(inputEl.value ?? "").replace(/,/g, "");
-      if (raw === "") {
-        inputEl.value = "0";
-        onBlurCommit?.();
-        return;
-      }
-      inputEl.value = Number(raw).toLocaleString("ko-KR");
-      onBlurCommit?.();
+      const finalRaw = raw === "" ? "0" : raw;
+      inputEl.value = Number(finalRaw).toLocaleString("ko-KR");
+      onCommit?.();
     }, "comma_blur");
   }
 
-  function enablePctInput(inputEl, onCommit) {
+  // 일반 % 입력(0~999) : blur 시 % 자동표기 + 포커스 전체선택 + Enter=blur
+  function enablePctSuffixInput(inputEl, onCommit, min = 0, max = 999) {
     if (!inputEl) return;
+    if (inputEl.dataset.boundPctSuf === "1") return;
+    inputEl.dataset.boundPctSuf = "1";
+
+    bindOnce(inputEl, "focus", () => {
+      inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+      setTimeout(() => { try { inputEl.select(); } catch {} }, 0);
+    }, "pct_focus");
+
+    bindOnce(inputEl, "keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        inputEl.blur();
+      }
+    }, "pct_enter");
 
     bindOnce(inputEl, "input", () => {
       inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
@@ -63,36 +86,97 @@
     }, "pct_input");
 
     bindOnce(inputEl, "blur", () => {
-      if (String(inputEl.value ?? "") === "") inputEl.value = "0";
+      let raw = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+      if (raw === "") raw = "0";
+
+      let n = Number(raw);
+      if (!Number.isFinite(n)) n = 0;
+
+      n = Math.trunc(n);
+      if (n < min) n = min;
+      if (n > max) n = max;
+
+      inputEl.value = `${n}%`;
       onCommit?.();
     }, "pct_blur");
+
+    // 초기 표시도 %로
+    const initRaw = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+    const initNum = Number(initRaw);
+    const n = Number.isFinite(initNum) ? Math.trunc(initNum) : 0;
+    inputEl.value = `${Math.max(min, Math.min(max, n))}%`;
   }
 
-  // 음수 강제(0~85). 사용자가 정수 넣으면 blur 시 자동 -로 변환
-  function enableEnemyNegPct(inputEl, onCommit) {
+  // 음수 전용 % (양수 입력해도 음수 변환) + 범위 강제 (minNeg ~ maxNeg) + % 자동표기 + 덮어쓰기
+  function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
     if (!inputEl) return;
+    if (inputEl.dataset.boundNegPct === "1") return;
+    inputEl.dataset.boundNegPct = "1";
+
+    bindOnce(inputEl, "focus", () => {
+      inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+      setTimeout(() => { try { inputEl.select(); } catch {} }, 0);
+    }, "negpct_focus");
+
+    bindOnce(inputEl, "keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        inputEl.blur();
+      }
+    }, "negpct_enter");
 
     bindOnce(inputEl, "input", () => {
-      const raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-      inputEl.value = raw.replace(/-/g, "");
+      inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
       onCommit?.();
-    }, "neg_input");
+    }, "negpct_input");
 
     bindOnce(inputEl, "blur", () => {
-      const raw = String(inputEl.value ?? "").replace(/[^\d]/g, "");
-      let v = Number(raw);
-      if (!Number.isFinite(v)) v = 0;
-      if (v < 0) v = 0;
-      if (v > 85) v = 85;
-      inputEl.value = String(v === 0 ? 0 : -v);
+      let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+      if (raw === "" || raw === "-") raw = "0";
+
+      let n = Number(raw);
+      if (!Number.isFinite(n)) n = 0;
+
+      if (n !== 0) n = -Math.abs(n);
+      if (n < minNeg) n = minNeg;
+      if (n > maxNeg) n = maxNeg;
+
+      inputEl.value = `${Math.trunc(n)}%`;
       onCommit?.();
-    }, "neg_blur");
+    }, "negpct_blur");
+
+    // 초기 표시도 %로
+    const initRaw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "") || "0";
+    let initNum = Number(initRaw);
+    if (!Number.isFinite(initNum)) initNum = 0;
+    if (initNum !== 0) initNum = -Math.abs(initNum);
+    if (initNum < minNeg) initNum = minNeg;
+    if (initNum > maxNeg) initNum = maxNeg;
+    inputEl.value = `${Math.trunc(initNum)}%`;
   }
 
   function setCommaValue(id, n) {
     const el = $(id);
     if (!el) return;
     el.value = Number(n || 0).toLocaleString("ko-KR");
+  }
+
+  function setPctValue(id, n) {
+    const el = $(id);
+    if (!el) return;
+    const nn = Math.max(0, Math.min(999, Math.trunc(Number(n || 0))));
+    el.value = `${nn}%`;
+  }
+
+  function setNegPctValue(id, n) {
+    const el = $(id);
+    if (!el) return;
+    let nn = Math.trunc(Number(n || 0));
+    if (!Number.isFinite(nn)) nn = 0;
+    if (nn !== 0) nn = -Math.abs(nn);
+    if (nn < -85) nn = -85;
+    if (nn > 0) nn = 0;
+    el.value = `${nn}%`;
   }
 
   /* -------------------------------
@@ -497,7 +581,6 @@
     });
   }
 
-  // ✅ GCI 길드 보너스 UI + 합계 렌더
   function renderGuildGciBlock() {
     const box = $("guildGciBlock");
     if (!box) return;
@@ -891,7 +974,6 @@
     });
   }
 
-  // ⚠️ gciAge/baseGciDmg 절대 건드리지 않음
   function applyAllGciResearchUI(on) {
     const maori = $("maoriLevel");
     if (maori) maori.value = on ? "8" : "0";
@@ -907,7 +989,6 @@
     });
   }
 
-  // ⚠️ samAge/baseSamDmg 절대 건드리지 않음
   function applyAllSamResearchUI(on) {
     [
       "lib_sam_deception", "lib_sam_aa", "lib_sam_early",
@@ -997,12 +1078,13 @@
     bindOnce($("research_ransom_olds"), "change", recalc, "ransom_change");
     bindOnce($("research_fully_armed_attack"), "change", recalc, "fully_change");
 
-    [
-      "councilPlaneHpPct", "relicPlaneHpPct",
-      "councilGciPct", "relicGciPct",
-    ].forEach((id) => enablePctInput($(id), recalc));
+    // ✅ % 자동표기 입력들
+    ["councilPlaneHpPct", "relicPlaneHpPct", "councilGciPct", "relicGciPct"].forEach((id) => {
+      enablePctSuffixInput($(id), recalc, 0, 999);
+    });
 
-    enableEnemyNegPct($("enemyInvasionPlaneHpNegPct"), recalc);
+    // ✅ 침공 -HP: 0 ~ -85 강제 + % 자동표기
+    enableNegPctSuffixRange($("enemyInvasionPlaneHpNegPct"), -85, 0, recalc);
 
     // 사용자 선택에만 반응
     bindOnce($("gciAge"), "change", (e) => {
@@ -1089,9 +1171,10 @@
         renderUsAllianceBox();
         renderManuBox();
 
-        ["councilPlaneHpPct", "relicPlaneHpPct", "enemyInvasionPlaneHpNegPct"].forEach((id) => {
-          if ($(id)) $(id).value = "0";
-        });
+        // ✅ 퍼센트 입력들은 % 유지로 초기화
+        setPctValue("councilPlaneHpPct", 0);
+        setPctValue("relicPlaneHpPct", 0);
+        setNegPctValue("enemyInvasionPlaneHpNegPct", 0);
 
         bindHandlers();
         restoreAllResearchCheckboxes();
@@ -1120,6 +1203,13 @@
     setCommaValue("basePlaneHp", 0);
     setCommaValue("baseGciDmg", 0);
     setCommaValue("baseSamDmg", 0);
+
+    // ✅ 초기 % 포맷 맞춤
+    setPctValue("councilPlaneHpPct", safeNum($("councilPlaneHpPct")?.value));
+    setPctValue("relicPlaneHpPct", safeNum($("relicPlaneHpPct")?.value));
+    setPctValue("councilGciPct", safeNum($("councilGciPct")?.value));
+    setPctValue("relicGciPct", safeNum($("relicGciPct")?.value));
+    setNegPctValue("enemyInvasionPlaneHpNegPct", safeNum($("enemyInvasionPlaneHpNegPct")?.value));
 
     wirePlaneTypeRadios();
     bindHandlers();

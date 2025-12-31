@@ -38,66 +38,100 @@
   }
 
   function enableCommaFormatting(inputEl, onBlurCommit) {
-    if (!inputEl) return;
+  if (!inputEl) return;
 
-    bindOnce(inputEl, "focus", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
-    }, "comma_focus");
+  // ✅ 포커스 시: 콤마 제거 + 전체 선택
+  bindOnce(inputEl, "focus", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
+    setTimeout(() => {
+      try { inputEl.select(); } catch {}
+    }, 0);
+  }, "comma_focus");
 
-    bindOnce(inputEl, "input", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
-    }, "comma_input");
+  // ✅ 엔터/완료 → blur (키패드 닫기)
+  bindOnce(inputEl, "keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      inputEl.blur();
+    }
+  }, "comma_enter");
 
-    bindOnce(inputEl, "blur", () => {
-      const raw = String(inputEl.value ?? "").replace(/,/g, "");
-      if (raw === "") {
-        inputEl.value = "0";
-        onBlurCommit?.();
-        return;
-      }
-      inputEl.value = Number(raw).toLocaleString("ko-KR");
-      onBlurCommit?.();
-    }, "comma_blur");
-  }
+  bindOnce(inputEl, "input", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+  }, "comma_input");
 
-  // (기존) 숫자만 입력되는 % 입력(표시에는 %를 붙이지 않음)
+  bindOnce(inputEl, "blur", () => {
+    const raw = String(inputEl.value ?? "").replace(/,/g, "");
+    inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
+    onBlurCommit?.();
+  }, "comma_blur");
+}
+
+
   function enablePctInput(inputEl, onCommit) {
-    if (!inputEl) return;
+  if (!inputEl) return;
 
-    bindOnce(inputEl, "input", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-      onCommit?.();
-    }, "pct_input");
+  bindOnce(inputEl, "focus", () => {
+    setTimeout(() => {
+      try { inputEl.select(); } catch {}
+    }, 0);
+  }, "pct_focus");
 
-    bindOnce(inputEl, "blur", () => {
-      if (String(inputEl.value ?? "") === "" || String(inputEl.value ?? "") === "-") inputEl.value = "0";
-      onCommit?.();
-    }, "pct_blur");
-  }
+  bindOnce(inputEl, "keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      inputEl.blur();
+    }
+  }, "pct_enter");
 
-  // ✅ 입력 시 자동으로 "정수%"로 표기 (예: 10 -> 10%)
+  bindOnce(inputEl, "input", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    onCommit?.();
+  }, "pct_input");
+
+  bindOnce(inputEl, "blur", () => {
+    if (String(inputEl.value ?? "") === "" || String(inputEl.value ?? "") === "-") {
+      inputEl.value = "0";
+    }
+    onCommit?.();
+  }, "pct_blur");
+}
+
+
   function enablePctSuffixInput(inputEl, onCommit, min = -999, max = 999) {
-    if (!inputEl) return;
+  if (!inputEl) return;
 
-    bindOnce(inputEl, "focus", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
-    }, "pctSuf_focus");
+  bindOnce(inputEl, "focus", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+    setTimeout(() => {
+      try { inputEl.select(); } catch {}
+    }, 0);
+  }, "pctSuf_focus");
 
-    bindOnce(inputEl, "input", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-      onCommit?.();
-    }, "pctSuf_input");
+  bindOnce(inputEl, "keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      inputEl.blur();
+    }
+  }, "pctSuf_enter");
 
-    bindOnce(inputEl, "blur", () => {
-      let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-      if (raw === "" || raw === "-") raw = "0";
-      let n = Number(raw);
-      if (!Number.isFinite(n)) n = 0;
-      n = clamp(Math.trunc(n), min, max);
-      inputEl.value = `${n}%`;
-      onCommit?.();
-    }, "pctSuf_blur");
-  }
+  bindOnce(inputEl, "input", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    onCommit?.();
+  }, "pctSuf_input");
+
+  bindOnce(inputEl, "blur", () => {
+    let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    if (raw === "" || raw === "-") raw = "0";
+
+    let n = Number(raw);
+    if (!Number.isFinite(n)) n = 0;
+    n = clamp(Math.trunc(n), min, max);
+
+    inputEl.value = `${n}%`;
+    onCommit?.();
+  }, "pctSuf_blur");
+}
 
   // ✅ -85 ~ 0 강제(양수 입력해도 blur에서 음수로)
   function enableNegPctRange(inputEl, minNeg, maxNeg, onCommit) {
@@ -122,6 +156,44 @@
       onCommit?.();
     }, "neg_blur");
   }
+
+  // ✅ 음수 퍼센트 + % 자동 표기 + 전체 덮어쓰기
+function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
+  if (!inputEl) return;
+
+  bindOnce(inputEl, "focus", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+    setTimeout(() => {
+      try { inputEl.select(); } catch {}
+    }, 0);
+  }, "negPct_focus");
+
+  bindOnce(inputEl, "keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      inputEl.blur();
+    }
+  }, "negPct_enter");
+
+  bindOnce(inputEl, "input", () => {
+    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    onCommit?.();
+  }, "negPct_input");
+
+  bindOnce(inputEl, "blur", () => {
+    let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+    if (raw === "" || raw === "-") raw = "0";
+
+    let n = Number(raw);
+    if (!Number.isFinite(n)) n = 0;
+
+    if (n !== 0) n = -Math.abs(n);
+    n = clamp(n, minNeg, maxNeg);
+
+    inputEl.value = `${n}%`;
+    onCommit?.();
+  }, "negPct_blur");
+}
 
   function setCommaInputValue(id, valueNumber) {
     const el = $(id);
@@ -469,27 +541,46 @@
       <div class="hp-rows">
         <div class="hp-rowbox hp-yellow">
           <div class="hp-rowbox-left">[수비수 협의회] 방공시설 HP</div>
-          <input id="hp_def_council_airdef" class="hp-rowbox-right" value="0" />
+          <input id="hp_def_council_airdef" class="hp-rowbox-right" value="0%" />
         </div>
 
         <div class="hp-rowbox hp-yellow">
           <div class="hp-rowbox-left">[수비수 유물] 방공시설 HP</div>
-          <input id="hp_def_relic_airdef" class="hp-rowbox-right" value="0" />
+          <input id="hp_def_relic_airdef" class="hp-rowbox-right" value="0%" />
         </div>
 
         <div class="hp-rowbox hp-red">
           <div class="hp-rowbox-left">[공격수 유물] 모든 적 방어타워 -HP</div>
-          <input id="hp_att_relic_enemy_tower" class="hp-rowbox-right" value="0" />
+          <input id="hp_att_relic_enemy_tower" class="hp-rowbox-right" value="0%" />
         </div>
 
         <div class="hp-rowbox-subdesc">[공격수 유물 허용 범위: 0 ~ -85]</div>
       </div>
     `;
 
-    enablePctInput($("hp_def_council_airdef"), () => scheduleRecalc(false));
-    enablePctInput($("hp_def_relic_airdef"), () => scheduleRecalc(false));
-    enableNegPctRange($("hp_att_relic_enemy_tower"), -85, 0, () => scheduleRecalc(false));
-  }
+    enablePctSuffixInput(
+  $("hp_def_council_airdef"),
+  () => scheduleRecalc(false),
+  -999,
+  999
+);
+
+enablePctSuffixInput(
+  $("hp_def_relic_airdef"),
+  () => scheduleRecalc(false),
+  -999,
+  999
+);
+
+    enableNegPctSuffixRange(
+  $("hp_att_relic_enemy_tower"),
+  -85,
+  0,
+  () => scheduleRecalc(false)
+);
+
+}
+
 
   function mountDmgAutoBoxes() {
     const mount = $("dmgAutoMount");
@@ -1125,9 +1216,9 @@
     if ($("defRussiaLevel")) $("defRussiaLevel").value = "0";
     ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`defhp_${o.key}`); if (cb) cb.checked = false; });
 
-    if ($("hp_def_council_airdef")) $("hp_def_council_airdef").value = "0";
-    if ($("hp_def_relic_airdef"))   $("hp_def_relic_airdef").value = "0";
-    if ($("hp_att_relic_enemy_tower")) $("hp_att_relic_enemy_tower").value = "0";
+    if ($("hp_def_council_airdef")) $("hp_def_council_airdef").value = "0%";
+    if ($("hp_def_relic_airdef"))   $("hp_def_relic_airdef").value = "0%";
+    if ($("hp_att_relic_enemy_tower")) $("hp_att_relic_enemy_tower").value = "0%";
 
     manuSlot1 = { equip: "", level: 0 };
     manuSlot2 = { equip: "", level: 0 };
