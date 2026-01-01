@@ -1498,3 +1498,156 @@ body:not(.home-page) .home-grid.calc-grid{
   padding:0;
   line-height:1;
 }
+
+/* =========================================================
+  ✅ Council page (Advisors)
+  - 전설: 주황(is-legend) : 기존 색 사용
+  - 특급: 보라(is-special) : 신규 추가
+  ========================================================= */
+
+/* 헤더(항목 종류) */
+.council-head{
+  display:grid;
+  grid-template-columns: 170px 160px 90px 90px 72px minmax(0,1fr) 90px;
+  gap:10px;
+  padding:10px 10px 10px;
+  margin-top:8px;
+  border-bottom:1px solid rgba(250,204,21,.22);
+  color:rgba(229,231,235,.85);
+  font-size:12px;
+  font-weight:1000;
+  letter-spacing:.2px;
+}
+.council-head .right{ text-align:right; }
+.council-head .center{ text-align:center; }
+@media (max-width:720px){ .council-head{ display:none; } }
+
+/* 리스트 */
+.council-list{
+  display:grid;
+  gap:10px;
+  margin-top:10px;
+}
+
+/* 카드 */
+.council-item{
+  background:linear-gradient(to bottom, rgba(255,255,255,.04), rgba(255,255,255,.01));
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 14px 30px rgba(0,0,0,.70);
+
+  display:grid;
+  grid-template-columns: 170px 160px 90px 90px 72px minmax(0,1fr) 90px;
+  gap:10px;
+  padding:10px 10px;
+  align-items:start;
+}
+
+.council-item.is-legend{
+  border-color:rgba(234,88,12,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 1px rgba(234,88,12,.12),
+    0 14px 30px rgba(0,0,0,.70);
+}
+
+/* ✅ 특급(보라) */
+.council-item.is-special{
+  border-color:rgba(168,85,247,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 1px rgba(168,85,247,.14),
+    0 14px 30px rgba(0,0,0,.70);
+}
+
+/* 이름/영문 */
+.council-name{
+  font-weight:1000;
+  font-size:13px;
+  color:#fff;
+  line-height:1.25;
+}
+.council-en{
+  font-size:11px;
+  color:var(--muted2);
+  line-height:1.25;
+  word-break:break-word;
+}
+
+/* 역할/종류 */
+.council-role, .council-kind{
+  font-size:12px;
+  color:#e5e7eb;
+  font-weight:800;
+}
+
+/* 등급 배지 */
+.council-grade{
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding-top:1px;
+}
+.council-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+  min-width:52px;
+  height:26px;
+  padding:0 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  line-height:1;
+}
+
+/* 기본=전설(주황) */
+.council-badge.is-legend{
+  color:rgba(234,88,12,.98);
+  border:1px solid rgba(234,88,12,.55);
+  background:rgba(234,88,12,.10);
+  box-shadow:
+    0 0 0 1px rgba(234,88,12,.14),
+    0 0 16px rgba(234,88,12,.12);
+}
+
+/* ✅ 특급(보라) */
+.council-badge.is-special{
+  color:rgba(168,85,247,.98);
+  border:1px solid rgba(168,85,247,.55);
+  background:rgba(168,85,247,.10);
+  box-shadow:
+    0 0 0 1px rgba(168,85,247,.18),
+    0 0 18px rgba(168,85,247,.18),
+    0 0 36px rgba(168,85,247,.10);
+}
+
+/* 옵션 테이블은 기존 ov-table/ov-row/ov-opt/ov-val 그대로 재사용 */
+.council-ov{ grid-column:6 / 8; }
+.council-val{ display:none; } /* 구조 유지용 */
+
+/* 모바일 */
+@media (max-width:720px){
+  .council-item{
+    grid-template-columns:1fr 88px;
+    gap:10px;
+    padding:10px 10px;
+  }
+  .council-name{ grid-column:1 / 2; font-size:14px; }
+  .council-en{ grid-column:1 / 2; margin-top:-6px; font-size:12px; }
+
+  .council-role{ grid-column:1 / 2; margin-top:2px; }
+  .council-kind{ grid-column:1 / 2; margin-top:-2px; }
+
+  .council-grade{
+    grid-column:2 / 3;
+    grid-row:1 / 5;
+    justify-content:flex-end;
+  }
+  .council-ov{ grid-column:1 / -1; }
+  .ov-row{ grid-template-columns:minmax(0,1fr) 88px; }
+}

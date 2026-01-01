@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Council</title>
+  <link rel="icon" href="/image/icon/pavicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="./style.css" />
+  <script async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8903566119278456"
+    crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <nav class="top-nav">
+    <a class="top-nav-btn active" href="./index.html">MAIN</a>
+  </nav>
+
+  <header class="app-header">
+    <h1>협의회 고문관 정보: 주요(MAIN)</h1>
+    <p class="sub">Find the Councilors you want through the filter</p>
+  </header>
+
+  <div class="container hero">
+    <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="협의회 주요 고문관 배너">
+      <img src="./image/banner/main_council.png" alt="협의회 주요 고문관" />
+    </a>
+  </div>
+
+  <!-- 광고 (필터와 목록 사이) -->
+  <ins class="adsbygoogle"
+    style="display:block"
+    data-ad-client="ca-pub-8903566119278456"
+    data-ad-slot="1549229197"
+    data-ad-format="auto"
+    data-full-width-responsive="true"></ins>
+  <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  </script>
+
+  <main class="container">
+
+    <section class="card">
+      <h2>필터</h2>
+
+      <div class="grid2">
+        <div>
+          <label class="label" for="councilSearch">고문관 검색</label>
+          <input
+            id="councilSearch"
+            class="input"
+            type="text"
+            placeholder="ex) 잔다르크 / Joan of Arc"
+            autocomplete="off"
+          />
+        </div>
+
+        <div>
+          <label class="label" for="optionFilterSearch">옵션 검색</label>
+          <input
+            id="optionFilterSearch"
+            class="input"
+            type="text"
+            placeholder="ex) 낙하산병 / 방공 시설"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="label" for="roleSelect">역할 선택</label>
+        <select id="roleSelect" class="input">
+          <option value="">전체</option>
+        </select>
+      </div>
+
+      <div class="artifact-filterbar">
+        <button id="clearFilters" class="btn ghost" type="button">필터 초기화</button>
+      </div>
+
+      <div id="optionFilters" class="artifact-chip-wrap" style="display:none;"></div>
+    </section>
+
+    <section class="card">
+      <h2>고문관 목록</h2>
+
+      <div class="council-head">
+        <div>이름</div>
+        <div>영문</div>
+        <div class="center">역할</div>
+        <div class="center">종류</div>
+        <div class="center">등급</div>
+        <div>옵션</div>
+        <div class="right">수치</div>
+      </div>
+
+      <div id="councilList" class="council-list"></div>
+    </section>
+
+    <!-- ✅ Donate -->
+    <div class="home-grid calc-grid">
+      <a class="menu-card is-donate" href="https://buymeacoffee.com/skullking" target="_blank" rel="noopener"
+         aria-label="Donate Crowns (새 창)">
+        <div class="menu-card-media">
+          <img src="./image/banner/donate-crown.png" alt="Donate Crowns" />
+          <span class="status-badge is-click donate-badge">CLICK</span>
+        </div>
+      </a>
+    </div>
+
+  </main>
+
+  <script src="./main_council.js"></script>
+</body>
+</html>
