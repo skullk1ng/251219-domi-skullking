@@ -1,6 +1,13 @@
 /* =========================================================
    Dominations Calculator - 방공시설 & 파괴전술 계산기
    (20251226 - DMG 2줄표기 + 정찰스캔 합계표기 + 협의회 % 자동)
+   ✅ 제조소(제조소 장비) 표 반영:
+     - "받는 데미지" 문구가 있는 항목 = 모두 피격감소(누적 합산)
+       강화 도금 Lv10: 모든 받는 데미지 -5%
+       강화 도금 Lv11: 정지 상태에서 받는 데미지 -7%
+       B.D.A.R. 도구 Lv20: 정지 상태에서 받는 데미지 -7%
+   ✅ HP 옵션은 표의 "HP +x%" 항목을 레벨까지 전부 누적 합산
+   ✅ 피격감소는 "스캔 포함 총 데미지"에서 감소
    ========================================================= */
 
 (() => {
@@ -12,7 +19,6 @@
      Utils
   ------------------------------- */
   function safeNum(v) {
-    // ✅ 쉼표/공백/% 제거 후 숫자 파싱 (예: "10%" -> 10)
     const n = Number(String(v ?? "").replace(/[,%\s]/g, ""));
     return Number.isFinite(n) ? n : 0;
   }
@@ -28,7 +34,15 @@
     return Math.max(min, Math.min(max, n));
   }
 
-  // ✅ 이벤트 중복 방지
+  // deltaMap: {level: deltaPct} 를 1~level까지 누적합
+  function sumUpToLevel(deltaMap, level) {
+    let sum = 0;
+    const lv = Number(level || 0);
+    for (let i = 1; i <= lv; i++) sum += (deltaMap[i] || 0);
+    return sum;
+  }
+
+  // 이벤트 중복 방지
   function bindOnce(el, evt, handler, key) {
     if (!el) return;
     const k = `bound_${evt}_${key || "1"}`;
@@ -38,162 +52,166 @@
   }
 
   function enableCommaFormatting(inputEl, onBlurCommit) {
-  if (!inputEl) return;
-
-  // ✅ 포커스 시: 콤마 제거 + 전체 선택
-  bindOnce(inputEl, "focus", () => {
-    inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
-    setTimeout(() => {
-      try { inputEl.select(); } catch {}
-    }, 0);
-  }, "comma_focus");
-
-  // ✅ 엔터/완료 → blur (키패드 닫기)
-  bindOnce(inputEl, "keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      inputEl.blur();
-    }
-  }, "comma_enter");
-
-  bindOnce(inputEl, "input", () => {
-    inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
-  }, "comma_input");
-
-  bindOnce(inputEl, "blur", () => {
-    const raw = String(inputEl.value ?? "").replace(/,/g, "");
-    inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
-    onBlurCommit?.();
-  }, "comma_blur");
-}
-
-
-  function enablePctInput(inputEl, onCommit) {
-  if (!inputEl) return;
-
-  bindOnce(inputEl, "focus", () => {
-    setTimeout(() => {
-      try { inputEl.select(); } catch {}
-    }, 0);
-  }, "pct_focus");
-
-  bindOnce(inputEl, "keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      inputEl.blur();
-    }
-  }, "pct_enter");
-
-  bindOnce(inputEl, "input", () => {
-    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-    onCommit?.();
-  }, "pct_input");
-
-  bindOnce(inputEl, "blur", () => {
-    if (String(inputEl.value ?? "") === "" || String(inputEl.value ?? "") === "-") {
-      inputEl.value = "0";
-    }
-    onCommit?.();
-  }, "pct_blur");
-}
-
-
-  function enablePctSuffixInput(inputEl, onCommit, min = -999, max = 999) {
-  if (!inputEl) return;
-
-  bindOnce(inputEl, "focus", () => {
-    inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
-    setTimeout(() => {
-      try { inputEl.select(); } catch {}
-    }, 0);
-  }, "pctSuf_focus");
-
-  bindOnce(inputEl, "keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      inputEl.blur();
-    }
-  }, "pctSuf_enter");
-
-  bindOnce(inputEl, "input", () => {
-    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-    onCommit?.();
-  }, "pctSuf_input");
-
-  bindOnce(inputEl, "blur", () => {
-    let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-    if (raw === "" || raw === "-") raw = "0";
-
-    let n = Number(raw);
-    if (!Number.isFinite(n)) n = 0;
-    n = clamp(Math.trunc(n), min, max);
-
-    inputEl.value = `${n}%`;
-    onCommit?.();
-  }, "pctSuf_blur");
-}
-
-  // ✅ -85 ~ 0 강제(양수 입력해도 blur에서 음수로)
-  function enableNegPctRange(inputEl, minNeg, maxNeg, onCommit) {
     if (!inputEl) return;
 
-    bindOnce(inputEl, "input", () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/[^0-9\-]/g, "");
-      onCommit?.();
-    }, "neg_input");
+    bindOnce(
+      inputEl,
+      "focus",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
+        setTimeout(() => {
+          try { inputEl.select(); } catch {}
+        }, 0);
+      },
+      "comma_focus"
+    );
 
-    bindOnce(inputEl, "blur", () => {
-      let raw = String(inputEl.value ?? "").replace(/[^0-9\-]/g, "");
-      if (raw === "" || raw === "-") raw = "0";
+    bindOnce(
+      inputEl,
+      "keydown",
+      (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          inputEl.blur();
+        }
+      },
+      "comma_enter"
+    );
 
-      let n = Number(raw);
-      if (!Number.isFinite(n)) n = 0;
+    bindOnce(
+      inputEl,
+      "input",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+      },
+      "comma_input"
+    );
 
-      if (n !== 0) n = -Math.abs(n);
-      n = clamp(n, minNeg, maxNeg);
-
-      inputEl.value = String(n);
-      onCommit?.();
-    }, "neg_blur");
+    bindOnce(
+      inputEl,
+      "blur",
+      () => {
+        const raw = String(inputEl.value ?? "").replace(/,/g, "");
+        inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
+        onBlurCommit?.();
+      },
+      "comma_blur"
+    );
   }
 
-  // ✅ 음수 퍼센트 + % 자동 표기 + 전체 덮어쓰기
-function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
-  if (!inputEl) return;
+  // % 자동표기 + 덮어쓰기
+  function enablePctSuffixInput(inputEl, onCommit, min = -999, max = 999) {
+    if (!inputEl) return;
 
-  bindOnce(inputEl, "focus", () => {
-    inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
-    setTimeout(() => {
-      try { inputEl.select(); } catch {}
-    }, 0);
-  }, "negPct_focus");
+    bindOnce(
+      inputEl,
+      "focus",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+        setTimeout(() => {
+          try { inputEl.select(); } catch {}
+        }, 0);
+      },
+      "pctSuf_focus"
+    );
 
-  bindOnce(inputEl, "keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      inputEl.blur();
-    }
-  }, "negPct_enter");
+    bindOnce(
+      inputEl,
+      "keydown",
+      (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          inputEl.blur();
+        }
+      },
+      "pctSuf_enter"
+    );
 
-  bindOnce(inputEl, "input", () => {
-    inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-    onCommit?.();
-  }, "negPct_input");
+    bindOnce(
+      inputEl,
+      "input",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+        onCommit?.();
+      },
+      "pctSuf_input"
+    );
 
-  bindOnce(inputEl, "blur", () => {
-    let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
-    if (raw === "" || raw === "-") raw = "0";
+    bindOnce(
+      inputEl,
+      "blur",
+      () => {
+        let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+        if (raw === "" || raw === "-") raw = "0";
 
-    let n = Number(raw);
-    if (!Number.isFinite(n)) n = 0;
+        let n = Number(raw);
+        if (!Number.isFinite(n)) n = 0;
+        n = clamp(Math.trunc(n), min, max);
 
-    if (n !== 0) n = -Math.abs(n);
-    n = clamp(n, minNeg, maxNeg);
+        inputEl.value = `${n}%`;
+        onCommit?.();
+      },
+      "pctSuf_blur"
+    );
+  }
 
-    inputEl.value = `${n}%`;
-    onCommit?.();
-  }, "negPct_blur");
-}
+  // 음수 퍼센트 + % 자동표기 + 덮어쓰기
+  function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
+    if (!inputEl) return;
+
+    bindOnce(
+      inputEl,
+      "focus",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/%/g, "");
+        setTimeout(() => {
+          try { inputEl.select(); } catch {}
+        }, 0);
+      },
+      "negPct_focus"
+    );
+
+    bindOnce(
+      inputEl,
+      "keydown",
+      (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          inputEl.blur();
+        }
+      },
+      "negPct_enter"
+    );
+
+    bindOnce(
+      inputEl,
+      "input",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+        onCommit?.();
+      },
+      "negPct_input"
+    );
+
+    bindOnce(
+      inputEl,
+      "blur",
+      () => {
+        let raw = String(inputEl.value ?? "").replace(/[^\d\-]/g, "");
+        if (raw === "" || raw === "-") raw = "0";
+
+        let n = Number(raw);
+        if (!Number.isFinite(n)) n = 0;
+
+        if (n !== 0) n = -Math.abs(n);
+        n = clamp(n, minNeg, maxNeg);
+
+        inputEl.value = `${n}%`;
+        onCommit?.();
+      },
+      "negPct_blur"
+    );
+  }
 
   function setCommaInputValue(id, valueNumber) {
     const el = $(id);
@@ -209,20 +227,27 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
      Base tables
   ------------------------------- */
   const AIRDEF_BASE_HP_BY_AGE = {
-    "디지털": 18360,
-    "정보화": 23750,
-    "드론": 27787,
-    "자동화": 32100,
-    "로봇공학": 38570,
+    디지털: 18360,
+    정보화: 23750,
+    드론: 27787,
+    자동화: 32100,
+    로봇공학: 38570,
   };
 
   const TACTIC_BASE_DMG_BY_LEVEL = {
-    1: 4334, 2: 6535, 3: 6518, 4: 7178, 5: 9350, 6: 12155, 7: 24151, 8: 27071,
+    1: 4334,
+    2: 6535,
+    3: 6518,
+    4: 7178,
+    5: 9350,
+    6: 12155,
+    7: 24151,
+    8: 27071,
   };
 
-  // 러시아/이집트 HP+ (레벨 동일 테이블)
+  // 러시아/이집트 HP+
   const ALLIANCE_HP_PCT_BY_LEVEL = { 1: 10, 2: 15, 3: 20, 4: 25, 5: 30, 6: 35, 7: 40, 8: 45 };
-  // 몽골 파괴전술 DMG+ (레벨 동일 테이블)
+  // 몽골 DMG+
   const ALLIANCE_TACTIC_PCT_BY_LEVEL = { 1: 10, 2: 15, 3: 20, 4: 25, 5: 30, 6: 35, 7: 40, 8: 45 };
 
   const ALLIANCE_EXTRA_OPTIONS = [
@@ -239,18 +264,18 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
   ];
 
   const GUILD_LEVEL_HP_PARTS = [
-    { id: "g2",  label: "길드 레벨 2 (HP +10%)",  pct: 10 },
+    { id: "g2", label: "길드 레벨 2 (HP +10%)", pct: 10 },
     { id: "g13", label: "길드 레벨 13 (HP +5%)", pct: 5 },
     { id: "g21", label: "길드 레벨 21 (HP +5%)", pct: 5 },
   ];
 
-  // 고정 DMG 체크(파괴전술) — ✅ 전술 DMG에만 해당 (정찰 관련은 scoutBox로)
+  // 고정 DMG 체크(파괴전술)
   const FIXED_DMG_CHECK_ITEMS = [
     { id: "dmg_lib_tactic", pct: 10, name: "[도서관] 연구:전술" },
     { id: "dmg_uni_suleiman", pct: 10, name: "[유니버시티] 쉘레이만 대제: 파괴 데미지" },
   ];
 
-  // ✅ 정찰 스캔 관련 체크(airdefense에도 추가)
+  // 정찰 스캔 관련 체크
   const SCOUT_SCAN_CHECK_ITEMS = [
     { id: "scan_lib_scout", pct: 10, name: "[도서관] 연구:정찰 항공기 (+10%)" },
     { id: "scan_uni_suntzu", pct: 20, name: "[유니버시티] 손자: 정찰기 스캔 데미지 보너스 (+20%)" },
@@ -260,12 +285,12 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
      Scout scan
   ------------------------------- */
   const SCOUT_PLANE_SCAN_OPTIONS = [
-    { key: "scout_mk1_digital",  age: "디지털",  name: "정찰기 Mk 1",  pct: 230 },
-    { key: "scout_mk2_digital",  age: "디지털",  name: "정찰기 Mk 2",  pct: 232 },
-    { key: "scout_mk3_digital",  age: "디지털",  name: "정찰기 Mk 3",  pct: 234 },
-    { key: "scout_mk4_digital",  age: "디지털",  name: "정찰기 Mk 4",  pct: 236 },
-    { key: "scout_mk5_digital",  age: "디지털",  name: "정찰기 Mk 5",  pct: 238 },
-    { key: "scout_mk6_digital",  age: "디지털",  name: "정찰기 Mk 6",  pct: 240 },
+    { key: "scout_mk1_digital", age: "디지털", name: "정찰기 Mk 1", pct: 230 },
+    { key: "scout_mk2_digital", age: "디지털", name: "정찰기 Mk 2", pct: 232 },
+    { key: "scout_mk3_digital", age: "디지털", name: "정찰기 Mk 3", pct: 234 },
+    { key: "scout_mk4_digital", age: "디지털", name: "정찰기 Mk 4", pct: 236 },
+    { key: "scout_mk5_digital", age: "디지털", name: "정찰기 Mk 5", pct: 238 },
+    { key: "scout_mk6_digital", age: "디지털", name: "정찰기 Mk 6", pct: 240 },
 
     { key: "supersonic_mk1_info", age: "정보화", name: "초음속 정찰기 Mk 1", pct: 240 },
     { key: "supersonic_mk2_info", age: "정보화", name: "초음속 정찰기 Mk 2", pct: 242 },
@@ -288,61 +313,59 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
     { key: "captains_mk5_auto", age: "자동화", name: "캡틴스 정찰기 Mk 5", pct: 250 },
     { key: "captains_mk6_auto", age: "자동화", name: "캡틴스 정찰기 Mk 6", pct: 250 },
 
-    { key: "majors_mk1_robot",  age: "로봇공학", name: "소령 정찰기 Mk 1",  pct: 252 },
-    { key: "majors_mk2_robot",  age: "로봇공학", name: "소령 정찰기 Mk 2",  pct: 252 },
-    { key: "majors_mk3_robot",  age: "로봇공학", name: "소령 정찰기 Mk 3",  pct: 252 },
-    { key: "majors_mk4_robot",  age: "로봇공학", name: "소령 정찰기 Mk 4",  pct: 252 },
-    { key: "majors_mk5_robot",  age: "로봇공학", name: "소령 정찰기 Mk 5",  pct: 252 },
-    { key: "majors_mk6_robot",  age: "로봇공학", name: "소령 정찰기 Mk 6",  pct: 252 },
-    { key: "majors_mk7_robot",  age: "로봇공학", name: "소령 정찰기 Mk 7",  pct: 252 },
-    { key: "majors_mk8_robot",  age: "로봇공학", name: "소령 정찰기 Mk 8",  pct: 252 },
-    { key: "majors_mk9_robot",  age: "로봇공학", name: "소령 정찰기 Mk 9",  pct: 252 },
+    { key: "majors_mk1_robot", age: "로봇공학", name: "소령 정찰기 Mk 1", pct: 252 },
+    { key: "majors_mk2_robot", age: "로봇공학", name: "소령 정찰기 Mk 2", pct: 252 },
+    { key: "majors_mk3_robot", age: "로봇공학", name: "소령 정찰기 Mk 3", pct: 252 },
+    { key: "majors_mk4_robot", age: "로봇공학", name: "소령 정찰기 Mk 4", pct: 252 },
+    { key: "majors_mk5_robot", age: "로봇공학", name: "소령 정찰기 Mk 5", pct: 252 },
+    { key: "majors_mk6_robot", age: "로봇공학", name: "소령 정찰기 Mk 6", pct: 252 },
+    { key: "majors_mk7_robot", age: "로봇공학", name: "소령 정찰기 Mk 7", pct: 252 },
+    { key: "majors_mk8_robot", age: "로봇공학", name: "소령 정찰기 Mk 8", pct: 252 },
+    { key: "majors_mk9_robot", age: "로봇공학", name: "소령 정찰기 Mk 9", pct: 252 },
     { key: "majors_mk10_robot", age: "로봇공학", name: "소령 정찰기 Mk 10", pct: 252 },
   ];
-  const SCOUT_PLANE_SCAN_MAP = Object.fromEntries(SCOUT_PLANE_SCAN_OPTIONS.map(o => [o.key, o]));
-  const SCOUT_ALL_RESEARCH_PICK = "majors_mk10_robot"; // ✅ 일괄적용 시 최고값(252%)로 고정
+  const SCOUT_PLANE_SCAN_MAP = Object.fromEntries(SCOUT_PLANE_SCAN_OPTIONS.map((o) => [o.key, o]));
+  const SCOUT_ALL_RESEARCH_PICK = "majors_mk10_robot";
 
   /* -------------------------------
-     Manufacturing (방공시설)
+     Manufacturing (방공시설) - 표 반영
+     - "받는 데미지" 문구 있는 항목 = 피격감소로 등록(누적)
+     - HP는 표의 HP +x% 를 레벨까지 누적
   ------------------------------- */
   const MANU_EQUIP = {
     lre: {
       name: "L.R.E. 광학 장치",
-      hpPctByLevel: { 3:4, 4:4, 7:6, 13:5, 15:5, 16:5, 18:5 },
-      tacticReduceByLevel: {},
+      hpDeltaByLevel: { 3: 4, 4: 4, 7: 6, 13: 5, 15: 5, 16: 5, 18: 5 },
+      tacticReduceDeltaByLevel: {},
     },
     plating: {
       name: "강화 도금",
-      hpPctByLevel: {
-        2:3, 3:3, 4:3, 5:3,
-        7:5, 8:5, 9:5,
-        12:5, 13:5, 14:5, 15:5, 16:5, 17:5, 18:5, 19:5
+      hpDeltaByLevel: {
+        2: 3, 3: 3, 4: 3, 5: 3,
+        7: 5, 8: 5, 9: 5,
+        12: 5, 13: 5, 14: 5, 15: 5, 16: 5, 17: 5, 18: 5, 19: 5,
       },
-      tacticReduceByLevel: { 10: 5, 11: 7 },
+      tacticReduceDeltaByLevel: { 10: 5, 11: 7 },
     },
     bdar: {
       name: "B.D.A.R. 도구",
-      hpPctByLevel: {
-        2:5, 3:5, 4:5,
-        8:7, 9:7,
-        12:6, 14:6, 15:6, 17:6, 18:6
+      hpDeltaByLevel: {
+        2: 5, 3: 5, 4: 5,
+        8: 7, 9: 7,
+        12: 6, 14: 6, 15: 6, 17: 6, 18: 6,
       },
-      tacticReduceByLevel: { 20: 7 },
+      tacticReduceDeltaByLevel: { 20: 7 },
     },
   };
 
   let manuSlot1 = { equip: "", level: 0 };
   let manuSlot2 = { equip: "", level: 0 };
 
-  /* -------------------------------
-     "모든 연구 완료" 상태
-  ------------------------------- */
+  // "모든 연구 완료" 상태
   let allHpResearchOn = false;
   let allDmgResearchOn = false;
 
-  /* -------------------------------
-     Bonus lists (사용자 추가)
-  ------------------------------- */
+  // 사용자 추가 보너스
   let hpBonuses = [];
   let dmgBonuses = [];
 
@@ -388,23 +411,38 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
       row.appendChild(name);
       row.appendChild(pct);
 
-      bindOnce(name, "input", () => {
-        bonuses[idx].name = name.value;
-        onChange(false);
-      }, `bonus_name_${b.id}`);
+      bindOnce(
+        name,
+        "input",
+        () => {
+          bonuses[idx].name = name.value;
+          onChange(false);
+        },
+        `bonus_name_${b.id}`
+      );
 
-      bindOnce(pct, "input", () => {
-        pct.value = String(pct.value ?? "").replace(/[^\d\-]/g, "");
-        bonuses[idx].pct = pct.value === "" ? "0" : pct.value;
-        onChange(false);
-      }, `bonus_pct_in_${b.id}`);
+      bindOnce(
+        pct,
+        "input",
+        () => {
+          pct.value = String(pct.value ?? "").replace(/[^\d\-]/g, "");
+          bonuses[idx].pct = pct.value === "" ? "0" : pct.value;
+          onChange(false);
+        },
+        `bonus_pct_in_${b.id}`
+      );
 
-      bindOnce(pct, "blur", () => {
-        const raw = String(pct.value ?? "").replace(/[^\d\-]/g, "");
-        pct.value = raw === "" ? "0" : String(Math.max(-999, Math.min(999, Number(raw) || 0)));
-        bonuses[idx].pct = pct.value;
-        onChange(false);
-      }, `bonus_pct_blur_${b.id}`);
+      bindOnce(
+        pct,
+        "blur",
+        () => {
+          const raw = String(pct.value ?? "").replace(/[^\d\-]/g, "");
+          pct.value = raw === "" ? "0" : String(Math.max(-999, Math.min(999, Number(raw) || 0)));
+          bonuses[idx].pct = pct.value;
+          onChange(false);
+        },
+        `bonus_pct_blur_${b.id}`
+      );
 
       const del = document.createElement("button");
       del.className = "icon-btn";
@@ -412,10 +450,15 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
       del.textContent = "×";
       del.title = "삭제";
 
-      bindOnce(del, "click", () => {
-        bonuses.splice(idx, 1);
-        onChange(true);
-      }, `bonus_del_${b.id}`);
+      bindOnce(
+        del,
+        "click",
+        () => {
+          bonuses.splice(idx, 1);
+          onChange(true);
+        },
+        `bonus_del_${b.id}`
+      );
 
       row.appendChild(del);
       containerEl.appendChild(row);
@@ -429,9 +472,6 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
   /* -------------------------------
      AUTO Mounts
   ------------------------------- */
-  const FIXED_HP_CHECK_ITEMS_LOCAL = FIXED_HP_CHECK_ITEMS; // keep reference
-  const GUILD_LEVEL_HP_PARTS_LOCAL = GUILD_LEVEL_HP_PARTS;
-
   function mountHpAutoBoxes() {
     const mount = $("hpAutoMount");
     if (!mount) return;
@@ -451,7 +491,7 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
       <div class="auto-box" id="fixedHpBox">
         <div class="auto-title">[AUTO] 연구/의회 HP+</div>
         <div class="auto-checks">
-          ${FIXED_HP_CHECK_ITEMS_LOCAL.map(it => `
+          ${FIXED_HP_CHECK_ITEMS.map((it) => `
             <label class="check-item">
               <input type="checkbox" id="${it.id}" />
               <span>${it.name}</span>
@@ -468,7 +508,7 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
         <div class="auto-title">[AUTO] 길드 레벨 HP+</div>
         <div class="auto-sub">달성한 길드레벨 모두 체크 (예시: 길드레벨 21 → 3개 모두 체크)</div>
         <div class="auto-checks">
-          ${GUILD_LEVEL_HP_PARTS_LOCAL.map(p => `
+          ${GUILD_LEVEL_HP_PARTS.map((p) => `
             <label class="check-item">
               <input type="checkbox" id="guild_${p.id}" />
               <span>${p.label}</span>
@@ -497,7 +537,7 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
 
           <div class="auto-sub" style="margin-top:10px;">[AUTO] 연맹 추가 연구</div>
           <div class="auto-checks">
-            ${ALLIANCE_EXTRA_OPTIONS.map(o => `
+            ${ALLIANCE_EXTRA_OPTIONS.map((o) => `
               <label class="check-item">
                 <input type="checkbox" id="defhp_${o.key}" />
                 <span>${o.name}</span>
@@ -522,7 +562,7 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
       if (!sel) return;
       sel.innerHTML = "";
       sel.appendChild(new Option("적용 안함 (0%)", "0"));
-      Object.keys(ALLIANCE_HP_PCT_BY_LEVEL).forEach(lvl => {
+      Object.keys(ALLIANCE_HP_PCT_BY_LEVEL).forEach((lvl) => {
         sel.appendChild(new Option(`레벨 ${lvl}`, String(lvl)));
       });
       sel.value = "0";
@@ -558,29 +598,10 @@ function enableNegPctSuffixRange(inputEl, minNeg, maxNeg, onCommit) {
       </div>
     `;
 
-    enablePctSuffixInput(
-  $("hp_def_council_airdef"),
-  () => scheduleRecalc(false),
-  -999,
-  999
-);
-
-enablePctSuffixInput(
-  $("hp_def_relic_airdef"),
-  () => scheduleRecalc(false),
-  -999,
-  999
-);
-
-    enableNegPctSuffixRange(
-  $("hp_att_relic_enemy_tower"),
-  -85,
-  0,
-  () => scheduleRecalc(false)
-);
-
-}
-
+    enablePctSuffixInput($("hp_def_council_airdef"), () => scheduleRecalc(false), -999, 999);
+    enablePctSuffixInput($("hp_def_relic_airdef"), () => scheduleRecalc(false), -999, 999);
+    enableNegPctSuffixRange($("hp_att_relic_enemy_tower"), -85, 0, () => scheduleRecalc(false));
+  }
 
   function mountDmgAutoBoxes() {
     const mount = $("dmgAutoMount");
@@ -601,7 +622,7 @@ enablePctSuffixInput(
       <div class="auto-box" id="fixedDmgBox">
         <div class="auto-title">[AUTO] 도서관/유니버시티 DMG+</div>
         <div class="auto-checks">
-          ${FIXED_DMG_CHECK_ITEMS.map(it => `
+          ${FIXED_DMG_CHECK_ITEMS.map((it) => `
             <label class="check-item">
               <input type="checkbox" id="${it.id}" />
               <span>${it.name}</span>
@@ -623,7 +644,7 @@ enablePctSuffixInput(
             <select id="mongolLevel" class="input"></select>
           </div>
 
-          ${ALLIANCE_EXTRA_OPTIONS.map(o => `
+          ${ALLIANCE_EXTRA_OPTIONS.map((o) => `
             <label class="check-item">
               <input type="checkbox" id="mongol_${o.key}" />
               <span>${o.name}</span>
@@ -647,7 +668,7 @@ enablePctSuffixInput(
 
         <div class="auto-sub" style="margin-top:10px;">[AUTO] 정찰 스캔 추가 보너스</div>
         <div class="auto-checks">
-          ${SCOUT_SCAN_CHECK_ITEMS.map(it => `
+          ${SCOUT_SCAN_CHECK_ITEMS.map((it) => `
             <label class="check-item">
               <input type="checkbox" id="${it.id}" />
               <span>${it.name}</span>
@@ -662,7 +683,6 @@ enablePctSuffixInput(
           </div>
         </div>
 
-        <!-- ✅ 요청: 박스 최하단에 "기본 스캔 + 협의회 + 체크 보너스" 합계 표기 -->
         <div class="auto-sum" style="margin-top:10px;">
           <span>합계</span>
           <b id="scoutAutoOut">0%</b>
@@ -675,9 +695,9 @@ enablePctSuffixInput(
     if (mongolSel) {
       mongolSel.innerHTML = "";
       mongolSel.appendChild(new Option("적용 안함 (0%)", "0"));
-      Object.keys(ALLIANCE_TACTIC_PCT_BY_LEVEL).forEach((lvl) =>
-        mongolSel.appendChild(new Option(`레벨 ${lvl}`, String(lvl)))
-      );
+      Object.keys(ALLIANCE_TACTIC_PCT_BY_LEVEL).forEach((lvl) => {
+        mongolSel.appendChild(new Option(`레벨 ${lvl}`, String(lvl)));
+      });
       mongolSel.value = "0";
     }
 
@@ -687,19 +707,19 @@ enablePctSuffixInput(
       scoutSel.innerHTML = "";
       scoutSel.appendChild(new Option("적용 안함 (0%)", ""));
       const ages = ["디지털", "정보화", "드론", "자동화", "로봇공학"];
-      ages.forEach(age => {
+      ages.forEach((age) => {
         const sep = new Option(`── ${age} ──`, "__sep__");
         sep.disabled = true;
         scoutSel.appendChild(sep);
 
         SCOUT_PLANE_SCAN_OPTIONS
-          .filter(o => o.age === age)
-          .forEach(o => scoutSel.appendChild(new Option(`${o.name} - ${o.age}`, o.key)));
+          .filter((o) => o.age === age)
+          .forEach((o) => scoutSel.appendChild(new Option(`${o.name} - ${o.age}`, o.key)));
       });
       scoutSel.value = "";
     }
 
-    // ✅ 협의회 입력: 10 -> 10% 자동
+    // 협의회 입력: 10 -> 10% 자동
     enablePctSuffixInput($("dmg_att_council_scan"), () => scheduleRecalc(false), 0, 999);
   }
 
@@ -721,7 +741,7 @@ enablePctSuffixInput(
       if (!sel) return;
       sel.innerHTML = "";
       sel.appendChild(new Option("없음", ""));
-      Object.keys(MANU_EQUIP).forEach(key => sel.appendChild(new Option(MANU_EQUIP[key].name, key)));
+      Object.keys(MANU_EQUIP).forEach((key) => sel.appendChild(new Option(MANU_EQUIP[key].name, key)));
       sel.value = "";
     };
     build("manuEquip1");
@@ -737,13 +757,13 @@ enablePctSuffixInput(
     const v1 = sel1.value;
     const v2 = sel2.value;
 
-    [...sel1.options].forEach(opt => {
+    [...sel1.options].forEach((opt) => {
       if (!opt.value) { opt.disabled = false; return; }
-      opt.disabled = (opt.value === v2);
+      opt.disabled = opt.value === v2;
     });
-    [...sel2.options].forEach(opt => {
+    [...sel2.options].forEach((opt) => {
       if (!opt.value) { opt.disabled = false; return; }
-      opt.disabled = (opt.value === v1);
+      opt.disabled = opt.value === v1;
     });
   }
 
@@ -828,43 +848,63 @@ enablePctSuffixInput(
     manuSlot1 = { equip: "", level: 0 };
     manuSlot2 = { equip: "", level: 0 };
 
-    bindOnce($("manuEquip1"), "change", () => {
-      manuSlot1.equip = $("manuEquip1")?.value || "";
-      if (!manuSlot1.equip) {
-        manuSlot1.level = 0;
-        $("manuLevel1").value = "0";
-      }
-      syncManuDuplicateBlock();
-      scheduleRecalc(false);
-    }, "manuEquip1_change");
+    bindOnce(
+      $("manuEquip1"),
+      "change",
+      () => {
+        manuSlot1.equip = $("manuEquip1")?.value || "";
+        if (!manuSlot1.equip) {
+          manuSlot1.level = 0;
+          $("manuLevel1").value = "0";
+        }
+        syncManuDuplicateBlock();
+        scheduleRecalc(false);
+      },
+      "manuEquip1_change"
+    );
 
-    bindOnce($("manuEquip2"), "change", () => {
-      manuSlot2.equip = $("manuEquip2")?.value || "";
-      if (!manuSlot2.equip) {
-        manuSlot2.level = 0;
-        $("manuLevel2").value = "0";
-      }
-      syncManuDuplicateBlock();
-      scheduleRecalc(false);
-    }, "manuEquip2_change");
+    bindOnce(
+      $("manuEquip2"),
+      "change",
+      () => {
+        manuSlot2.equip = $("manuEquip2")?.value || "";
+        if (!manuSlot2.equip) {
+          manuSlot2.level = 0;
+          $("manuLevel2").value = "0";
+        }
+        syncManuDuplicateBlock();
+        scheduleRecalc(false);
+      },
+      "manuEquip2_change"
+    );
 
-    bindOnce($("manuLevel1"), "change", () => {
-      manuSlot1.level = Number($("manuLevel1")?.value || 0);
-      if (!manuSlot1.equip) {
-        manuSlot1.level = 0;
-        $("manuLevel1").value = "0";
-      }
-      scheduleRecalc(false);
-    }, "manuLevel1_change");
+    bindOnce(
+      $("manuLevel1"),
+      "change",
+      () => {
+        manuSlot1.level = Number($("manuLevel1")?.value || 0);
+        if (!manuSlot1.equip) {
+          manuSlot1.level = 0;
+          $("manuLevel1").value = "0";
+        }
+        scheduleRecalc(false);
+      },
+      "manuLevel1_change"
+    );
 
-    bindOnce($("manuLevel2"), "change", () => {
-      manuSlot2.level = Number($("manuLevel2")?.value || 0);
-      if (!manuSlot2.equip) {
-        manuSlot2.level = 0;
-        $("manuLevel2").value = "0";
-      }
-      scheduleRecalc(false);
-    }, "manuLevel2_change");
+    bindOnce(
+      $("manuLevel2"),
+      "change",
+      () => {
+        manuSlot2.level = Number($("manuLevel2")?.value || 0);
+        if (!manuSlot2.equip) {
+          manuSlot2.level = 0;
+          $("manuLevel2").value = "0";
+        }
+        scheduleRecalc(false);
+      },
+      "manuLevel2_change"
+    );
 
     bindOnce($("research_ransom_olds"), "change", () => scheduleRecalc(false), "ransom_change");
     bindOnce($("research_fully_armed_defense"), "change", () => scheduleRecalc(false), "fully_change");
@@ -901,31 +941,41 @@ enablePctSuffixInput(
 
     slots.forEach((s) => {
       if (!s.equip || !s.level) return;
-      equippedCount += 1;
-      if (s.level === 20) lvl20Count += 1;
 
       const def = MANU_EQUIP[s.equip];
       if (!def) return;
 
-      hpPctSum += (def.hpPctByLevel[s.level] || 0);
-      tacticReduce += (def.tacticReduceByLevel[s.level] || 0);
+      equippedCount += 1;
+      if (s.level === 20) lvl20Count += 1;
+
+      // ✅ HP: 레벨까지 누적합
+      hpPctSum += sumUpToLevel(def.hpDeltaByLevel || {}, s.level);
+      // ✅ 피격감소: 레벨까지 누적합
+      tacticReduce += sumUpToLevel(def.tacticReduceDeltaByLevel || {}, s.level);
     });
 
     const ransomResearchDone = !!$("research_ransom_olds")?.checked;
     const fullyArmedResearchDone = !!$("research_fully_armed_defense")?.checked;
 
-    const ransomOk = ransomResearchDone && (lvl20Count > 0);
-    const fullyArmedOk = fullyArmedResearchDone && (equippedCount === 2);
+    const ransomOk = ransomResearchDone && lvl20Count > 0;
+    const fullyArmedOk = fullyArmedResearchDone && equippedCount === 2;
 
     if (ransomOk) hpPctSum += (lvl20Count * 10);
     if (fullyArmedOk) hpPctSum += 16;
 
-    return { hpPctSum, tacticReduce, equippedCount, lvl20Count, ransomResearchDone, fullyArmedResearchDone };
+    return {
+      hpPctSum,
+      tacticReduce,
+      equippedCount,
+      lvl20Count,
+      ransomResearchDone,
+      fullyArmedResearchDone,
+    };
   }
 
   function updateManuConditionUI(manu) {
     setCondRansomStatus($("cond_ransom_status"), manu?.lvl20Count || 0, !!manu?.ransomResearchDone);
-    setCondStatus($("cond_fullyarmed_status"), !!(manu?.fullyArmedResearchDone && (manu?.equippedCount === 2)));
+    setCondStatus($("cond_fullyarmed_status"), !!(manu?.fullyArmedResearchDone && manu?.equippedCount === 2));
 
     const out = $("manuTacticReduceOut");
     if (out) out.textContent = `${manu?.tacticReduce || 0}%`;
@@ -939,7 +989,7 @@ enablePctSuffixInput(
     if (ageSel) {
       ageSel.innerHTML = "";
       ageSel.appendChild(new Option("— 선택 또는 직접 입력 —", ""));
-      Object.keys(AIRDEF_BASE_HP_BY_AGE).forEach(age => ageSel.appendChild(new Option(age, age)));
+      Object.keys(AIRDEF_BASE_HP_BY_AGE).forEach((age) => ageSel.appendChild(new Option(age, age)));
       ageSel.value = "";
     }
 
@@ -947,7 +997,7 @@ enablePctSuffixInput(
     if (levelSel) {
       levelSel.innerHTML = "";
       levelSel.appendChild(new Option("— 선택 안함 —", ""));
-      Object.keys(TACTIC_BASE_DMG_BY_LEVEL).forEach(lvl => levelSel.appendChild(new Option(`레벨 ${lvl}`, String(lvl))));
+      Object.keys(TACTIC_BASE_DMG_BY_LEVEL).forEach((lvl) => levelSel.appendChild(new Option(`레벨 ${lvl}`, String(lvl))));
       levelSel.value = "";
     }
   }
@@ -971,7 +1021,9 @@ enablePctSuffixInput(
   ------------------------------- */
   function calcFixedHpSum() {
     let sum = 0;
-    FIXED_HP_CHECK_ITEMS.forEach(it => { if ($(it.id)?.checked) sum += it.pct; });
+    FIXED_HP_CHECK_ITEMS.forEach((it) => {
+      if ($(it.id)?.checked) sum += it.pct;
+    });
     const out = $("fixedHpAutoOut");
     if (out) out.textContent = `${sum}%`;
     return sum;
@@ -989,15 +1041,12 @@ enablePctSuffixInput(
     if (!lvl) return 0;
 
     const base = ALLIANCE_HP_PCT_BY_LEVEL[lvl] || 0;
-    const extraSum = ALLIANCE_EXTRA_OPTIONS.reduce(
-      (acc, o) => acc + ($(`${prefix}_${o.key}`)?.checked ? o.pct : 0),
-      0
-    );
+    const extraSum = ALLIANCE_EXTRA_OPTIONS.reduce((acc, o) => acc + ($(`${prefix}_${o.key}`)?.checked ? o.pct : 0), 0);
     return Math.floor(base * (1 + extraSum / 100));
   }
 
   function calcDefAllianceHpSum() {
-    const egyptPct  = calcAllianceFinalPctFromLevel($("defEgyptLevel")?.value, "defhp");
+    const egyptPct = calcAllianceFinalPctFromLevel($("defEgyptLevel")?.value, "defhp");
     const russiaPct = calcAllianceFinalPctFromLevel($("defRussiaLevel")?.value, "defhp");
 
     const eOut = $("defEgyptOut");
@@ -1011,7 +1060,7 @@ enablePctSuffixInput(
 
   function calcCouncilRelicEnemyTowerSum() {
     const council = safeNum($("hp_def_council_airdef")?.value);
-    const relic   = safeNum($("hp_def_relic_airdef")?.value);
+    const relic = safeNum($("hp_def_relic_airdef")?.value);
 
     let attRelic = safeNum($("hp_att_relic_enemy_tower")?.value);
     if (attRelic !== 0) attRelic = -Math.abs(attRelic);
@@ -1022,7 +1071,9 @@ enablePctSuffixInput(
 
   function calcFixedDmgSum() {
     let sum = 0;
-    FIXED_DMG_CHECK_ITEMS.forEach(it => { if ($(it.id)?.checked) sum += it.pct; });
+    FIXED_DMG_CHECK_ITEMS.forEach((it) => {
+      if ($(it.id)?.checked) sum += it.pct;
+    });
     const out = $("fixedDmgAutoOut");
     if (out) out.textContent = `${sum}%`;
     return sum;
@@ -1037,10 +1088,7 @@ enablePctSuffixInput(
     }
 
     const base = ALLIANCE_TACTIC_PCT_BY_LEVEL[lvl] || 0;
-    const extraSum = ALLIANCE_EXTRA_OPTIONS.reduce(
-      (acc, o) => acc + ($(`mongol_${o.key}`)?.checked ? o.pct : 0),
-      0
-    );
+    const extraSum = ALLIANCE_EXTRA_OPTIONS.reduce((acc, o) => acc + ($(`mongol_${o.key}`)?.checked ? o.pct : 0), 0);
     const pct = Math.floor(base * (1 + extraSum / 100));
 
     const out = $("mongolAutoOut");
@@ -1048,23 +1096,20 @@ enablePctSuffixInput(
     return pct;
   }
 
-  // ✅ 정찰 스캔: "기본 스캔"만
   function getScoutBaseScanPct() {
     const key = $("scoutPlane")?.value || "";
     const picked = key && key !== "__sep__" ? SCOUT_PLANE_SCAN_MAP[key] : null;
     return picked ? picked.pct : 0;
   }
 
-  // ✅ 정찰 스캔 추가 체크(도서관/유니버시티)
   function getScoutExtraScanPctFromChecks() {
     return SCOUT_SCAN_CHECK_ITEMS.reduce((acc, it) => acc + ($(it.id)?.checked ? it.pct : 0), 0);
   }
 
-  // ✅ 표시용: (기본 + 체크 + 협의회) 합계 출력
   function calcAndRenderScoutFinalScanPct() {
     const base = getScoutBaseScanPct();
     const extraChecks = getScoutExtraScanPctFromChecks();
-    const council = safeNum($("dmg_att_council_scan")?.value); // "30%"도 safeNum이 30으로 처리
+    const council = safeNum($("dmg_att_council_scan")?.value);
     const total = base + extraChecks + council;
 
     const out = $("scoutAutoOut");
@@ -1077,49 +1122,47 @@ enablePctSuffixInput(
      모든 연구 완료 적용
   ------------------------------- */
   function applyAllHpResearchUI(on) {
-    // 제조소 드롭다운 4개는 절대 건드리지 않음
-
-    FIXED_HP_CHECK_ITEMS.forEach(it => {
+    // 제조소 드롭다운/레벨은 건드리지 않음
+    FIXED_HP_CHECK_ITEMS.forEach((it) => {
       const cb = $(it.id);
       if (cb) cb.checked = on;
     });
 
-    GUILD_LEVEL_HP_PARTS.forEach(p => {
+    GUILD_LEVEL_HP_PARTS.forEach((p) => {
       const cb = $(`guild_${p.id}`);
       if (cb) cb.checked = on;
     });
 
-    if ($("defEgyptLevel"))  $("defEgyptLevel").value  = on ? "8" : "0";
+    if ($("defEgyptLevel")) $("defEgyptLevel").value = on ? "8" : "0";
     if ($("defRussiaLevel")) $("defRussiaLevel").value = on ? "8" : "0";
 
-    ALLIANCE_EXTRA_OPTIONS.forEach(o => {
+    ALLIANCE_EXTRA_OPTIONS.forEach((o) => {
       const cb = $(`defhp_${o.key}`);
       if (cb) cb.checked = on;
     });
   }
 
   function applyAllDmgResearchUI(on) {
-    FIXED_DMG_CHECK_ITEMS.forEach(it => {
+    FIXED_DMG_CHECK_ITEMS.forEach((it) => {
       const cb = $(it.id);
       if (cb) cb.checked = on;
     });
 
     if ($("mongolLevel")) $("mongolLevel").value = on ? "8" : "0";
 
-    ALLIANCE_EXTRA_OPTIONS.forEach(o => {
+    ALLIANCE_EXTRA_OPTIONS.forEach((o) => {
       const cb = $(`mongol_${o.key}`);
       if (cb) cb.checked = on;
     });
 
     if ($("scoutPlane")) $("scoutPlane").value = on ? SCOUT_ALL_RESEARCH_PICK : "";
 
-    // ✅ 정찰 스캔 체크도 "모든 연구 완료"에 포함
-    SCOUT_SCAN_CHECK_ITEMS.forEach(it => {
+    SCOUT_SCAN_CHECK_ITEMS.forEach((it) => {
       const cb = $(it.id);
       if (cb) cb.checked = on;
     });
 
-    // 협의회 입력칸은 제외(기존 정책 유지)
+    // 협의회 입력칸은 제외
   }
 
   function restoreAllResearchCheckboxes() {
@@ -1154,11 +1197,11 @@ enablePctSuffixInput(
 
     // HP
     const hpAuto =
-      calcFixedHpSum()
-      + calcGuildHpSum()
-      + calcDefAllianceHpSum()
-      + calcCouncilRelicEnemyTowerSum()
-      + (manu?.hpPctSum || 0);
+      calcFixedHpSum() +
+      calcGuildHpSum() +
+      calcDefAllianceHpSum() +
+      calcCouncilRelicEnemyTowerSum() +
+      (manu?.hpPctSum || 0);
 
     const hpUser = sumBonusPct(hpBonuses);
     const hpSumPct = hpAuto + hpUser;
@@ -1167,34 +1210,29 @@ enablePctSuffixInput(
     if ($("hpBonusSum")) $("hpBonusSum").textContent = fmtPctInt(hpSumPct);
     if ($("totalHp")) $("totalHp").textContent = fmtInt(totalHp);
 
-    // DMG (파괴전술 DMG는 "전술 DMG 보너스"만 적용)
-    const dmgAuto =
-      calcFixedDmgSum()
-      + calcMongolDmgSum();
-
+    // DMG
+    const dmgAuto = calcFixedDmgSum() + calcMongolDmgSum();
     const dmgUser = sumBonusPct(dmgBonuses);
     const dmgSumPct = dmgAuto + dmgUser;
 
-    const tacticDmg = baseDmg * (1 + dmgSumPct / 100); // ✅ 파괴전술 DMG 합계
+    const tacticDmg = baseDmg * (1 + dmgSumPct / 100); // 파괴전술 DMG 합계
 
     // 정찰 스캔: (기본 + 체크 + 협의회) 합계
     const scan = calcAndRenderScoutFinalScanPct();
-    const dmgWithScan = tacticDmg * (scan.total / 100); // ✅ 정찰기 스캔 + 파괴전술 DMG
+    const dmgWithScan = (scan.total > 0) ? (tacticDmg * (scan.total / 100)) : NaN; // 스캔 포함 총 데미지
 
-    // 제조소 “피격 감소”는 파괴전술에만 적용(스캔 곱까지 끝난 뒤 동일하게 감소)
-    const tacticReduce = (manu?.tacticReduce || 0);
-    const dmgAfterReduce = dmgWithScan * (1 - tacticReduce / 100);
+    // ✅ 피격감소: 스캔 포함 총 데미지에서 감소
+    const tacticReduce = manu?.tacticReduce || 0;
+    const dmgAfterReduce = (Number.isFinite(dmgWithScan) && dmgWithScan > 0)
+      ? (dmgWithScan * (1 - tacticReduce / 100))
+      : NaN;
 
     if ($("dmgBonusSum")) $("dmgBonusSum").textContent = fmtPctInt(dmgSumPct);
-
-    // ✅ 기존 id(totalDmg)는 "파괴전술 DMG 합계"로 사용
     if ($("totalDmg")) $("totalDmg").textContent = fmtInt(tacticDmg);
-
-    // ✅ 새 id(totalDmgScan)가 있으면 "정찰기 스캔 + 파괴전술 DMG" 출력
     if ($("totalDmgScan")) $("totalDmgScan").textContent = fmtInt(dmgWithScan);
 
     // Need count
-    const raw = dmgAfterReduce > 0 ? (totalHp / dmgAfterReduce) : NaN;
+    const raw = (Number.isFinite(dmgAfterReduce) && dmgAfterReduce > 0) ? (totalHp / dmgAfterReduce) : NaN;
     if ($("needCountRaw")) $("needCountRaw").textContent = Number.isFinite(raw) ? raw.toFixed(2) : "-";
     if ($("needCountCeil")) $("needCountCeil").textContent = Number.isFinite(raw) ? Math.ceil(raw).toLocaleString("ko-KR") : "-";
   }
@@ -1209,15 +1247,15 @@ enablePctSuffixInput(
     allHpResearchOn = false;
     if ($("allHpResearchApply")) $("allHpResearchApply").checked = false;
 
-    FIXED_HP_CHECK_ITEMS.forEach(it => { const cb = $(it.id); if (cb) cb.checked = false; });
-    GUILD_LEVEL_HP_PARTS.forEach(p => { const cb = $(`guild_${p.id}`); if (cb) cb.checked = false; });
+    FIXED_HP_CHECK_ITEMS.forEach((it) => { const cb = $(it.id); if (cb) cb.checked = false; });
+    GUILD_LEVEL_HP_PARTS.forEach((p) => { const cb = $(`guild_${p.id}`); if (cb) cb.checked = false; });
 
-    if ($("defEgyptLevel"))  $("defEgyptLevel").value  = "0";
+    if ($("defEgyptLevel")) $("defEgyptLevel").value = "0";
     if ($("defRussiaLevel")) $("defRussiaLevel").value = "0";
-    ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`defhp_${o.key}`); if (cb) cb.checked = false; });
+    ALLIANCE_EXTRA_OPTIONS.forEach((o) => { const cb = $(`defhp_${o.key}`); if (cb) cb.checked = false; });
 
     if ($("hp_def_council_airdef")) $("hp_def_council_airdef").value = "0%";
-    if ($("hp_def_relic_airdef"))   $("hp_def_relic_airdef").value = "0%";
+    if ($("hp_def_relic_airdef")) $("hp_def_relic_airdef").value = "0%";
     if ($("hp_att_relic_enemy_tower")) $("hp_att_relic_enemy_tower").value = "0%";
 
     manuSlot1 = { equip: "", level: 0 };
@@ -1240,13 +1278,13 @@ enablePctSuffixInput(
     allDmgResearchOn = false;
     if ($("allDmgResearchApply")) $("allDmgResearchApply").checked = false;
 
-    FIXED_DMG_CHECK_ITEMS.forEach(it => { const cb = $(it.id); if (cb) cb.checked = false; });
+    FIXED_DMG_CHECK_ITEMS.forEach((it) => { const cb = $(it.id); if (cb) cb.checked = false; });
 
     if ($("mongolLevel")) $("mongolLevel").value = "0";
-    ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`mongol_${o.key}`); if (cb) cb.checked = false; });
+    ALLIANCE_EXTRA_OPTIONS.forEach((o) => { const cb = $(`mongol_${o.key}`); if (cb) cb.checked = false; });
 
     if ($("scoutPlane")) $("scoutPlane").value = "";
-    SCOUT_SCAN_CHECK_ITEMS.forEach(it => { const cb = $(it.id); if (cb) cb.checked = false; });
+    SCOUT_SCAN_CHECK_ITEMS.forEach((it) => { const cb = $(it.id); if (cb) cb.checked = false; });
 
     if ($("dmg_att_council_scan")) $("dmg_att_council_scan").value = "0%";
 
@@ -1261,63 +1299,90 @@ enablePctSuffixInput(
     enableCommaFormatting($("baseHp"), () => scheduleRecalc(false));
     enableCommaFormatting($("baseDmg"), () => scheduleRecalc(false));
 
-    bindOnce($("enemyAgeHp"), "change", (e) => {
-      const age = e.target.value;
-      setCommaInputValue("baseHp", age && AIRDEF_BASE_HP_BY_AGE[age] ? AIRDEF_BASE_HP_BY_AGE[age] : 0);
-      scheduleRecalc(false);
-    }, "enemyAgeHp_change");
+    bindOnce(
+      $("enemyAgeHp"),
+      "change",
+      (e) => {
+        const age = e.target.value;
+        setCommaInputValue("baseHp", age && AIRDEF_BASE_HP_BY_AGE[age] ? AIRDEF_BASE_HP_BY_AGE[age] : 0);
+        scheduleRecalc(false);
+      },
+      "enemyAgeHp_change"
+    );
 
-    bindOnce($("tacticLevel"), "change", (e) => {
-      const lvl = e.target.value;
-      setCommaInputValue("baseDmg", (lvl && TACTIC_BASE_DMG_BY_LEVEL[lvl]) ? TACTIC_BASE_DMG_BY_LEVEL[lvl] : 0);
-      scheduleRecalc(false);
-    }, "tacticLevel_change");
+    bindOnce(
+      $("tacticLevel"),
+      "change",
+      (e) => {
+        const lvl = e.target.value;
+        setCommaInputValue("baseDmg", lvl && TACTIC_BASE_DMG_BY_LEVEL[lvl] ? TACTIC_BASE_DMG_BY_LEVEL[lvl] : 0);
+        scheduleRecalc(false);
+      },
+      "tacticLevel_change"
+    );
 
     // 모든 연구 완료(HP)
-    bindOnce($("allHpResearchApply"), "change", (e) => {
-      const on = !!e.target.checked;
-      allHpResearchOn = on;
-      applyAllHpResearchUI(on);
-      scheduleRecalc(false);
-    }, "allHpResearchApply_change");
+    bindOnce(
+      $("allHpResearchApply"),
+      "change",
+      (e) => {
+        const on = !!e.target.checked;
+        allHpResearchOn = on;
+        applyAllHpResearchUI(on);
+        scheduleRecalc(false);
+      },
+      "allHpResearchApply_change"
+    );
 
     // 모든 연구 완료(DMG)
-    bindOnce($("allDmgResearchApply"), "change", (e) => {
-      const on = !!e.target.checked;
-      allDmgResearchOn = on;
-      applyAllDmgResearchUI(on);
-      scheduleRecalc(false);
-    }, "allDmgResearchApply_change");
+    bindOnce(
+      $("allDmgResearchApply"),
+      "change",
+      (e) => {
+        const on = !!e.target.checked;
+        allDmgResearchOn = on;
+        applyAllDmgResearchUI(on);
+        scheduleRecalc(false);
+      },
+      "allDmgResearchApply_change"
+    );
 
-    // HP: 고정 체크
-    FIXED_HP_CHECK_ITEMS.forEach(it => bindOnce($(it.id), "change", () => scheduleRecalc(false), `hp_fixed_${it.id}`));
-    // HP: 길드 체크
-    GUILD_LEVEL_HP_PARTS.forEach(p => bindOnce($(`guild_${p.id}`), "change", () => scheduleRecalc(false), `hp_guild_${p.id}`));
-    // HP: 연맹
+    // HP 체크들
+    FIXED_HP_CHECK_ITEMS.forEach((it) => bindOnce($(it.id), "change", () => scheduleRecalc(false), `hp_fixed_${it.id}`));
+    GUILD_LEVEL_HP_PARTS.forEach((p) => bindOnce($(`guild_${p.id}`), "change", () => scheduleRecalc(false), `hp_guild_${p.id}`));
     bindOnce($("defEgyptLevel"), "change", () => scheduleRecalc(false), "defEgyptLevel_change");
     bindOnce($("defRussiaLevel"), "change", () => scheduleRecalc(false), "defRussiaLevel_change");
-    ALLIANCE_EXTRA_OPTIONS.forEach(o => bindOnce($(`defhp_${o.key}`), "change", () => scheduleRecalc(false), `defhp_${o.key}`));
+    ALLIANCE_EXTRA_OPTIONS.forEach((o) => bindOnce($(`defhp_${o.key}`), "change", () => scheduleRecalc(false), `defhp_${o.key}`));
 
-    // DMG: 고정 체크
-    FIXED_DMG_CHECK_ITEMS.forEach(it => bindOnce($(it.id), "change", () => scheduleRecalc(false), `dmg_fixed_${it.id}`));
-    // DMG: 몽골
+    // DMG 체크들
+    FIXED_DMG_CHECK_ITEMS.forEach((it) => bindOnce($(it.id), "change", () => scheduleRecalc(false), `dmg_fixed_${it.id}`));
     bindOnce($("mongolLevel"), "change", () => scheduleRecalc(false), "mongolLevel_change");
-    ALLIANCE_EXTRA_OPTIONS.forEach(o => bindOnce($(`mongol_${o.key}`), "change", () => scheduleRecalc(false), `mongol_${o.key}`));
+    ALLIANCE_EXTRA_OPTIONS.forEach((o) => bindOnce($(`mongol_${o.key}`), "change", () => scheduleRecalc(false), `mongol_${o.key}`));
 
-    // ✅ 정찰기 선택/정찰체크
+    // 정찰기 / 스캔 체크
     bindOnce($("scoutPlane"), "change", () => scheduleRecalc(false), "scoutPlane_change");
-    SCOUT_SCAN_CHECK_ITEMS.forEach(it => bindOnce($(it.id), "change", () => scheduleRecalc(false), `scan_${it.id}`));
+    SCOUT_SCAN_CHECK_ITEMS.forEach((it) => bindOnce($(it.id), "change", () => scheduleRecalc(false), `scan_${it.id}`));
 
-    // + 항목 추가
-    bindOnce($("addHpBonus"), "click", () => {
-      hpBonuses.push({ id: makeUserBonusId("hp"), name: "새 HP 보너스", pct: "0" });
-      scheduleRecalc(true);
-    }, "addHpBonus_click");
+    // 사용자 + 항목 추가
+    bindOnce(
+      $("addHpBonus"),
+      "click",
+      () => {
+        hpBonuses.push({ id: makeUserBonusId("hp"), name: "새 HP 보너스", pct: "0" });
+        scheduleRecalc(true);
+      },
+      "addHpBonus_click"
+    );
 
-    bindOnce($("addDmgBonus"), "click", () => {
-      dmgBonuses.push({ id: makeUserBonusId("dmg"), name: "새 DMG 보너스", pct: "0" });
-      scheduleRecalc(true);
-    }, "addDmgBonus_click");
+    bindOnce(
+      $("addDmgBonus"),
+      "click",
+      () => {
+        dmgBonuses.push({ id: makeUserBonusId("dmg"), name: "새 DMG 보너스", pct: "0" });
+        scheduleRecalc(true);
+      },
+      "addDmgBonus_click"
+    );
 
     // 초기화
     bindOnce($("resetHpBonuses"), "click", resetHpSectionToZero, "resetHp_click");
