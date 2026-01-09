@@ -223,10 +223,11 @@ function renderList() {
     return `
       <div class="council-item ${gradeClass}">
         <div class="council-name">${escapeHtml(c.ko)}</div>
-        <div class="council-en">${escapeHtml(c.en)}</div>
 
-        <div class="council-role center">${escapeHtml(c.role)}</div>
-        <div class="council-kind center">${escapeHtml(c.kind)}</div>
+        <div class="council-rk">
+  <div class="council-role center">${escapeHtml(c.role)}</div>
+  <div class="council-kind center">${escapeHtml(c.kind)}</div>
+</div>
 
         <div class="council-grade">
           <span class="council-badge ${gradeClass}">${escapeHtml(gradeText)}</span>

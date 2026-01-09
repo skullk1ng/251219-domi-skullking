@@ -1501,14 +1501,19 @@ body:not(.home-page) .home-grid.calc-grid{
 
 /* =========================================================
   ✅ Council page (Advisors)
-  - 전설: 주황(is-legend) : 기존 색 사용
-  - 특급: 보라(is-special) : 신규 추가
+  - 전설: 주황(is-legend)
+  - 특급: 보라(is-special)
+  - ✅ 영문 컬럼 제거 + 반응형 개선 + 경계선 추가
   ========================================================= */
+
+.council-rk{ display:contents; }  /* PC에서는 role/kind가 원래처럼 그리드 칸을 차지 */
+
 
 /* 헤더(항목 종류) */
 .council-head{
   display:grid;
-  grid-template-columns: 170px 160px 90px 90px 72px minmax(0,1fr) 90px;
+  /* 이름 / 역할 / 종류 / 등급 / 옵션 / (수치=숨김 처리용 0) */
+  grid-template-columns: minmax(160px, 1.2fr) 90px 90px 72px minmax(260px, 2fr) 0px;
   gap:10px;
   padding:10px 10px 10px;
   margin-top:8px;
@@ -1520,6 +1525,10 @@ body:not(.home-page) .home-grid.calc-grid{
 }
 .council-head .right{ text-align:right; }
 .council-head .center{ text-align:center; }
+
+/* ✅ '수치' 헤더는 공간만 잡아먹어서 숨김 (옵션표 안에 값이 이미 있음) */
+.council-head > div:last-child{ display:none; }
+
 @media (max-width:720px){ .council-head{ display:none; } }
 
 /* 리스트 */
@@ -1540,12 +1549,17 @@ body:not(.home-page) .home-grid.calc-grid{
     0 14px 30px rgba(0,0,0,.70);
 
   display:grid;
-  grid-template-columns: 170px 160px 90px 90px 72px minmax(0,1fr) 90px;
+  grid-template-columns: minmax(160px, 1.2fr) 90px 90px 72px minmax(260px, 2fr) 0px;
   gap:10px;
   padding:10px 10px;
   align-items:start;
+
+  /* ✅ 좁은 창에서 내부 테이블이 튀어나오며 깨지는 현상 방지 */
+  min-width:0;
+  overflow:hidden;
 }
 
+/* 등급별 테두리 */
 .council-item.is-legend{
   border-color:rgba(234,88,12,.55);
   box-shadow:
@@ -1563,18 +1577,16 @@ body:not(.home-page) .home-grid.calc-grid{
     0 14px 30px rgba(0,0,0,.70);
 }
 
-/* 이름/영문 */
+/* 이름 */
 .council-name{
   font-weight:1000;
   font-size:13px;
   color:#fff;
   line-height:1.25;
-}
-.council-en{
-  font-size:11px;
-  color:var(--muted2);
-  line-height:1.25;
-  word-break:break-word;
+
+  /* ✅ 이름/역할 사이 경계선 */
+  padding-right:10px;
+  border-right:1px solid rgba(255,255,255,.10);
 }
 
 /* 역할/종류 */
@@ -1582,6 +1594,18 @@ body:not(.home-page) .home-grid.calc-grid{
   font-size:12px;
   color:#e5e7eb;
   font-weight:800;
+  display:flex;
+  justify-content:center;
+
+  /* ✅ 역할/종류 사이 경계선(역할에만) */
+  min-width:0;
+}
+.council-role{
+  padding:0 10px;
+  border-right:1px solid rgba(255,255,255,.10);
+}
+.council-kind{
+  padding-left:10px;
 }
 
 /* 등급 배지 */
@@ -1605,7 +1629,7 @@ body:not(.home-page) .home-grid.calc-grid{
   line-height:1;
 }
 
-/* 기본=전설(주황) */
+/* 전설(주황) */
 .council-badge.is-legend{
   color:rgba(234,88,12,.98);
   border:1px solid rgba(234,88,12,.55);
@@ -1615,7 +1639,7 @@ body:not(.home-page) .home-grid.calc-grid{
     0 0 16px rgba(234,88,12,.12);
 }
 
-/* ✅ 특급(보라) */
+/* 특급(보라) */
 .council-badge.is-special{
   color:rgba(168,85,247,.98);
   border:1px solid rgba(168,85,247,.55);
@@ -1626,28 +1650,182 @@ body:not(.home-page) .home-grid.calc-grid{
     0 0 36px rgba(168,85,247,.10);
 }
 
-/* 옵션 테이블은 기존 ov-table/ov-row/ov-opt/ov-val 그대로 재사용 */
-.council-ov{ grid-column:6 / 8; }
-.council-val{ display:none; } /* 구조 유지용 */
+/* 옵션 표는 기존 ov-* 재사용 */
+.council-ov{
+  grid-column:5 / 6;
+  min-width:0;  /* ✅ 좁은 폭에서 테이블이 컨테이너 밖으로 안 튀게 */
+}
+
+/* 수치 칸은 기존처럼 숨김(자리도 0px) */
+.council-val{ display:none; }
+
+/* ✅ 헤더에도 동일 경계선 (이름/역할/종류 사이) */
+.council-head > div:nth-child(1){
+  padding-right:10px;
+  border-right:1px solid rgba(255,255,255,.10);
+}
+.council-head > div:nth-child(2){
+  padding:0 10px;
+  border-right:1px solid rgba(255,255,255,.10);
+}
+.council-head > div:nth-child(3){
+  padding-left:10px;
+}
+
+/* ✅ 중간 폭(데스크탑 창 줄였을 때)에서도 자연스럽게 압축 */
+@media (max-width:920px){
+  .council-head,
+  .council-item{
+    grid-template-columns: minmax(130px, 1.1fr) 80px 80px 68px minmax(220px, 2fr) 0px;
+    gap:8px;
+  }
+}
 
 /* 모바일 */
 @media (max-width:720px){
+
+  /* 모바일: 1줄=이름+등급 / 2줄=학자 | 전쟁 / 3줄=옵션표 */
   .council-item{
-    grid-template-columns:1fr 88px;
+    display:grid;
+    grid-template-columns: 1fr 88px;   /* 이름 / 등급 */
+    grid-template-rows: auto auto auto;
     gap:10px;
     padding:10px 10px;
+    min-width:0;
+    overflow:hidden;
   }
-  .council-name{ grid-column:1 / 2; font-size:14px; }
-  .council-en{ grid-column:1 / 2; margin-top:-6px; font-size:12px; }
 
-  .council-role{ grid-column:1 / 2; margin-top:2px; }
-  .council-kind{ grid-column:1 / 2; margin-top:-2px; }
+  /* 1줄: 이름 */
+  .council-name{
+    grid-column:1 / 2;
+    grid-row:1 / 2;
+    font-size:14px;
+    min-width:0;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    border-right:none; /* 모바일에서는 이름 옆 세로선 제거 */
+    padding-right:0;
+  }
 
+  /* 1줄: 등급 */
   .council-grade{
     grid-column:2 / 3;
-    grid-row:1 / 5;
+    grid-row:1 / 2;
     justify-content:flex-end;
+    align-items:flex-start;
   }
-  .council-ov{ grid-column:1 / -1; }
+
+  /* 2줄: 역할|종류를 한 줄로 (래퍼가 한 줄을 책임짐) */
+  .council-rk{
+    grid-column:1 / -1;
+    grid-row:2 / 3;
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap:0;
+    white-space:nowrap; /* ✅ 무조건 한 줄 */
+  }
+
+  /* 모바일에서는 좌측정렬 */
+  .council-rk .council-role,
+  .council-rk .council-kind{
+    display:inline-flex;
+    align-items:center;
+    justify-content:flex-start;
+    text-align:left;
+    font-size:12px;
+    font-weight:800;
+    color:#e5e7eb;
+    margin:0;
+    padding:0;
+    border:0;
+  }
+
+  /* ✅ 학자 | 전쟁 구분선 */
+  .council-rk .council-role{
+    padding-right:12px;
+    border-right:1px solid rgba(255,255,255,.18);
+    margin-right:12px;
+  }
+
+  /* 3줄: 옵션 표 */
+  .council-ov{
+    grid-column:1 / -1;
+    grid-row:3 / 4;
+  }
+
   .ov-row{ grid-template-columns:minmax(0,1fr) 88px; }
+}
+/* =========================================================
+  ✅ Mobile/All pages: 가로 밀림(수평 오버플로우) 방지 + 중앙정렬 보정
+  ========================================================= */
+
+/* iOS 안전영역(노치) 대응 + 전체 폭 고정 */
+html, body{
+  width:100%;
+  max-width:100%;
+  overflow-x:clip; /* 가로 삐져나감 차단 (지원 안되면 아래 hidden이 먹음) */
+  overflow-x:hidden;
+}
+
+/* 컨텐츠가 노치/인앱브라우저에 밀리지 않게 */
+body{
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* 모든 핵심 래퍼는 항상 "가운데 + 화면폭에 맞춤" */
+.app-header,
+.container,
+.home-wrap,
+.top-nav,
+.ads-wrapper{
+  width:100%;
+  max-width:980px;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+/* grid/flex에서 자식이 폭을 밀어내는 경우 방지 */
+.container, .home-wrap, .card,
+.council-item, .artifact-item,
+.ov-table, .ov-row,
+.menu-card, .menu-card-media{
+  min-width:0;
+  max-width:100%;
+}
+
+/* 모바일에서 일부 min-width 때문에 가로가 튀는 걸 방지 (특히 index의 환율 블록) */
+@media (max-width:720px){
+  .rate-stack, .rate-value, .rate-line{
+    min-width:0 !important;
+  }
+}
+
+/* =========================================================
+  ✅ AdSense: 모바일/인앱브라우저 우측 쏠림 방지 (폭 강제 고정)
+  ========================================================= */
+
+.ad-wrap{
+  width:100%;
+  max-width:980px;
+  margin:18px auto 0;
+  padding:0 16px;
+  display:flex;
+  justify-content:center;
+  overflow:hidden; /* 광고가 삐져나오면 여기서 잘라냄 */
+}
+
+/* ins 자체가 화면을 밀어내지 못하게 */
+ins.adsbygoogle{
+  display:block !important;
+  width:100% !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+}
+
+/* 모바일에서 광고가 넓게 잡히는 경우 대비 */
+@media (max-width:720px){
+  .ad-wrap{ padding:0 12px; }
 }
