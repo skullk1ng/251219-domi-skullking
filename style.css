@@ -1829,3 +1829,31 @@ ins.adsbygoogle{
 @media (max-width:720px){
   .ad-wrap{ padding:0 12px; }
 }
+/* =========================================================
+  ✅ Desktop compact mode (큰 화면에서만 더 컴팩트하게)
+  - 모바일/좁은 창 반응형은 그대로 유지
+  ========================================================= */
+@media (min-width: 1200px){
+  :root{
+    /* 글자/입력/라운드 등을 살짝 줄여서 전체가 덜 커 보이게 */
+    --fs-h1:20px;
+    --fs-h2:15px;
+    --fs-body:12.5px;
+    --fs-input:12.5px;
+
+    --input-h:40px;
+
+    --radius-card:14px;
+    --radius-md:13px;
+    --radius-sm:11px;
+  }
+
+  /* 메인 래퍼/컨테이너의 폭을 살짝 줄여서 '축소된 느낌' 유지 */
+  .app-header,
+  .container,
+  .home-wrap,
+  .top-nav,
+  .ad-wrap{
+    max-width: 900px;
+  }
+}
