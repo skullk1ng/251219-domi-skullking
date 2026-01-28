@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>영예의 토너먼트 순위표</title>
+  <title>RANK & SCORE</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="./style.css" />
   
@@ -20,22 +20,57 @@
       border-radius: 16px;
     }
     .rank-1 { border-color: rgba(250,204,21,.6); box-shadow: inset 0 0 20px rgba(250,204,21,.1); }
+    .rank-2 { border-color: rgba(192,192,192,.5); }
+    .rank-3 { border-color: rgba(205,127,50,.5); }
+    
     .rank-num { font-weight:900; font-size:16px; color:var(--muted); text-align:center;}
     .rank-1 .rank-num { color: var(--yellow); font-size:20px; }
+    
     .guild-name { font-weight:700; font-size:14px; color:#fff; padding-left:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    
     .guild-score { text-align:right; font-weight:800; font-size:16px; color:var(--good); font-family:monospace; }
     .rank-1 .guild-score { color: var(--yellow); }
+
     .update-time { text-align:center; color:var(--muted2); font-size:12px; margin-top:20px; }
+    
+    /* 잠금 화면 스타일 */
+    #locked-screen {
+        position: fixed; top:0; left:0; width:100%; height:100%;
+        background: #000; z-index: 9999; display: flex;
+        align-items: center; justify-content: center; flex-direction: column;
+        color: #fff;
+    }
+    .hidden { display: none !important; }
+    
+    /* 비밀번호 입력창 스타일 */
+    .pw-input {
+        padding: 10px; border-radius: 8px; border: 1px solid #555;
+        background: #222; color: #fff; margin-bottom: 10px; width: 200px; text-align: center;
+    }
+    .pw-btn {
+        padding: 10px 20px; border-radius: 8px; border: none;
+        background: var(--yellow); color: #000; font-weight: bold; cursor: pointer;
+    }
   </style>
 </head>
 
 <body class="home-page">
 
-  <div class="home-wrap">
+  <div id="locked-screen">
+      <h2 style="color:var(--yellow); margin-bottom:10px;">🔒 보안 접속</h2>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">관리자 비밀번호를 입력하세요.</p>
+      
+      <input type="password" id="pw-input" class="pw-input" placeholder="Password" onkeyup="if(window.event.keyCode==13){checkPassword()}">
+      <button class="pw-btn" onclick="checkPassword()">확인</button>
+      
+      <button class="btn ghost" onclick="location.href='./index.html'" style="margin-top:20px; border:none;">← 메인으로 돌아가기</button>
+  </div>
+
+  <div class="home-wrap" id="main-content" style="display:none;">
     
     <div class="row actions" style="margin-bottom:20px;">
-        <a href="/" class="btn ghost">← 뒤로가기</a>
-        <div class="status-badge is-live">SECURE CONNECTION</div>
+        <a href="./index.html" class="btn ghost">← 뒤로가기</a>
+        <div class="status-badge is-live">LIVE TRACKING</div>
     </div>
 
     <div class="banner-main-wrap" style="padding:20px; text-align:center;">
@@ -44,7 +79,7 @@
     </div>
 
     <div id="leaderboard" class="glory-table">
-        <div class="result" style="text-align:center;">데이터 보안 확인 중...</div>
+        <div class="result" style="text-align:center;">데이터를 불러오는 중...</div>
     </div>
 
     <div class="update-time">
@@ -55,25 +90,43 @@
 
   <script>
     // ==========================================
-    // 더 이상 비밀번호 체크 함수가 없습니다! (서버에서 이미 통과했으니까요)
+    // 비밀번호 체크 (Base64 암호화 방식)
     // ==========================================
+    
+    // "1234"를 Base64로 바꾸면 "MTIzNA==" 입니다.
+    // 소스코드에 "1234"가 없으므로 검색해도 안 나옵니다.
+    const ENCRYPTED_PW = "ISFURUFTVEFSPz8="; 
 
+    function checkPassword() {
+        const input = document.getElementById('pw-input').value;
+        // 입력받은 값을 암호화해서 비교
+        if (btoa(input) === ENCRYPTED_PW) {
+            document.getElementById('locked-screen').classList.add('hidden');
+            document.getElementById('main-content').style.display = 'block';
+            loadData(); 
+            setInterval(loadData, 30000); 
+        } else {
+            alert("비밀번호가 틀렸습니다.");
+            document.getElementById('pw-input').value = "";
+            document.getElementById('pw-input').focus();
+        }
+    }
+
+    // ==========================================
+    // 데이터 로드
+    // ==========================================
     async function loadData() {
         try {
-            // [중요] 이제 파일(data.json)을 직접 달라고 안 하고
-            // 서버의 보안 주소('/get_data')로 요청합니다.
-            const response = await fetch('/get_data'); 
-            
-            // 만약 로그인이 풀렸다면 로그인 페이지로 튕겨냅니다.
-            if (response.redirected) {
-                window.location.href = '/login';
-                return;
-            }
-
+            // [중요] 다시 data.json 파일을 직접 읽도록 변경
+            const response = await fetch('./data.json?t=' + new Date().getTime()); 
             const data = await response.json();
             renderTable(data);
         } catch (error) {
             console.error(error);
+            document.getElementById('leaderboard').innerHTML = 
+                `<div class="result" style="color:var(--red); text-align:center;">
+                    데이터 로드 실패 (봇이 실행 중인지 확인하세요)
+                 </div>`;
         }
     }
 
@@ -81,7 +134,6 @@
         const board = document.getElementById('leaderboard');
         let html = '';
         
-        // 데이터가 비어있으면 표시
         if (Object.keys(data).length === 0) {
             board.innerHTML = '<div class="result" style="text-align:center;">수집된 데이터가 없습니다.</div>';
             return;
@@ -113,12 +165,6 @@
         const now = new Date();
         document.getElementById('last-update').innerText = now.toLocaleString(); 
     }
-
-    // 페이지 접속하자마자 데이터 로드
-    loadData();
-    // 30초마다 갱신
-    setInterval(loadData, 30000);
-
   </script>
 </body>
 </html>
