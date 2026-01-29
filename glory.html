@@ -140,19 +140,39 @@
         }
 
         const sortedKeys = Object.keys(data).sort((a,b) => parseInt(a) - parseInt(b));
+        const now = new Date(); // 현재 시간
 
         sortedKeys.forEach(rank => {
             const item = data[rank];
             const rankClass = rank <= 3 ? `rank-${rank}` : '';
             const scoreStr = item.score.toLocaleString();
-            let timeStr = item.time ? item.time : '-'; 
+            
+            let timeStr = '-';
+            let timeStyle = 'color:var(--muted2);'; // 기본 색상 (회색)
+
+            if (item.time) {
+                timeStr = item.time;
+                
+                // [추가된 기능] 24시간 이내 변동 체크
+                // 문자열 날짜("2025-01-29 10:00:00")를 날짜 객체로 변환
+                // (아이폰/사파리 호환성을 위해 ' '를 'T'로 바꾸는 것이 안전함)
+                const updateTime = new Date(item.time.replace(' ', 'T'));
+                const diffMs = now - updateTime; // 시간 차이 (밀리초)
+                const diffHours = diffMs / (1000 * 60 * 60); // 시간 단위로 변환
+
+                if (diffHours < 24) {
+                    // 24시간 이내라면 노란색 + 굵게
+                    timeStyle = 'color:var(--yellow); font-weight:700; text-shadow:0 0 5px rgba(250,204,21,0.2);';
+                }
+            }
 
             html += `
             <div class="glory-row ${rankClass}">
                 <div class="rank-num">#${rank}</div>
                 <div style="display:flex; flex-direction:column; justify-content:center; padding-left:10px;">
                     <div class="guild-name" style="padding-left:0;">${item.name}</div>
-                    <div style="font-size:11px; color:var(--muted2); margin-top:2px; letter-spacing:-0.5px;">
+                    
+                    <div style="font-size:11px; margin-top:2px; letter-spacing:-0.5px; ${timeStyle}">
                         🕒 ${timeStr}
                     </div>
                 </div>
@@ -162,7 +182,6 @@
         });
 
         board.innerHTML = html;
-        const now = new Date();
         document.getElementById('last-update').innerText = now.toLocaleString(); 
     }
   </script>
