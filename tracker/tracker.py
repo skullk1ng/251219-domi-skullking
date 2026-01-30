@@ -169,7 +169,7 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 
 def main():
-    print(f"=== 🤖 스마트 트래커 (재접속+OCR 통합) ===")
+    print(f"=== 🤖 스마트 트래커 (재접속+OCR+히스토리) ===")
     os.system(f"{ADB_CMD} connect {TARGET_DEVICE}")
     
     history_db = load_history()
@@ -238,14 +238,45 @@ def main():
                     if score is None: score = 0 
                     if guild_name == "": guild_name = "인식실패"
                     
-                    final_time = current_time_str
-                    if guild_name in history_db:
-                        if score == history_db[guild_name]['score'] and score != 0:
-                            final_time = history_db[guild_name]['time']
+                    # [히스토리 로직 시작]
+                    # 1. DB 초기화 및 구버전 데이터(딕셔너리) 마이그레이션
+                    if guild_name not in history_db:
+                        history_db[guild_name] = [] 
+                    elif isinstance(history_db[guild_name], dict):
+                        # 옛날 포맷이면 리스트로 감싸줌
+                        history_db[guild_name] = [history_db[guild_name]]
 
-                    current_display_data[rank] = {'name': guild_name, 'score': score, 'time': final_time}
-                    if guild_name != "인식실패" and guild_name != "":
-                        history_db[guild_name] = {'score': score, 'time': final_time}
+                    guild_logs = history_db[guild_name]
+
+                    # 2. 가장 최근 기록(last_score) 확인
+                    last_score = 0
+                    if len(guild_logs) > 0:
+                        last_score = guild_logs[0]['score']
+
+                    # 3. 점수 변동 체크
+                    final_time = current_time_str
+                    
+                    if score != 0: # 읽기 성공 시에만
+                        if score != last_score:
+                            print(f"  >>> 🔔 변동: {guild_name} ({last_score} -> {score})")
+                            # 새 기록 맨 앞에 추가
+                            guild_logs.insert(0, {'score': score, 'time': current_time_str})
+                            # 5개까지만 유지
+                            if len(guild_logs) > 5:
+                                guild_logs = guild_logs[:5]
+                            history_db[guild_name] = guild_logs
+                        else:
+                            # 점수 같으면 시간은 예전 시간 유지
+                            if len(guild_logs) > 0:
+                                final_time = guild_logs[0]['time']
+
+                    # 4. 웹 표시용 데이터 (history 필드 추가됨)
+                    current_display_data[rank] = {
+                        'name': guild_name, 
+                        'score': score, 
+                        'time': final_time,
+                        'history': history_db[guild_name] 
+                    }
 
                     print(f"{rank}위 | {guild_name} | {score}")
 

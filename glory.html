@@ -8,8 +8,10 @@
   <link rel="stylesheet" href="./style.css" />
   
   <style>
-    /* 기존 스타일 유지 */
+    /* ================= 스타일 정의 ================= */
     .glory-table { display:grid; gap:8px; margin-top:10px; }
+    
+    /* 랭킹 박스 (클릭 가능하도록 커서 변경) */
     .glory-row {
       display: grid;
       grid-template-columns: 50px 1fr 120px;
@@ -18,7 +20,11 @@
       background: linear-gradient(to bottom, rgba(255,255,255,.04), rgba(255,255,255,.01));
       border: 1px solid rgba(255,255,255,.12);
       border-radius: 16px;
+      cursor: pointer; /* 클릭 가능 표시 */
+      transition: background 0.2s;
     }
+    .glory-row:active { transform: scale(0.98); } /* 클릭 시 살짝 눌림 */
+    
     .rank-1 { border-color: rgba(250,204,21,.6); box-shadow: inset 0 0 20px rgba(250,204,21,.1); }
     .rank-2 { border-color: rgba(192,192,192,.5); }
     .rank-3 { border-color: rgba(205,127,50,.5); }
@@ -32,8 +38,33 @@
     .rank-1 .guild-score { color: var(--yellow); }
 
     .update-time { text-align:center; color:var(--muted2); font-size:12px; margin-top:20px; }
+
+    /* [NEW] 히스토리 로그 스타일 */
+    .history-box {
+        display: none; /* 기본 숨김 */
+        background: rgba(0,0,0,0.5);
+        border: 1px dashed rgba(255,255,255,0.1);
+        border-top: none;
+        border-radius: 0 0 16px 16px;
+        margin-top: -10px; /* 위쪽 박스와 연결 */
+        margin-bottom: 10px;
+        padding: 10px 20px;
+        font-size: 12px;
+        color: var(--muted);
+    }
+    .history-box.show { display: block; animation: fadeIn 0.3s; }
     
-    /* 잠금 화면 스타일 */
+    .history-row {
+        display: flex; justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .history-row:last-child { border-bottom: none; }
+    .history-score { color: #fff; font-family: monospace; font-weight: bold; }
+    
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+
+    /* 잠금 화면 및 기타 스타일 */
     #locked-screen {
         position: fixed; top:0; left:0; width:100%; height:100%;
         background: #000; z-index: 9999; display: flex;
@@ -41,8 +72,6 @@
         color: #fff;
     }
     .hidden { display: none !important; }
-    
-    /* 비밀번호 입력창 스타일 */
     .pw-input {
         padding: 10px; border-radius: 8px; border: 1px solid #555;
         background: #222; color: #fff; margin-bottom: 10px; width: 200px; text-align: center;
@@ -75,7 +104,7 @@
 
     <div class="banner-main-wrap" style="padding:20px; text-align:center;">
         <h1 style="color:var(--yellow); margin-bottom:4px;">🏆 Glory Tournament</h1>
-        <p class="sub">실시간 점수 현황판 (점수 변동 발생 시 2시간 동안 날짜/시간이 노란색으로 표기됩니다.)</p>
+        <p class="sub">실시간 점수 현황판 (클릭하여 기록 보기)</p>
     </div>
 
     <div id="leaderboard" class="glory-table">
@@ -89,17 +118,10 @@
   </div>
 
   <script>
-    // ==========================================
-    // 비밀번호 체크 (Base64 암호화 방식)
-    // ==========================================
-    
-    // "1234"를 Base64로 바꾸면 "MTIzNA==" 입니다.
-    // 소스코드에 "1234"가 없으므로 검색해도 안 나옵니다.
     const ENCRYPTED_PW = "ISFURUFTVEFSPz8="; 
 
     function checkPassword() {
         const input = document.getElementById('pw-input').value;
-        // 입력받은 값을 암호화해서 비교
         if (btoa(input) === ENCRYPTED_PW) {
             document.getElementById('locked-screen').classList.add('hidden');
             document.getElementById('main-content').style.display = 'block';
@@ -112,12 +134,8 @@
         }
     }
 
-    // ==========================================
-    // 데이터 로드
-    // ==========================================
     async function loadData() {
         try {
-            // [중요] 다시 data.json 파일을 직접 읽도록 변경
             const response = await fetch('./data.json?t=' + new Date().getTime()); 
             const data = await response.json();
             renderTable(data);
@@ -125,7 +143,7 @@
             console.error(error);
             document.getElementById('leaderboard').innerHTML = 
                 `<div class="result" style="color:var(--red); text-align:center;">
-                    데이터 로드 실패 (봇이 실행 중인지 확인하세요)
+                    데이터 로드 실패
                  </div>`;
         }
     }
@@ -140,7 +158,7 @@
         }
 
         const sortedKeys = Object.keys(data).sort((a,b) => parseInt(a) - parseInt(b));
-        const now = new Date(); // 현재 시간
+        const now = new Date(); 
 
         sortedKeys.forEach(rank => {
             const item = data[rank];
@@ -148,41 +166,65 @@
             const scoreStr = item.score.toLocaleString();
             
             let timeStr = '-';
-            let timeStyle = 'color:var(--muted2);'; // 기본 색상 (회색)
+            let timeStyle = 'color:var(--muted2);'; 
 
             if (item.time) {
                 timeStr = item.time;
-                
-                // [추가된 기능] 24시간 이내 변동 체크
-                // 문자열 날짜("2025-01-29 10:00:00")를 날짜 객체로 변환
-                // (아이폰/사파리 호환성을 위해 ' '를 'T'로 바꾸는 것이 안전함)
                 const updateTime = new Date(item.time.replace(' ', 'T'));
-                const diffMs = now - updateTime; // 시간 차이 (밀리초)
-                const diffHours = diffMs / (1000 * 60 * 60); // 시간 단위로 변환
+                const diffHours = (now - updateTime) / (1000 * 60 * 60);
 
                 if (diffHours < 2) {
-                    // 2시간 이내라면 노란색 + 굵게
                     timeStyle = 'color:var(--yellow); font-weight:700; text-shadow:0 0 5px rgba(250,204,21,0.2);';
                 }
             }
 
+            // [NEW] 히스토리 HTML 생성
+            let historyHtml = '';
+            if (item.history && item.history.length > 0) {
+                item.history.forEach(log => {
+                    historyHtml += `
+                        <div class="history-row">
+                            <span>${log.time}</span>
+                            <span class="history-score">${log.score.toLocaleString()}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                historyHtml = `<div class="history-row" style="justify-content:center; color:#555;">이전 기록 없음</div>`;
+            }
+
+            // 메인 행 + 히스토리 박스 조합
             html += `
-            <div class="glory-row ${rankClass}">
-                <div class="rank-num">#${rank}</div>
-                <div style="display:flex; flex-direction:column; justify-content:center; padding-left:10px;">
-                    <div class="guild-name" style="padding-left:0;">${item.name}</div>
-                    
-                    <div style="font-size:11px; margin-top:2px; letter-spacing:-0.5px; ${timeStyle}">
-                        🕒 ${timeStr}
+            <div onclick="toggleHistory(this)">
+                <div class="glory-row ${rankClass}">
+                    <div class="rank-num">#${rank}</div>
+                    <div style="display:flex; flex-direction:column; justify-content:center; padding-left:10px;">
+                        <div class="guild-name" style="padding-left:0;">${item.name}</div>
+                        <div style="font-size:11px; margin-top:2px; letter-spacing:-0.5px; ${timeStyle}">
+                            🕒 ${timeStr}
+                        </div>
                     </div>
+                    <div class="guild-score">${scoreStr}</div>
                 </div>
-                <div class="guild-score">${scoreStr}</div>
+                <div class="history-box">
+                    <div style="margin-bottom:5px; font-weight:bold; color:var(--yellow);">📜 Score Logs (Max 5)</div>
+                    ${historyHtml}
+                </div>
             </div>
             `;
         });
 
         board.innerHTML = html;
         document.getElementById('last-update').innerText = now.toLocaleString(); 
+    }
+
+    // [NEW] 클릭 시 히스토리 토글 함수
+    function toggleHistory(element) {
+        // 클릭한 요소 내부의 .history-box를 찾음
+        const historyBox = element.querySelector('.history-box');
+        if (historyBox) {
+            historyBox.classList.toggle('show');
+        }
     }
   </script>
 </body>
