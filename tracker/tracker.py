@@ -16,7 +16,7 @@ ADB_CMD = "adb"
 TARGET_DEVICE = "127.0.0.1:5555"
 
 # 🔄 전체 사이클 주기 (8분 = 480초)
-CYCLE_INTERVAL = 480 
+CYCLE_INTERVAL = 300 
 
 # 파일 경로 설정 (현재 스크립트 위치 기준 절대 경로)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
