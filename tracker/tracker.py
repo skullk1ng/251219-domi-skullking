@@ -7,11 +7,17 @@ import subprocess
 import json
 from datetime import datetime
 
-# ================= 1. 경로 설정 =================
+# ================= 1. 설정 및 경로 =================
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 ADB_CMD = "adb" 
 
-# ================= 2. 좌표 설정 =================
+# 트래커 봇은 무조건 1번 창(5555) 고정
+TARGET_DEVICE = "127.0.0.1:5555"
+
+# 🔄 전체 사이클 주기 (초 단위) -> 8분 = 480초
+CYCLE_INTERVAL = 480 
+
+# ================= 2. OCR 좌표 설정 =================
 SCORE_START_X = 1121   
 START_Y = 275          
 ROW_GAP = 50.8         
@@ -20,25 +26,85 @@ HEIGHT = 30
 GUILD_START_X = 445    
 GUILD_WIDTH = 250      
 
-# 웹사이트용 데이터 (상위 14개만 저장)
 DATA_FILE_PATH = "../data.json"
-# [NEW] 봇의 장기 기억 저장소 (모든 길드 기록 저장)
 HISTORY_FILE_PATH = "history.json"
 
-UPLOAD_INTERVAL = 60 
+# ================= 3. 기본 함수들 =================
 
-# =========================================================
+def run_adb(command):
+    """ 1번 창에게 명령 내리기 """
+    full_cmd = f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}'
+    subprocess.call(full_cmd, shell=True)
 
-def capture_screen():
+def capture_screen(is_ocr=False):
+    """
+    is_ocr=True: OCR용 (일반 컬러)
+    is_ocr=False: 이미지 서치용 (일반 컬러) -> 투명도는 템플릿에만 있으면 됨
+    """
     try:
-        subprocess.call(f'"{ADB_CMD}" shell screencap -p /sdcard/monitor.png', shell=True)
-        subprocess.call(f'"{ADB_CMD}" pull /sdcard/monitor.png .', shell=True)
-        if os.path.exists("monitor.png"):
-            return cv2.imread("monitor.png")
+        filename = "monitor_tracker.png"
+        run_adb(f'shell screencap -p /sdcard/{filename}')
+        run_adb(f'pull /sdcard/{filename} .')
+        
+        if os.path.exists(filename):
+            # [수정됨] 무조건 3채널(IMREAD_COLOR)로 읽어서 채널 불일치 방지
+            return cv2.imread(filename, cv2.IMREAD_COLOR)
         return None
     except Exception as e:
         print(f"캡처 오류: {e}")
         return None
+
+# ================= 4. 매크로 기능 (찾기, 클릭, 종료) =================
+
+def find_image(target_file, threshold=0.8):
+    if not os.path.exists(target_file):
+        print(f"❌ 파일 없음: {target_file}")
+        return None
+
+    # 화면 캡처 (무조건 3채널)
+    screen = capture_screen(is_ocr=False) 
+    if screen is None: return None
+
+    # 찾을 이미지(템플릿)는 투명도(알파)를 포함해서 로드
+    template = cv2.imread(target_file, cv2.IMREAD_UNCHANGED)
+    
+    # 템플릿이 투명 배경(4채널)인지 확인
+    if template.shape[2] == 4:
+        template_img = template[:, :, :3] # 색상 부분 (3채널)
+        mask = template[:, :, 3]          # 투명도 부분 (1채널 마스크)
+        
+        # 투명한 부분은 무시하고 매칭 (Screen 3채널 vs Template 3채널 + Mask)
+        result = cv2.matchTemplate(screen, template_img, cv2.TM_CCORR_NORMED, mask=mask)
+        if threshold < 0.9: threshold = 0.9 
+    else:
+        # 일반 이미지 매칭 (Screen 3채널 vs Template 3채널)
+        result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
+
+    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+    if max_val >= threshold:
+        h, w = template.shape[:2]
+        center_x = int(max_loc[0] + w / 2)
+        center_y = int(max_loc[1] + h / 2)
+        return center_x, center_y
+    return None
+
+def click(x, y):
+    run_adb(f'shell input tap {x} {y}')
+    print(f"👆 클릭: ({x}, {y})")
+
+def force_close_app():
+    print("💀 게임 완전 종료 및 재부팅 시도...")
+    run_adb('shell input keyevent KEYCODE_HOME')
+    time.sleep(1)
+    run_adb('shell input keyevent 187') # 최근 앱
+    time.sleep(1.5)
+    run_adb('shell input swipe 800 450 100 450 300') # 옆으로 밀어서 끄기
+    time.sleep(1)
+    run_adb('shell input keyevent KEYCODE_HOME')
+    print("✨ 종료 완료")
+
+# ================= 5. OCR 처리 기능 =================
 
 def preprocess_image(roi, is_score=False):
     roi = cv2.resize(roi, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
@@ -76,14 +142,12 @@ def extract_guild_name(image, rank):
     except:
         return ""
 
-# [NEW] 히스토리 파일 관리 함수
 def load_history():
     if os.path.exists(HISTORY_FILE_PATH):
         try:
             with open(HISTORY_FILE_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
-            pass
+        except: pass
     return {}
 
 def save_history(history_data):
@@ -91,7 +155,7 @@ def save_history(history_data):
         json.dump(history_data, f, ensure_ascii=False, indent=4)
 
 def upload_to_github():
-    print("☁️ GitHub에 데이터 업로드 중...")
+    print("☁️ GitHub 업로드...")
     try:
         parent_dir = ".." 
         subprocess.run(["git", "add", "data.json"], cwd=parent_dir, check=True)
@@ -102,84 +166,106 @@ def upload_to_github():
     except Exception as e:
         print(f"⚠️ 업로드 실패: {e}")
 
+# ================= 6. 메인 로직 =================
+
 def main():
-    print(f"=== 스마트 모니터링 봇 (장기 기억 장착) 가동 ===")
+    print(f"=== 🤖 스마트 트래커 (재접속+OCR 통합) ===")
+    os.system(f"{ADB_CMD} connect {TARGET_DEVICE}")
     
-    # 봇 시작 시 '장기 기억(history.json)'을 불러옵니다.
     history_db = load_history()
-    print(f"📂 히스토리 로드 완료: {len(history_db)}개 길드 기억 중")
+    print(f"📂 히스토리 로드: {len(history_db)}개")
 
     while True:
-        try:
-            img = capture_screen()
-            if img is None:
-                time.sleep(5)
+        start_time = time.time() # 시작 시간
+        
+        # [단계 1] 게임 완전 재시작
+        force_close_app()
+        time.sleep(2)
+        
+        # 아이콘 찾아서 실행
+        icon_loc = find_image("icon.png")
+        if icon_loc:
+            click(icon_loc[0], icon_loc[1])
+            print("🚀 게임 실행 (로딩 40초 대기)")
+            time.sleep(40)
+        else:
+            print("⚠️ 아이콘 못 찾음. 재시도...")
+            time.sleep(5)
+            continue 
+
+        # [단계 2] 영예의 토너먼트 진입 (최대 1분간 시도)
+        print("🛡️ 토너먼트 아이콘 찾는 중...")
+        entered_tournament = False
+        
+        for _ in range(12): # 5초 * 12회 = 60초 시도
+            # 1. 팝업 광고 있으면 닫기
+            close_loc = find_image("close.png")
+            if close_loc:
+                print("❌ 광고 닫기")
+                click(close_loc[0], close_loc[1])
+                time.sleep(2)
                 continue
 
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n[Check: {current_time}]")
-
-            current_display_data = {} # 웹사이트에 보여줄 이번 턴 데이터
+            # 2. 토너먼트 아이콘 찾기
+            tour_loc = find_image("tournament.png", threshold=0.7)
+            if tour_loc:
+                print("🏆 영예의 토너먼트 발견! 진입")
+                click(tour_loc[0], tour_loc[1])
+                entered_tournament = True
+                break
             
-            for i in range(14):
-                rank = str(i + 1)
-                guild_name = extract_guild_name(img, i)
-                score = extract_score(img, i)
-                
-                if score is None: score = 0 
-                if guild_name == "": guild_name = "인식실패"
+            time.sleep(5)
 
-                # 1. 일단 현재 시간으로 가정
-                final_time = current_time 
-
-                # 2. 장기 기억(history_db) 뒤져보기
-                if guild_name in history_db:
-                    record = history_db[guild_name]
-                    last_known_score = record['score']
-                    last_known_time = record['time']
-
-                    # [핵심 로직] 점수가 기억 속의 점수와 똑같다면?
-                    if score == last_known_score and score != 0:
-                        # 순위가 바뀌어서 나갔다 왔든 뭐든 상관없이 옛날 시간 유지!
-                        final_time = last_known_time
-                    
-                    # 점수가 다르면? -> 현재 시간으로 확정 (이미 final_time = current_time)
-                    elif score != last_known_score and score != 0:
-                         print(f"  >>> 🔔 변동: {guild_name} ({last_known_score} -> {score})")
-
-                # 3. 데이터 확정 및 저장
-                
-                # (1) 웹사이트용 데이터 (현재 순위표)
-                current_display_data[rank] = {'name': guild_name, 'score': score, 'time': final_time}
-                
-                # (2) 장기 기억 업데이트 (순위 상관없이 이름 기준으로 저장)
-                # 인식 실패가 아닐 때만 기억
-                if guild_name != "인식실패" and guild_name != "":
-                    history_db[guild_name] = {'score': score, 'time': final_time}
-
-                print(f"{rank}위 | {guild_name} | {score}")
-
-            # 파일 저장
-            
-            # 1. 히스토리 저장 (tracker 폴더 안)
-            save_history(history_db)
-            
-            # 2. 웹사이트용 데이터 저장 (상위 폴더)
-            with open(DATA_FILE_PATH, "w", encoding="utf-8") as f:
-                json.dump(current_display_data, f, ensure_ascii=False, indent=4)
-                print("💾 로컬 저장 완료")
-
-            # GitHub 업로드
-            upload_to_github()
-
-            print(f"⏳ {UPLOAD_INTERVAL}초 대기...")
-            time.sleep(UPLOAD_INTERVAL)
-
-        except KeyboardInterrupt:
-            break
-        except Exception as e:
-            print(f"에러: {e}")
+        if not entered_tournament:
+            print("⚠️ 토너먼트 진입 실패. 다음 사이클로 넘어갑니다.")
+        else:
+            # [단계 3] 순위 화면 로딩 대기 및 OCR 스캔
+            print("📊 순위표 로딩 대기 (10초)...")
             time.sleep(10)
+            
+            # OCR용 스크린샷 캡처 (is_ocr=True)
+            img = capture_screen(is_ocr=True) 
+            
+            if img is not None:
+                current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"\n[Check: {current_time_str}]")
+                current_display_data = {}
+
+                for i in range(14):
+                    rank = str(i + 1)
+                    guild_name = extract_guild_name(img, i)
+                    score = extract_score(img, i)
+                    if score is None: score = 0 
+                    if guild_name == "": guild_name = "인식실패"
+                    
+                    final_time = current_time_str
+                    if guild_name in history_db:
+                        if score == history_db[guild_name]['score'] and score != 0:
+                            final_time = history_db[guild_name]['time']
+
+                    current_display_data[rank] = {'name': guild_name, 'score': score, 'time': final_time}
+                    if guild_name != "인식실패" and guild_name != "":
+                        history_db[guild_name] = {'score': score, 'time': final_time}
+
+                    print(f"{rank}위 | {guild_name} | {score}")
+
+                save_history(history_db)
+                with open(DATA_FILE_PATH, "w", encoding="utf-8") as f:
+                    json.dump(current_display_data, f, ensure_ascii=False, indent=4)
+                    print("💾 데이터 저장 및 업로드")
+                
+                upload_to_github()
+            else:
+                print("⚠️ OCR 캡처 실패")
+
+        # [단계 4] 남은 시간 계산 및 대기
+        elapsed_time = time.time() - start_time
+        wait_time = CYCLE_INTERVAL - elapsed_time
+        
+        if wait_time < 0: wait_time = 0
+        
+        print(f"⏳ 다음 사이클까지 {int(wait_time)}초 대기...")
+        time.sleep(wait_time)
 
 if __name__ == "__main__":
     main()

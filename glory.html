@@ -75,7 +75,7 @@
 
     <div class="banner-main-wrap" style="padding:20px; text-align:center;">
         <h1 style="color:var(--yellow); margin-bottom:4px;">🏆 Glory Tournament</h1>
-        <p class="sub">실시간 점수 현황판 (30초 자동 갱신)</p>
+        <p class="sub">실시간 점수 현황판 (점수 변동 발생 시 2시간 동안 날짜/시간이 노란색으로 표기됩니다.)</p>
     </div>
 
     <div id="leaderboard" class="glory-table">
@@ -160,8 +160,8 @@
                 const diffMs = now - updateTime; // 시간 차이 (밀리초)
                 const diffHours = diffMs / (1000 * 60 * 60); // 시간 단위로 변환
 
-                if (diffHours < 24) {
-                    // 24시간 이내라면 노란색 + 굵게
+                if (diffHours < 2) {
+                    // 2시간 이내라면 노란색 + 굵게
                     timeStyle = 'color:var(--yellow); font-weight:700; text-shadow:0 0 5px rgba(250,204,21,0.2);';
                 }
             }
