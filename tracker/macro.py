@@ -37,9 +37,9 @@ MATERIAL_INFO = {
 
 # ✅ 목표 리스트
 PRODUCTION_QUEUE = [
-    {"name": "탄소",         "icon": "res_carbon.png",   "target": 20000},
     {"name": "철",           "icon": "res_iron.png",     "target": 10000},
     {"name": "티타늄",       "icon": "res_titanium.png", "target": 10000},
+    {"name": "탄소",         "icon": "res_carbon.png",   "target": 20000},
     {"name": "백금",         "icon": "res_platinum.png", "target": 10000},
 
 ]
