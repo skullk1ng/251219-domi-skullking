@@ -15,8 +15,8 @@ ADB_CMD = "adb"
 # 트래커 봇은 1번 창(5555) 고정
 TARGET_DEVICE = "127.0.0.1:5555"
 
-# 🔄 전체 사이클 주기 (5분 = 300초)
-CYCLE_INTERVAL = 300
+# 🔄 전체 사이클 주기 (3분 20초 = 200초)
+CYCLE_INTERVAL = 200
 
 # 파일 경로 설정 (현재 스크립트 위치 기준 절대 경로)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
