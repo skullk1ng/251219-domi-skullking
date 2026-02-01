@@ -37,11 +37,17 @@ MATERIAL_INFO = {
 
 # ✅ 목표 리스트
 PRODUCTION_QUEUE = [
-    {"name": "철",           "icon": "res_iron.png",     "target": 10000},
-    {"name": "티타늄",       "icon": "res_titanium.png", "target": 10000},
-    {"name": "탄소",         "icon": "res_carbon.png",   "target": 20000},
     {"name": "백금",         "icon": "res_platinum.png", "target": 10000},
-
+    {"name": "티타늄",       "icon": "res_titanium.png", "target": 10000},
+    {"name": "철",           "icon": "res_iron.png",     "target": 10000},
+    {"name": "탄소",         "icon": "res_carbon.png",   "target": 20000},
+    {"name": "열 황동",      "icon": "res_brass.png",    "target": 10000},
+    {"name": "플라스틱",     "icon": "res_plastic.png",  "target": 10000},
+    {"name": "폴리카보네이트", "icon": "res_poly.png",     "target": 10000},
+    {"name": "유리",         "icon": "res_glass.png",    "target": 10000},
+    {"name": "실리코나이트",  "icon": "res_silicon.png",  "target": 10000},
+    {"name": "섬유망",       "icon": "res_fiber.png",    "target": 10000},
+    {"name": "바이오포일",    "icon": "res_bio.png",      "target": 10000},
 ]
 
 CURRENT_INDEX = 0 
@@ -276,8 +282,8 @@ def step1_restart_game():
     loc = find_image("icon.png")
     if loc:
         click(loc[0], loc[1])
-        print("🚀 게임 실행... (25초 로딩 대기)")
-        time.sleep(25)
+        print("🚀 게임 실행... (40초 로딩 대기)")
+        time.sleep(40)
     else:
         print("⚠️ 게임 아이콘을 못 찾았습니다.")
 
@@ -446,8 +452,14 @@ def main():
                 else:
                     print(f"⚠️ {target_name} 아이콘을 목록에서 못 찾았습니다.")
 
-        print(f"⏳ 40분 대기 ({WAIT_TIME}초)...")
-        time.sleep(WAIT_TIME)
+        # [수정됨] 카운트다운 대기 로직 (분/초 표시)
+        remaining_time = WAIT_TIME
+        while remaining_time > 0:
+            mins = remaining_time // 60
+            print(f"⏳ {mins}분 대기 ({remaining_time}초)...    ", end='\r')
+            time.sleep(1)
+            remaining_time -= 1
+        print("") # 줄바꿈
 
 if __name__ == "__main__":
     main()

@@ -16,7 +16,7 @@ ADB_CMD = "adb"
 TARGET_DEVICE = "127.0.0.1:5555"
 
 # 🔄 전체 사이클 주기 (8분 = 480초)
-CYCLE_INTERVAL = 300 
+CYCLE_INTERVAL = 480 
 
 # 파일 경로 설정 (현재 스크립트 위치 기준 절대 경로)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -205,7 +205,7 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 
 def main():
-    print(f"=== 🤖 스마트 트래커 (한글경로+Git수정) ===")
+    print(f"=== 🤖 스마트 트래커 (한글경로+Git수정+카운트다운) ===")
     os.system(f"{ADB_CMD} connect {TARGET_DEVICE}")
     
     history_db = load_history()
@@ -303,11 +303,16 @@ def main():
             else:
                 print("⚠️ OCR 캡처 실패")
 
+        # [수정됨] 카운트다운 대기 로직
         elapsed_time = time.time() - start_time
-        wait_time = max(0, CYCLE_INTERVAL - elapsed_time)
+        wait_seconds = int(max(0, CYCLE_INTERVAL - elapsed_time))
         
-        print(f"⏳ 다음 사이클까지 {int(wait_time)}초 대기...")
-        time.sleep(wait_time)
+        while wait_seconds > 0:
+            # \r은 커서를 줄 맨 앞으로 이동, end=''는 줄바꿈 방지
+            print(f"⏳ 다음 사이클까지 {wait_seconds}초 대기...    ", end='\r')
+            time.sleep(1)
+            wait_seconds -= 1
+        print("") # 카운트다운 끝나면 줄바꿈
 
 if __name__ == "__main__":
     main()
