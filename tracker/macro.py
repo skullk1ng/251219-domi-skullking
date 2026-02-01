@@ -276,8 +276,8 @@ def step1_restart_game():
     loc = find_image("icon.png")
     if loc:
         click(loc[0], loc[1])
-        print("🚀 게임 실행... (40초 로딩 대기)")
-        time.sleep(40)
+        print("🚀 게임 실행... (25초 로딩 대기)")
+        time.sleep(25)
     else:
         print("⚠️ 게임 아이콘을 못 찾았습니다.")
 

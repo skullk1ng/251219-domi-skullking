@@ -220,8 +220,8 @@ def main():
         icon_loc = find_image("icon.png")
         if icon_loc:
             click(icon_loc[0], icon_loc[1])
-            print("🚀 게임 실행 (로딩 40초 대기)")
-            time.sleep(40)
+            print("🚀 게임 실행 (로딩 25초 대기)")
+            time.sleep(25)
         else:
             print("⚠️ 아이콘 못 찾음. (한글 경로 문제 해결됨)")
             time.sleep(5)
