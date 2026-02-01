@@ -17,8 +17,8 @@ ADB_CMD = "adb"
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
 
-# 🕒 반복 주기 (40분)
-WAIT_TIME = 40 * 60 
+# 🕒 반복 주기 (90분)
+WAIT_TIME = 90 * 60 
 
 # ================= 2. 재료 및 목표 설정 =================
 MATERIAL_INFO = {
@@ -37,17 +37,10 @@ MATERIAL_INFO = {
 
 # ✅ 목표 리스트
 PRODUCTION_QUEUE = [
-    {"name": "백금",         "icon": "res_platinum.png", "target": 10000},
-    {"name": "티타늄",       "icon": "res_titanium.png", "target": 10000},
     {"name": "철",           "icon": "res_iron.png",     "target": 10000},
+    {"name": "티타늄",       "icon": "res_titanium.png", "target": 10000},
     {"name": "탄소",         "icon": "res_carbon.png",   "target": 20000},
-    {"name": "열 황동",      "icon": "res_brass.png",    "target": 10000},
-    {"name": "플라스틱",     "icon": "res_plastic.png",  "target": 10000},
-    {"name": "폴리카보네이트", "icon": "res_poly.png",     "target": 10000},
-    {"name": "유리",         "icon": "res_glass.png",    "target": 10000},
-    {"name": "실리코나이트",  "icon": "res_silicon.png",  "target": 10000},
-    {"name": "섬유망",       "icon": "res_fiber.png",    "target": 10000},
-    {"name": "바이오포일",    "icon": "res_bio.png",      "target": 10000},
+    {"name": "백금",         "icon": "res_platinum.png", "target": 10000},
 ]
 
 CURRENT_INDEX = 0 
