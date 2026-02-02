@@ -269,9 +269,9 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [좌표 유지] 사용자님이 맞춘 완벽한 오프셋 (7, -32)
-    offset_x = int(7 * SCALE_RATIO)     
-    offset_y = int(-32 * SCALE_RATIO)   
+    # 🔥 [좌표 유지] 사용자님이 맞춘 완벽한 오프셋 (8, -28)
+    offset_x = int(8 * SCALE_RATIO)     
+    offset_y = int(-28 * SCALE_RATIO)   
     
     w = int(70 * SCALE_RATIO)           
     h = int(30 * SCALE_RATIO)           
