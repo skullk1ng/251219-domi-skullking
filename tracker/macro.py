@@ -55,16 +55,16 @@ PRODUCTION_QUEUE = [
 
 CURRENT_INDEX = 0 
 
-# 👇 좌표 변수
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
+# 👇 [수정] 1920x1080 기준 좌표 변수
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 SCALE_RATIO = 1.0
 
 SWIPE_OPTS = {
-    "start_x": 900,
-    "end_x": 100,
-    "material_y": 640, 
-    "slot_y": 350,     
+    "start_x": 1350,  # 900 * 1.5
+    "end_x": 150,     # 100 * 1.5
+    "material_y": 960,# 640 * 1.5
+    "slot_y": 525,    # 350 * 1.5
     "duration": 500
 }
 
@@ -100,16 +100,18 @@ def get_screen_resolution():
         if h > w: SCREEN_WIDTH, SCREEN_HEIGHT = h, w
         else: SCREEN_WIDTH, SCREEN_HEIGHT = w, h
         
-        SCALE_RATIO = SCREEN_WIDTH / 1280.0
+        # 🔥 [수정] 1920 기준 비율 계산
+        SCALE_RATIO = SCREEN_WIDTH / 1920.0
         print(f"   📺 감지된 해상도: {SCREEN_WIDTH} x {SCREEN_HEIGHT} (배율: {SCALE_RATIO:.2f}x)")
         
-        SWIPE_OPTS["start_x"] = int(SCREEN_WIDTH * 0.8)
-        SWIPE_OPTS["end_x"] = int(SCREEN_WIDTH * 0.2)
+        # 해상도에 맞춰 스와이프 좌표 자동 재설정
+        SWIPE_OPTS["start_x"] = int(SCREEN_WIDTH * 0.7)
+        SWIPE_OPTS["end_x"] = int(SCREEN_WIDTH * 0.08)
         SWIPE_OPTS["material_y"] = int(SCREEN_HEIGHT * 0.88)
         SWIPE_OPTS["slot_y"] = int(SCREEN_HEIGHT * 0.48)     
         print(f"   📍 좌표 설정 완료: 목록Y={SWIPE_OPTS['material_y']}, 슬롯Y={SWIPE_OPTS['slot_y']}")
     else:
-        print("   ⚠️ 해상도 감지 실패. 기본값(720p) 사용")
+        print("   ⚠️ 해상도 감지 실패. 기본값(1080p) 사용")
         SCALE_RATIO = 1.0
 
 def capture_screen(is_color=True):
@@ -150,7 +152,8 @@ def swipe(start_x, start_y, end_x, end_y):
     time.sleep(1.5)
 
 def is_safe_zone(x):
-    margin = int(100 * SCALE_RATIO) 
+    # 🔥 [수정] 1080p 기준 여백 (100 -> 150)
+    margin = int(150 * SCALE_RATIO) 
     if x < margin: return False
     if x > (SCREEN_WIDTH - margin): return False
     return True
@@ -190,12 +193,12 @@ def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
-    # 1. 파란색 박스 (전체 영역)
-    box_w = int(145 * SCALE_RATIO) 
-    box_h = int(165 * SCALE_RATIO) 
+    # 🔥 [수정] 1080p 기준 테두리 박스 크기 (x1.5배 적용)
+    box_w = int(217 * SCALE_RATIO) # 145 * 1.5
+    box_h = int(247 * SCALE_RATIO) # 165 * 1.5
     
-    # 🔥 [수정] 이미지가 잘려서 중심이 위로 갔으므로, 박스를 아래로 28px 밀어 내림
-    shift_down = int(28 * SCALE_RATIO) 
+    # 🔥 [수정] 이미지가 잘려서 중심이 위로 올라간 만큼, 박스를 아래로 내림
+    shift_down = int(42 * SCALE_RATIO) # 28 * 1.5
 
     roi_x = int(center_x - (box_w / 2))
     roi_y = int(center_y - (box_h / 2) + shift_down)
@@ -217,14 +220,14 @@ def check_active_border_and_get_center(center_x, center_y):
     mask2 = cv2.inRange(hsv, lower_deep_red, upper_deep_red)
     mask = mask1 + mask2
     
-    # 초록색 내부 마스킹 (도넛 구멍)
     mh, mw = mask.shape
-    shift_mask_x = int(5 * SCALE_RATIO)
-    shift_mask_y = int(-5 * SCALE_RATIO)
+    # 1080p 마스킹 보정
+    shift_mask_x = int(7 * SCALE_RATIO)
+    shift_mask_y = int(-7 * SCALE_RATIO)
     cy = mh // 2 + shift_mask_y
     cx = mw // 2 + shift_mask_x
-    gap_w = int(60 * SCALE_RATIO)
-    gap_h = int(60 * SCALE_RATIO)
+    gap_w = int(90 * SCALE_RATIO) # 60 * 1.5
+    gap_h = int(90 * SCALE_RATIO)
 
     y1 = max(0, cy - gap_h)
     y2 = min(mh, cy + gap_h)
@@ -234,7 +237,6 @@ def check_active_border_and_get_center(center_x, center_y):
     
     red_pixel_count = cv2.countNonZero(mask)
     
-    # 디버그 이미지 생성
     cv2.rectangle(roi, (0, 0), (box_w-2, box_h-2), (255, 0, 0), 2)
     cv2.rectangle(roi, (x1, y1), (x2, y2), (0, 255, 0), 2)
     green_overlay = roi.copy()
@@ -246,7 +248,6 @@ def check_active_border_and_get_center(center_x, center_y):
     print(f"      🎨 테두리 픽셀: {red_pixel_count} (기준: {threshold_pixel})")
     
     if red_pixel_count > threshold_pixel: 
-        # 자동 보정: 테두리 중심 찾기
         ys, xs = np.nonzero(mask)
         if len(ys) > 0 and len(xs) > 0:
             local_center_y = int(np.mean(ys))
@@ -275,14 +276,15 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [좌표 수정] 요청: 위로 2px 이동
-    # 기존 -30 -> -28 (값이 커지면/0에 가까워지면 위로 올라감)
+    # 🔥 [수정] 1080p 기준 좌표 (x1.5배 적용 완료)
+    # 기존(720p): x=8, y=-28
+    # 1080p: x=12, y=-42
     
-    offset_x = int(8 * SCALE_RATIO)     # 좌우는 유지
-    offset_y = int(-28 * SCALE_RATIO)   # 상하: 위로 2px 이동
+    offset_x = int(12 * SCALE_RATIO)     
+    offset_y = int(-42 * SCALE_RATIO)   
     
-    w = int(70 * SCALE_RATIO)           
-    h = int(30 * SCALE_RATIO)           
+    w = int(105 * SCALE_RATIO) # 70 * 1.5          
+    h = int(45 * SCALE_RATIO)  # 30 * 1.5       
 
     x = int(center_x - offset_x)
     y = int(center_y - offset_y)
@@ -438,7 +440,7 @@ def step9_fill_slots(icon_loc):
 
 def main():
     global CURRENT_INDEX
-    print(f"=== 🏭 도미네이션즈 봇 (1080p 대응 + OCR정밀 + 즉시전환) ===")
+    print(f"=== 🏭 도미네이션즈 봇 (1920x1080 Native) ===")
     os.system(f"{ADB_CMD} connect {DEVICE_ADDRESS}")
     get_screen_resolution()
     
@@ -482,12 +484,11 @@ def main():
             
             if is_active:
                 print("   ✅ [활성 확인] 현재 이 재료가 선택되어 있습니다.")
-                # 활성 상태: 테두리 기준 (정확함)
                 current_cnt = read_dynamic_count_robust(true_x, true_y)
             else:
                 print("   ❌ [비활성] 이 재료가 선택되지 않았습니다.")
-                # 🔥 [비활성 보정] 이미지가 짧아졌으므로 Y좌표를 25px 정도 내려서 찍어야 함
-                fix_y = int(25 * SCALE_RATIO) 
+                # 🔥 [비활성 보정] 1080p 기준 보정값 (약 37px)
+                fix_y = int(37 * SCALE_RATIO) 
                 current_cnt = read_dynamic_count_robust(icon_loc[0], icon_loc[1] + fix_y)
             
             eta = calculate_eta(target_name, current_cnt, target_amount)
@@ -508,7 +509,8 @@ def main():
                 step9_fill_slots(icon_loc)
             else:
                 print(f"[Step 7] 생산 유지 (수집/보충)")
-                click(300, 350); click(600, 350)
+                # 🔥 [수정] 고정 클릭 좌표도 1080p에 맞게 변환
+                click(450, 525); click(900, 525)
                 step9_fill_slots(icon_loc)
         else:
             print(f"⚠️ {target_name} 아이콘을 목록에서 못 찾았습니다.")
