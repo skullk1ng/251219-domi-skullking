@@ -190,9 +190,12 @@ def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
+    # 1. 파란색 박스 (전체 영역)
     box_w = int(145 * SCALE_RATIO) 
     box_h = int(165 * SCALE_RATIO) 
-    shift_down = int(8 * SCALE_RATIO) 
+    
+    # 🔥 [수정] 이미지가 잘려서 중심이 위로 갔으므로, 박스를 아래로 28px 밀어 내림
+    shift_down = int(28 * SCALE_RATIO) 
 
     roi_x = int(center_x - (box_w / 2))
     roi_y = int(center_y - (box_h / 2) + shift_down)
@@ -214,6 +217,7 @@ def check_active_border_and_get_center(center_x, center_y):
     mask2 = cv2.inRange(hsv, lower_deep_red, upper_deep_red)
     mask = mask1 + mask2
     
+    # 초록색 내부 마스킹 (도넛 구멍)
     mh, mw = mask.shape
     shift_mask_x = int(5 * SCALE_RATIO)
     shift_mask_y = int(-5 * SCALE_RATIO)
@@ -230,6 +234,7 @@ def check_active_border_and_get_center(center_x, center_y):
     
     red_pixel_count = cv2.countNonZero(mask)
     
+    # 디버그 이미지 생성
     cv2.rectangle(roi, (0, 0), (box_w-2, box_h-2), (255, 0, 0), 2)
     cv2.rectangle(roi, (x1, y1), (x2, y2), (0, 255, 0), 2)
     green_overlay = roi.copy()
@@ -241,6 +246,7 @@ def check_active_border_and_get_center(center_x, center_y):
     print(f"      🎨 테두리 픽셀: {red_pixel_count} (기준: {threshold_pixel})")
     
     if red_pixel_count > threshold_pixel: 
+        # 자동 보정: 테두리 중심 찾기
         ys, xs = np.nonzero(mask)
         if len(ys) > 0 and len(xs) > 0:
             local_center_y = int(np.mean(ys))
@@ -269,9 +275,11 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [좌표 유지] 사용자님이 맞춘 완벽한 오프셋 (8, -28)
-    offset_x = int(8 * SCALE_RATIO)     
-    offset_y = int(-28 * SCALE_RATIO)   
+    # 🔥 [좌표 수정] 요청: 위로 2px 이동
+    # 기존 -30 -> -28 (값이 커지면/0에 가까워지면 위로 올라감)
+    
+    offset_x = int(8 * SCALE_RATIO)     # 좌우는 유지
+    offset_y = int(-28 * SCALE_RATIO)   # 상하: 위로 2px 이동
     
     w = int(70 * SCALE_RATIO)           
     h = int(30 * SCALE_RATIO)           
@@ -469,18 +477,17 @@ def main():
         if icon_loc:
             print(f"   🧐 '{target_name}' 선택 여부 확인 중...")
             
-            # 🔥 [업그레이드] 아이콘 좌표가 아니라, 보정된 '진짜 중앙 좌표'를 받아옴
+            # 🔥 [업그레이드된 함수]
             is_active, true_x, true_y = check_active_border_and_get_center(icon_loc[0], icon_loc[1])
             
             if is_active:
                 print("   ✅ [활성 확인] 현재 이 재료가 선택되어 있습니다.")
-                # 활성 상태: 테두리 중심(정확함) 사용
+                # 활성 상태: 테두리 기준 (정확함)
                 current_cnt = read_dynamic_count_robust(true_x, true_y)
             else:
                 print("   ❌ [비활성] 이 재료가 선택되지 않았습니다.")
-                # 🔥 [비활성 보정] 이미지가 잘려서 중심이 위로 올라갔으므로,
-                # 강제로 Y좌표를 20픽셀 내려서 원래 카드 중심과 맞춰줍니다.
-                fix_y = int(20 * SCALE_RATIO) 
+                # 🔥 [비활성 보정] 이미지가 짧아졌으므로 Y좌표를 25px 정도 내려서 찍어야 함
+                fix_y = int(25 * SCALE_RATIO) 
                 current_cnt = read_dynamic_count_robust(icon_loc[0], icon_loc[1] + fix_y)
             
             eta = calculate_eta(target_name, current_cnt, target_amount)
