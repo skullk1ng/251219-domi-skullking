@@ -55,7 +55,7 @@ PRODUCTION_QUEUE = [
 
 CURRENT_INDEX = 0 
 
-# 👇 [수정] 1920x1080 기준 좌표 변수
+# 👇 1920x1080 기준 좌표 변수
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 SCALE_RATIO = 1.0
@@ -100,11 +100,9 @@ def get_screen_resolution():
         if h > w: SCREEN_WIDTH, SCREEN_HEIGHT = h, w
         else: SCREEN_WIDTH, SCREEN_HEIGHT = w, h
         
-        # 🔥 [수정] 1920 기준 비율 계산
         SCALE_RATIO = SCREEN_WIDTH / 1920.0
         print(f"   📺 감지된 해상도: {SCREEN_WIDTH} x {SCREEN_HEIGHT} (배율: {SCALE_RATIO:.2f}x)")
         
-        # 해상도에 맞춰 스와이프 좌표 자동 재설정
         SWIPE_OPTS["start_x"] = int(SCREEN_WIDTH * 0.7)
         SWIPE_OPTS["end_x"] = int(SCREEN_WIDTH * 0.08)
         SWIPE_OPTS["material_y"] = int(SCREEN_HEIGHT * 0.88)
@@ -152,7 +150,6 @@ def swipe(start_x, start_y, end_x, end_y):
     time.sleep(1.5)
 
 def is_safe_zone(x):
-    # 🔥 [수정] 1080p 기준 여백 (100 -> 150)
     margin = int(150 * SCALE_RATIO) 
     if x < margin: return False
     if x > (SCREEN_WIDTH - margin): return False
@@ -193,12 +190,12 @@ def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
-    # 🔥 [수정] 1080p 기준 테두리 박스 크기 (x1.5배 적용)
-    box_w = int(217 * SCALE_RATIO) # 145 * 1.5
-    box_h = int(247 * SCALE_RATIO) # 165 * 1.5
+    # 🔥 [수정] 파란색 외부 박스 높이 줄임 (247 -> 245)
+    box_w = int(217 * SCALE_RATIO) 
+    box_h = int(245 * SCALE_RATIO) 
     
-    # 🔥 [수정] 이미지가 잘려서 중심이 위로 올라간 만큼, 박스를 아래로 내림
-    shift_down = int(42 * SCALE_RATIO) # 28 * 1.5
+    # 이미지가 잘려서 중심이 위로 올라간 만큼, 박스를 아래로 내림
+    shift_down = int(42 * SCALE_RATIO) 
 
     roi_x = int(center_x - (box_w / 2))
     roi_y = int(center_y - (box_h / 2) + shift_down)
@@ -226,13 +223,15 @@ def check_active_border_and_get_center(center_x, center_y):
     shift_mask_y = int(-7 * SCALE_RATIO)
     cy = mh // 2 + shift_mask_y
     cx = mw // 2 + shift_mask_x
-    gap_w = int(90 * SCALE_RATIO) # 60 * 1.5
+    gap_w = int(90 * SCALE_RATIO) 
     gap_h = int(90 * SCALE_RATIO)
 
     y1 = max(0, cy - gap_h)
     y2 = min(mh, cy + gap_h)
     x1 = max(0, cx - gap_w)
-    x2 = min(mw, cx + gap_w)
+    # 🔥 [수정] 초록색 내부 마스크 우측을 왼쪽으로 2px 당김
+    x2 = min(mw, cx + gap_w - int(2 * SCALE_RATIO))
+    
     mask[y1:y2, x1:x2] = 0
     
     red_pixel_count = cv2.countNonZero(mask)
@@ -276,15 +275,12 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [수정] 1080p 기준 좌표 (x1.5배 적용 완료)
-    # 기존(720p): x=8, y=-28
-    # 1080p: x=12, y=-42
-    
+    # 🔥 [수정] OCR 박스 위로 3px 이동 (-42 -> -45)
     offset_x = int(12 * SCALE_RATIO)     
-    offset_y = int(-42 * SCALE_RATIO)   
+    offset_y = int(-45 * SCALE_RATIO)   
     
-    w = int(105 * SCALE_RATIO) # 70 * 1.5          
-    h = int(45 * SCALE_RATIO)  # 30 * 1.5       
+    w = int(105 * SCALE_RATIO) 
+    h = int(45 * SCALE_RATIO)  
 
     x = int(center_x - offset_x)
     y = int(center_y - offset_y)
@@ -487,7 +483,7 @@ def main():
                 current_cnt = read_dynamic_count_robust(true_x, true_y)
             else:
                 print("   ❌ [비활성] 이 재료가 선택되지 않았습니다.")
-                # 🔥 [비활성 보정] 1080p 기준 보정값 (약 37px)
+                # 🔥 [비활성 보정] 1080p 기준 보정값
                 fix_y = int(37 * SCALE_RATIO) 
                 current_cnt = read_dynamic_count_robust(icon_loc[0], icon_loc[1] + fix_y)
             
@@ -509,7 +505,6 @@ def main():
                 step9_fill_slots(icon_loc)
             else:
                 print(f"[Step 7] 생산 유지 (수집/보충)")
-                # 🔥 [수정] 고정 클릭 좌표도 1080p에 맞게 변환
                 click(450, 525); click(900, 525)
                 step9_fill_slots(icon_loc)
         else:
