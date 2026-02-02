@@ -7,6 +7,7 @@ import subprocess
 import sys
 import re
 import requests
+import json
 from collections import Counter 
 
 # ✅ 한글 출력 깨짐 방지
@@ -145,53 +146,73 @@ def swipe(start_x, start_y, end_x, end_y):
     run_adb(f'shell input swipe {start_x} {start_y} {end_x} {end_y} 1000')
     time.sleep(1.5)
 
+# 🔥 [안전구역] 화면 양쪽 끝 100px 내의 아이콘은 무시 (잘림 방지)
+def is_safe_zone(x):
+    margin = int(100 * SCALE_RATIO) 
+    if x < margin: return False
+    if x > (SCREEN_WIDTH - margin): return False
+    return True
+
 def find_image_with_scroll(target_file):
     y_pos = SWIPE_OPTS["material_y"]
     start_x = SWIPE_OPTS["start_x"]
     end_x = SWIPE_OPTS["end_x"]
     
     loc = find_image(target_file)
-    if loc: return loc
+    if loc and is_safe_zone(loc[0]): 
+        return loc
+    elif loc:
+        print(f"   ⚠️ 발견했으나 화면 끝에 걸침. 스크롤하여 중앙으로 이동합니다.")
+
     print(f"🔎 목록에서 {target_file} 찾는 중...")
     
     for i in range(6):
         print(f"   👉 [스크롤 {i+1}/6] 오른쪽 목록 확인 중...")
         swipe(start_x, y_pos, end_x, y_pos)
         time.sleep(1.5)
+        
         loc = find_image(target_file)
-        if loc: 
-            print(f"   ✨ 발견했습니다!")
+        if loc and is_safe_zone(loc[0]): 
+            print(f"   ✨ 발견했습니다! (안전 위치)")
             return loc
             
     print("   👈 아이콘이 없어 처음으로 돌아갑니다.")
     for _ in range(7):
         swipe(end_x, y_pos, start_x, y_pos)
         loc = find_image(target_file)
-        if loc: return loc
+        if loc and is_safe_zone(loc[0]): return loc
+        
     return None
 
 def check_active_border(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False
     
-    # 🔥 [수정 1] 세로 길이(h)를 220 -> 155로 축소 (위쪽 텍스트 침범 방지)
-    # 가로(140) x 세로(155) = 약간 긴 직사각형 형태
-    w = int(140 * SCALE_RATIO) 
-    h = int(155 * SCALE_RATIO) # 세로 줄임
+    # ==========================================
+    # 1. 🔵 파란색 박스 (빛을 감지할 전체 영역)
+    # ==========================================
+    # 크기 설정 (가로 145, 세로 165 - 세로를 좀 더 길게)
+    box_w = int(145 * SCALE_RATIO) 
+    box_h = int(165 * SCALE_RATIO) 
     
-    # offset_y는 h/2 (중심점 맞추기)
-    offset_y = int(77 * SCALE_RATIO) 
+    # 🔥 [위치 이동] 박스를 아래로 내리기 위한 변수
+    shift_down = int(20 * SCALE_RATIO) 
+
+    # 박스 시작점 계산 (중심점에서 절반만큼 빼고, shift_down만큼 더해서 내림)
+    x = int(center_x - (box_w / 2))
+    y = int(center_y - (box_h / 2) + shift_down)
     
-    x = int(center_x - w/2)
-    y = int(center_y - offset_y)
-    
+    # 이미지 범위 체크
     h_img, w_img = screen_color.shape[:2]
     if x < 0: x = 0
     if y < 0: y = 0
-    if x + w > w_img: x = w_img - w
-    if y + h > h_img: y = h_img - h
+    if x + box_w > w_img: x = w_img - box_w
+    if y + box_h > h_img: y = h_img - box_h
     
-    roi = screen_color[y:y+h, x:x+w].copy() 
+    # ROI(관심 영역) 잘라내기
+    roi = screen_color[y:y+box_h, x:x+box_w].copy() 
+    
+    # HSV 변환 및 색상 감지 (주황색/붉은색)
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
     lower_orange_red = np.array([0, 100, 140])
     upper_orange_red = np.array([35, 255, 255])
@@ -201,18 +222,31 @@ def check_active_border(center_x, center_y):
     mask2 = cv2.inRange(hsv, lower_deep_red, upper_deep_red)
     mask = mask1 + mask2
     
+    # ==========================================
+    # 2. 🟢 초록색 박스 (빛 감지를 제외할 내부 구멍)
+    # ==========================================
     mh, mw = mask.shape
     cy, cx = mh // 2, mw // 2
-    gap = int(45 * SCALE_RATIO) 
     
+    # 🔥 [마스킹 확장] 내부의 숫자, 물음표 등을 가리기 위해 구멍을 크게 뚫음
+    gap_w = int(55 * SCALE_RATIO)
+    gap_h = int(65 * SCALE_RATIO)
+
     # 구멍 뚫기
-    mask[cy-gap-5:cy+gap-5, cx-gap:cx+gap] = 0
+    y1 = max(0, cy - gap_h)
+    y2 = min(mh, cy + gap_h)
+    x1 = max(0, cx - gap_w)
+    x2 = min(mw, cx + gap_w)
+    mask[y1:y2, x1:x2] = 0
     
+    # ==========================================
+    # 3. 결과 판단 및 디버그
+    # ==========================================
     red_pixel_count = cv2.countNonZero(mask)
     
     # 디버그 이미지 생성
-    cv2.rectangle(roi, (0, 0), (w-2, h-2), (255, 0, 0), 2)
-    cv2.rectangle(roi, (cx-gap, cy-gap-5), (cx+gap, cy+gap-5), (0, 255, 0), 2)
+    cv2.rectangle(roi, (0, 0), (box_w-2, box_h-2), (255, 0, 0), 2)
+    cv2.rectangle(roi, (x1, y1), (x2, y2), (0, 255, 0), 2)
     green_overlay = roi.copy()
     green_overlay[mask > 0] = (0, 255, 0) 
     debug_final = cv2.addWeighted(roi, 0.7, green_overlay, 0.3, 0) 
@@ -241,19 +275,12 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [최종 보정] 사용자 측정 좌표 기반 역산 결과
-    # 목표: X(417) / Y(912) 부터 시작
-    # W(110) / H(34) 크기
+    # 🔥 [OCR 좌표 수정] 중앙보다 오른쪽/아래로 이동 (음수 적용)
     
-    # 1. 위치 이동 (오른쪽, 아래로 이동하려면 음수 값을 넣어야 함)
-    # 기존 58 -> -11로 변경 (오른쪽으로 69px 이동)
-    # 기존 10 -> -59로 변경 (아래쪽으로 69px 이동)
+    offset_x = int(-10 * SCALE_RATIO)   # 오른쪽으로 이동
+    offset_y = int(-55 * SCALE_RATIO)   # 아래로 이동
     
-    offset_x = int(-11 * SCALE_RATIO)   
-    offset_y = int(-59 * SCALE_RATIO)   
-    
-    # 2. 박스 크기 (측정해주신 크기 110 x 34 적용)
-    w = int(110 * SCALE_RATIO)          
+    w = int(100 * SCALE_RATIO)          
     h = int(35 * SCALE_RATIO)           
 
     x = int(center_x - offset_x)
@@ -268,16 +295,16 @@ def _read_single_count(center_x, center_y):
     roi = screen_gray[y:y+h, x:x+w]
     
     debug_view = screen_color.copy()
-    cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 2) # 두께 2
+    cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 2) 
     cv2.imwrite("ocr_debug.png", debug_view) 
 
-    # 인식률 높이기 (3배 확대)
     roi = cv2.resize(roi, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
     _, roi_thresh = cv2.threshold(roi, 160, 255, cv2.THRESH_BINARY) 
     text = pytesseract.image_to_string(roi_thresh, config='--psm 7 outputbase digits')
     numbers = re.findall(r'\d+', text)
     if numbers: return int(numbers[0])
     return 0
+
 def calculate_eta(name, current, target):
     if name not in MATERIAL_INFO: return "정보없음"
     needed = target - current
@@ -455,7 +482,6 @@ def main():
             else:
                 print("   ❌ [비활성] 이 재료가 선택되지 않았습니다.")
             
-            # 1080p 자동 보정된 좌표로 OCR 수행
             current_cnt = read_dynamic_count_robust(icon_loc[0], icon_loc[1])
             eta = calculate_eta(target_name, current_cnt, target_amount)
             print(f"[Step 6] 현황: {current_cnt}개 / 남은 시간: {eta}")
