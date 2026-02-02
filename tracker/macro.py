@@ -276,18 +276,19 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [좌표 긴급 수정] 
-    # 이전 설정이 너무 멀리 나갔습니다. 다시 안쪽으로 당깁니다.
+    # 🔥 [좌표 정밀 보정] 
+    # 기존: 중앙보다 우측(+5)에서 시작해서 숫자가 잘림
+    # 수정: 중앙보다 좌측(-20)에서 시작하도록 변경 (Left Move)
     
-    # offset_x: -5 (중앙에서 아주 살짝만 오른쪽으로 이동)
-    # offset_y: -45 (중앙에서 적당히 아래로 이동 -> 아이콘 하단 숫자 위치)
+    # offset_x: 20 (중앙에서 왼쪽으로 20px 이동 -> x = center - 20)
+    # offset_y: -45 (중앙에서 아래로 45px 이동 -> 유지)
     
-    offset_x = int(-5 * SCALE_RATIO)    # 기존 -66 -> -5 (왼쪽으로 복구)
-    offset_y = int(-45 * SCALE_RATIO)   # 기존 -86 -> -45 (위로 복구)
+    offset_x = int(20 * SCALE_RATIO)    # 양수(+)를 주면 왼쪽으로 이동
+    offset_y = int(-45 * SCALE_RATIO)   # 음수(-)를 주면 아래로 이동
     
-    # 박스 크기 (유지)
-    w = int(100 * SCALE_RATIO)          
-    h = int(35 * SCALE_RATIO)           
+    # 박스 크기 (5자리 숫자에 맞게 70px로 축소)
+    w = int(70 * SCALE_RATIO)           
+    h = int(30 * SCALE_RATIO)           
 
     x = int(center_x - offset_x)
     y = int(center_y - offset_y)
@@ -311,6 +312,7 @@ def _read_single_count(center_x, center_y):
     numbers = re.findall(r'\d+', text)
     if numbers: return int(numbers[0])
     return 0
+
 def calculate_eta(name, current, target):
     if name not in MATERIAL_INFO: return "정보없음"
     needed = target - current
