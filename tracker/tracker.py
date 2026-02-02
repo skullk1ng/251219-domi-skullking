@@ -7,6 +7,7 @@ import subprocess
 import json
 from datetime import datetime
 import sys
+import requests # 👈 디스코드 전송용 라이브러리
 
 # ================= 1. 설정 및 경로 =================
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -15,12 +16,15 @@ ADB_CMD = "adb"
 # 트래커 봇은 1번 창(5555) 고정
 TARGET_DEVICE = "127.0.0.1:5555"
 
-# 🔄 전체 사이클 주기 (3분 20초 = 200초)
-CYCLE_INTERVAL = 200
+# 🔄 전체 사이클 주기 (5분 = 300초)
+CYCLE_INTERVAL = 300 
 
-# 파일 경로 설정 (현재 스크립트 위치 기준 절대 경로)
+# 🔔 [설정] 디스코드 웹후크 URL (적용 완료!)
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
+USE_DISCORD = True 
+
+# 파일 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# data.json은 상위 폴더, history.json은 현재 폴더
 DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json") 
 HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
 
@@ -35,16 +39,23 @@ GUILD_WIDTH = 250
 
 # ================= 3. 기본 함수들 =================
 
+def send_discord_msg(message):
+    """ 🚀 디스코드 메시지 발송 함수 """
+    if not USE_DISCORD: return
+    try:
+        data = {"content": message}
+        headers = {"Content-Type": "application/json"}
+        requests.post(DISCORD_WEBHOOK_URL, data=json.dumps(data), headers=headers)
+        print("   📨 디스코드 알림 발송 완료")
+    except Exception as e:
+        print(f"   ⚠️ 디스코드 발송 실패: {e}")
+
 def run_adb(command):
-    """ ADB 명령 실행 """
-    # 한글 경로 포함 시 인코딩 문제 방지를 위해 리스트 형태 권장하나, 여기선 shell=True 유지
     full_cmd = f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}'
     subprocess.call(full_cmd, shell=True)
 
 def imread_unicode(path, flags=cv2.IMREAD_COLOR):
-    """ 🔥 [핵심 수정] 한글 경로 이미지 읽기 함수 """
     try:
-        # numpy로 파일을 바이트 단위로 읽은 후 디코딩 (한글 경로 호환)
         n = np.fromfile(path, np.uint8)
         img = cv2.imdecode(n, flags)
         return img
@@ -56,15 +67,9 @@ def capture_screen(is_ocr=False):
     try:
         filename = "monitor_tracker.png"
         local_path = os.path.join(BASE_DIR, filename)
-        
-        # 1. 폰에서 캡처
         run_adb(f'shell screencap -p /sdcard/{filename}')
-        
-        # 2. PC로 가져오기 (경로에 따옴표 추가하여 공백/특수문자 처리)
         run_adb(f'pull /sdcard/{filename} "{local_path}"')
-        
         if os.path.exists(local_path):
-            # [수정] 한글 경로 호환 읽기 사용
             return imread_unicode(local_path, cv2.IMREAD_COLOR)
         return None
     except Exception as e:
@@ -75,15 +80,11 @@ def capture_screen(is_ocr=False):
 
 def find_image(target_filename, threshold=0.8):
     target_path = os.path.join(BASE_DIR, target_filename)
-    
-    if not os.path.exists(target_path):
-        # print(f"❌ 파일 없음: {target_filename}") 
-        return None
+    if not os.path.exists(target_path): return None
 
     screen = capture_screen(is_ocr=False) 
     if screen is None: return None
 
-    # [수정] 템플릿 이미지도 한글 경로 호환 읽기
     template = imread_unicode(target_path, cv2.IMREAD_UNCHANGED)
     if template is None: return None
     
@@ -96,12 +97,9 @@ def find_image(target_filename, threshold=0.8):
         result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
 
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-
     if max_val >= threshold:
         h, w = template.shape[:2]
-        center_x = int(max_loc[0] + w / 2)
-        center_y = int(max_loc[1] + h / 2)
-        return center_x, center_y
+        return int(max_loc[0] + w / 2), int(max_loc[1] + h / 2)
     return None
 
 def click(x, y):
@@ -173,41 +171,25 @@ def save_history(history_data):
 def upload_to_github():
     print("☁️ GitHub 업로드 시도...")
     try:
-        # 상위 폴더(dominations-calculator 루트)를 기준으로 git 명령 실행
         repo_dir = os.path.dirname(BASE_DIR) 
-        
-        # 1. 모든 변경사항 추가 (data.json 뿐만 아니라 이미지 등 전체)
         subprocess.run(["git", "add", "."], cwd=repo_dir, check=True)
-        
         timestamp = datetime.now().strftime("%H:%M:%S")
-        
-        # 2. 커밋 (변경사항이 없으면 에러가 날 수 있으므로 try-except 처리)
         try:
-            subprocess.run(
-                ["git", "commit", "-m", f"Auto update: {timestamp}"], 
-                cwd=repo_dir, 
-                check=True,
-                stdout=subprocess.PIPE,  # 불필요한 로그 숨김
-                stderr=subprocess.PIPE
-            )
+            subprocess.run(["git", "commit", "-m", f"Auto update: {timestamp}"], cwd=repo_dir, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             print(f"✅ 커밋 완료: {timestamp}")
         except subprocess.CalledProcessError:
             print("ℹ️ 변경된 내용이 없어 커밋을 건너뜁니다.")
-            return # 커밋할 게 없으면 푸시도 안 함
-
-        # 3. 푸시
+            return
         subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=True)
         print("🚀 GitHub Push 완료!")
-        
     except Exception as e:
         print(f"⚠️ 업로드 중 오류 발생: {e}")
 
 # ================= 6. 메인 로직 =================
 
 def main():
-    print(f"=== 🤖 스마트 트래커 (한글경로+Git수정+카운트다운) ===")
+    print(f"=== 🤖 스마트 트래커 (디스코드 알림 + 300초 주기) ===")
     os.system(f"{ADB_CMD} connect {TARGET_DEVICE}")
-    
     history_db = load_history()
     print(f"📂 히스토리 로드: {len(history_db)}개")
 
@@ -223,7 +205,7 @@ def main():
             print("🚀 게임 실행 (로딩 25초 대기)")
             time.sleep(25)
         else:
-            print("⚠️ 아이콘 못 찾음. (한글 경로 문제 해결됨)")
+            print("⚠️ 아이콘 못 찾음")
             time.sleep(5)
             continue 
 
@@ -244,7 +226,6 @@ def main():
                 click(tour_loc[0], tour_loc[1])
                 entered_tournament = True
                 break
-            
             time.sleep(5)
 
         if not entered_tournament:
@@ -254,7 +235,6 @@ def main():
             time.sleep(10)
             
             img = capture_screen(is_ocr=True)
-            
             if img is not None:
                 current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"\n[Check: {current_time_str}]")
@@ -266,12 +246,8 @@ def main():
                     score = extract_score(img, i)
                     
                     if not guild_name: guild_name = "Unknown"
-                    
-                    # 히스토리 로직
-                    if guild_name not in history_db:
-                        history_db[guild_name] = []
-                    elif isinstance(history_db[guild_name], dict):
-                        history_db[guild_name] = [history_db[guild_name]]
+                    if guild_name not in history_db: history_db[guild_name] = []
+                    elif isinstance(history_db[guild_name], dict): history_db[guild_name] = [history_db[guild_name]]
 
                     guild_logs = history_db[guild_name]
                     last_score = guild_logs[0]['score'] if guild_logs else 0
@@ -280,39 +256,37 @@ def main():
                     if score != 0:
                         if score != last_score:
                             print(f"  🔔 변동: {guild_name} ({last_score} -> {score})")
+                            
+                            # 🔥 [디스코드 알림 발송]
+                            msg = f"{current_time_str}\n[{guild_name} 점수 변동 발생: {last_score} -> {score}]"
+                            send_discord_msg(msg)
+                            
                             guild_logs.insert(0, {'score': score, 'time': current_time_str})
                             if len(guild_logs) > 5: guild_logs = guild_logs[:5]
                             history_db[guild_name] = guild_logs
                         else:
                             if guild_logs: final_time = guild_logs[0]['time']
 
-                    current_display_data[rank] = {
-                        'name': guild_name, 
-                        'score': score, 
-                        'time': final_time,
-                        'history': history_db[guild_name] 
-                    }
+                    current_display_data[rank] = {'name': guild_name, 'score': score, 'time': final_time, 'history': history_db[guild_name]}
                     print(f"#{rank} | {guild_name} | {score}")
 
                 save_history(history_db)
                 with open(DATA_FILE_PATH, "w", encoding="utf-8") as f:
                     json.dump(current_display_data, f, ensure_ascii=False, indent=4)
                     print("💾 데이터 저장 완료")
-                
                 upload_to_github()
             else:
                 print("⚠️ OCR 캡처 실패")
 
-        # [수정됨] 카운트다운 대기 로직
+        # 300초 카운트다운
         elapsed_time = time.time() - start_time
         wait_seconds = int(max(0, CYCLE_INTERVAL - elapsed_time))
         
         while wait_seconds > 0:
-            # \r은 커서를 줄 맨 앞으로 이동, end=''는 줄바꿈 방지
             print(f"⏳ 다음 사이클까지 {wait_seconds}초 대기...    ", end='\r')
             time.sleep(1)
             wait_seconds -= 1
-        print("") # 카운트다운 끝나면 줄바꿈
+        print(" " * 50, end='\r')
 
 if __name__ == "__main__":
     main()
