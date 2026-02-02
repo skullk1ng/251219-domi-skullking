@@ -241,16 +241,20 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [사용자 측정 데이터 기반 정밀 보정]
-    # 목표: 좌측상단(417, 912) ~ 우측하단(527, 946)
+    # 🔥 [최종 보정] 사용자 측정 좌표 기반 역산 결과
+    # 목표: X(417) / Y(912) 부터 시작
+    # W(110) / H(34) 크기
     
-    # 1. 위치 이동 (중심점 기준 오프셋 역산 결과)
-    offset_x = int(-66 * SCALE_RATIO)  # 기존 -20에서 -> -66 (오른쪽으로 더 이동)
-    offset_y = int(-86 * SCALE_RATIO)  # 기존 -40에서 -> -86 (아래쪽으로 대폭 이동)
+    # 1. 위치 이동 (오른쪽, 아래로 이동하려면 음수 값을 넣어야 함)
+    # 기존 58 -> -11로 변경 (오른쪽으로 69px 이동)
+    # 기존 10 -> -59로 변경 (아래쪽으로 69px 이동)
     
-    # 2. 박스 크기 (측정된 픽셀 크기를 배율로 나눔)
-    w = int(73 * SCALE_RATIO)          # 실제 너비 약 110px
-    h = int(23 * SCALE_RATIO)          # 실제 높이 약 35px
+    offset_x = int(-11 * SCALE_RATIO)   
+    offset_y = int(-59 * SCALE_RATIO)   
+    
+    # 2. 박스 크기 (측정해주신 크기 110 x 34 적용)
+    w = int(110 * SCALE_RATIO)          
+    h = int(35 * SCALE_RATIO)           
 
     x = int(center_x - offset_x)
     y = int(center_y - offset_y)
@@ -264,18 +268,16 @@ def _read_single_count(center_x, center_y):
     roi = screen_gray[y:y+h, x:x+w]
     
     debug_view = screen_color.copy()
-    cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 2)  # 박스 두께 2로 얇게
+    cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 2) # 두께 2
     cv2.imwrite("ocr_debug.png", debug_view) 
 
-    # 인식률 높이기 (이미지 3배 확대 및 이진화)
+    # 인식률 높이기 (3배 확대)
     roi = cv2.resize(roi, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
-    _, roi_thresh = cv2.threshold(roi, 150, 255, cv2.THRESH_BINARY) 
-    
+    _, roi_thresh = cv2.threshold(roi, 160, 255, cv2.THRESH_BINARY) 
     text = pytesseract.image_to_string(roi_thresh, config='--psm 7 outputbase digits')
     numbers = re.findall(r'\d+', text)
     if numbers: return int(numbers[0])
     return 0
-
 def calculate_eta(name, current, target):
     if name not in MATERIAL_INFO: return "정보없음"
     needed = target - current
