@@ -44,6 +44,7 @@ MATERIAL_INFO = {
 
 # ✅ 목표 리스트
 PRODUCTION_QUEUE = [
+    {"name": "바이오포일",    "icon": "res_bio.png",      "target": 10000},
     {"name": "유리",         "icon": "res_glass.png",    "target": 10000},
     {"name": "폴리카보네이트", "icon": "res_poly.png",     "target": 10000},
     {"name": "티타늄",       "icon": "res_titanium.png", "target": 10000},
