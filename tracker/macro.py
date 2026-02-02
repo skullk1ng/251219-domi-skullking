@@ -274,14 +274,13 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [좌표 최종 확정]
-    # 이전 두 시도의 중간값 적용 -> 숫자가 있는 우측 하단 정밀 타격
+    # 🔥 [좌표 최종 미세 보정]
     
-    # 1. 가로 (X): 중앙보다 살짝 왼쪽에서 시작 (그래야 오른쪽 끝 숫자를 포함)
-    offset_x = int(5 * SCALE_RATIO)     # 양수 = 왼쪽으로 이동
+    # 1. 가로 (X): 5 (기존) -> 7 (좌측으로 2px 추가 이동)
+    offset_x = int(7 * SCALE_RATIO)     
     
-    # 2. 세로 (Y): 바닥에서 살짝 위로 (숫자 높이 맞춤)
-    offset_y = int(-27 * SCALE_RATIO)   # 음수 = 아래로 이동
+    # 2. 세로 (Y): -27 (기존) -> -30 (아래로 3px 추가 이동)
+    offset_y = int(-31 * SCALE_RATIO)   
     
     # 3. 크기: 70 x 30
     w = int(70 * SCALE_RATIO)           
