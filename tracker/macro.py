@@ -54,7 +54,7 @@ CURRENT_INDEX = 0
 # 👇 좌표 변수
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-SCALE_RATIO = 1.0  # 🔥 화면 배율 (1080p면 1.5가 됨)
+SCALE_RATIO = 1.0
 
 SWIPE_OPTS = {
     "start_x": 900,
@@ -93,16 +93,12 @@ def get_screen_resolution():
     if match:
         w = int(match.group(1))
         h = int(match.group(2))
-        # 가로 모드 강제
         if h > w: SCREEN_WIDTH, SCREEN_HEIGHT = h, w
         else: SCREEN_WIDTH, SCREEN_HEIGHT = w, h
         
-        # 🔥 [핵심] 배율 계산 (기준: 1280px)
         SCALE_RATIO = SCREEN_WIDTH / 1280.0
-        
         print(f"   📺 감지된 해상도: {SCREEN_WIDTH} x {SCREEN_HEIGHT} (배율: {SCALE_RATIO:.2f}x)")
         
-        # 스와이프 좌표도 배율에 맞춰 조정
         SWIPE_OPTS["start_x"] = int(SCREEN_WIDTH * 0.8)
         SWIPE_OPTS["end_x"] = int(SCREEN_WIDTH * 0.2)
         SWIPE_OPTS["material_y"] = int(SCREEN_HEIGHT * 0.88)
@@ -178,9 +174,9 @@ def check_active_border(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False
     
-    # 1. 외곽선(Outer Box) 크기 - 살짝 여유있게
-    w = int(220 * SCALE_RATIO) 
-    h = int(238 * SCALE_RATIO)
+    # 🔥 [수정 1] 파란 박스(Outer) 폭을 140으로 줄여 옆 재료 침범 방지
+    w = int(140 * SCALE_RATIO)  # 기존 160 -> 140
+    h = int(220 * SCALE_RATIO)
     offset_y = int(110 * SCALE_RATIO)
     
     x = int(center_x - w/2)
@@ -202,26 +198,21 @@ def check_active_border(center_x, center_y):
     mask2 = cv2.inRange(hsv, lower_deep_red, upper_deep_red)
     mask = mask1 + mask2
     
-    # 2. 도넛 구멍(Inner Hole) 뚫기
     mh, mw = mask.shape
     cy, cx = mh // 2, mw // 2
+
+    # 🔥 [수정 2] 초록 박스(도넛 구멍)를 45로 줄여서 테두리 빛을 침범하지 않게 함
+    gap = int(45 * SCALE_RATIO) # 기존 55 -> 45
     
-    # 🔥 [수정] gap을 살짝 줄여서(85 -> 75) 구멍을 작게 만듦 (테두리 빛 보호)
-    gap = int(75 * SCALE_RATIO) 
-    
-    # 구멍 뚫기 (검은색 처리)
+    # 구멍 뚫기
     mask[cy-gap-5:cy+gap-5, cx-gap:cx+gap] = 0
     
     red_pixel_count = cv2.countNonZero(mask)
     
-    # 3. 디버그 이미지 저장 (사용자 확인용)
-    # 파란색: 전체 감지 영역
+    # 디버그 이미지 생성
     cv2.rectangle(roi, (0, 0), (w-2, h-2), (255, 0, 0), 2)
-    # 초록색: 무시하는 내부 영역 (도넛 구멍) -> 이게 너무 크면 안됨
     cv2.rectangle(roi, (cx-gap, cy-gap-5), (cx+gap, cy+gap-5), (0, 255, 0), 2)
-    
     green_overlay = roi.copy()
-    # 감지된 빛(빨간색)을 초록색으로 칠해서 보여줌
     green_overlay[mask > 0] = (0, 255, 0) 
     debug_final = cv2.addWeighted(roi, 0.7, green_overlay, 0.3, 0) 
     cv2.imwrite("border_debug.png", debug_final)
@@ -232,35 +223,34 @@ def check_active_border(center_x, center_y):
     if red_pixel_count > threshold_pixel: return True
     return False
 
-# 3번 읽어서 다수결로 결정하는 OCR 함수
 def read_dynamic_count_robust(center_x, center_y):
     readings = []
     print("   👀 [정밀 검사] 수량 확인 중 (3회 측정)...")
-    
     for i in range(3):
         val = _read_single_count(center_x, center_y)
         readings.append(val)
         time.sleep(0.5) 
-        
     most_common = Counter(readings).most_common(1)
     final_val = most_common[0][0]
-    
     print(f"      👉 측정값들: {readings} -> 최종판단: {final_val}")
     return final_val
 
-# 내부용 단일 측정 함수 (OCR 위치 보정)
 def _read_single_count(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [수정] 박스 위치를 위로 확 올림
-    # 기존: offset_y = 50 or 20 (너무 낮음) -> 15로 더 줄여서 위로 당김
-    offset_x = int(45 * SCALE_RATIO)
-    offset_y = int(15 * SCALE_RATIO) 
+    # 🔥 [수정 3] OCR 박스 정밀 조정
+    # - offset_x: 45 -> 10으로 줄임 (박스를 오른쪽으로 당겨서 왼쪽 여백 제거)
+    # - offset_y: -25 -> -10으로 줄임 (박스 상단을 아래로 내려서 위쪽 여백 제거)
+    # - w: 135 -> 110으로 줄임 (왼쪽 여백이 사라진 만큼 폭도 줄임)
+    # - h: 45 -> 55로 늘림 (아래 공간 확보)
     
-    w = int(135 * SCALE_RATIO)
-    h = int(45 * SCALE_RATIO)
+    offset_x = int(10 * SCALE_RATIO)   # 센터에서 조금만 왼쪽으로 이동
+    offset_y = int(-10 * SCALE_RATIO)  # 센터에서 살짝 위로 이동
+    
+    w = int(110 * SCALE_RATIO)         # 폭 줄임
+    h = int(55 * SCALE_RATIO)          # 높이 늘림
 
     x = int(center_x - offset_x)
     y = int(center_y + offset_y)
@@ -273,7 +263,6 @@ def _read_single_count(center_x, center_y):
     
     roi = screen_gray[y:y+h, x:x+w]
     
-    # 디버그 이미지
     debug_view = screen_color.copy()
     cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 3) 
     cv2.imwrite("ocr_debug.png", debug_view) 
