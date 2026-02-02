@@ -6,6 +6,8 @@ import os
 import subprocess
 import sys
 import re
+import requests
+from collections import Counter # 다수결 원칙을 위해 추가
 
 # ✅ 한글 출력 깨짐 방지
 sys.stdout.reconfigure(encoding='utf-8')
@@ -16,6 +18,10 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 ADB_CMD = "adb"
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
+
+# 🔔 [설정] 디스코드 웹후크 (알림용)
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
+USE_DISCORD = True
 
 # 🕒 반복 주기 (90분)
 WAIT_TIME = 90 * 60 
@@ -35,7 +41,7 @@ MATERIAL_INFO = {
     "바이오포일": {"time_min": 70, "amount": 10},
 }
 
-# ✅ 목표 리스트
+# ✅ 목표 리스트 (예시 데이터 유지)
 PRODUCTION_QUEUE = [
     {"name": "철",           "icon": "res_iron.png",     "target": 10000},
     {"name": "티타늄",       "icon": "res_titanium.png", "target": 10000},
@@ -45,20 +51,27 @@ PRODUCTION_QUEUE = [
 
 CURRENT_INDEX = 0 
 
-# 👇 좌표 변수 (기본값 설정 후 get_screen_resolution에서 덮어씀)
+# 👇 좌표 변수
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-
-# 🔥 [수정] SWIPE_OPTS 사전 다시 정의 (NameError 방지)
 SWIPE_OPTS = {
     "start_x": 900,
     "end_x": 100,
-    "material_y": 640, # 재료 목록 위치
-    "slot_y": 350,     # 생산 슬롯 위치
+    "material_y": 640, 
+    "slot_y": 350,     
     "duration": 500
 }
 
 # ================= 3. 기본 함수들 =================
+
+def send_discord_msg(message):
+    if not USE_DISCORD: return
+    try:
+        data = {"content": message}
+        headers = {"Content-Type": "application/json"}
+        requests.post(DISCORD_WEBHOOK_URL, data=json.dumps(data), headers=headers)
+        print("   📨 디스코드 알림 발송 완료")
+    except: pass
 
 def run_adb(command):
     subprocess.call(f'"{ADB_CMD}" -s {DEVICE_ADDRESS} {command}', shell=True)
@@ -74,25 +87,17 @@ def get_screen_resolution():
     global SCREEN_WIDTH, SCREEN_HEIGHT, SWIPE_OPTS
     print("📏 화면 해상도 확인 중...")
     output = run_adb_output("shell wm size") 
-    
     match = re.search(r'(\d+)x(\d+)', output)
     if match:
         SCREEN_WIDTH = int(match.group(1))
         SCREEN_HEIGHT = int(match.group(2))
-        
-        if SCREEN_HEIGHT > SCREEN_WIDTH: 
-            SCREEN_WIDTH, SCREEN_HEIGHT = SCREEN_HEIGHT, SCREEN_WIDTH
-            
+        if SCREEN_HEIGHT > SCREEN_WIDTH: SCREEN_WIDTH, SCREEN_HEIGHT = SCREEN_HEIGHT, SCREEN_WIDTH
         print(f"   📺 감지된 해상도: {SCREEN_WIDTH} x {SCREEN_HEIGHT}")
-        
-        # 🌟 좌표 동적 할당 (해상도에 맞춰 SWIPE_OPTS 갱신)
         SWIPE_OPTS["start_x"] = int(SCREEN_WIDTH * 0.8)
         SWIPE_OPTS["end_x"] = int(SCREEN_WIDTH * 0.2)
-        SWIPE_OPTS["material_y"] = int(SCREEN_HEIGHT * 0.88) # 하단 12% 지점
-        SWIPE_OPTS["slot_y"] = int(SCREEN_HEIGHT * 0.48)     # 중앙 48% 지점 (슬롯 위치)
-        
+        SWIPE_OPTS["material_y"] = int(SCREEN_HEIGHT * 0.88)
+        SWIPE_OPTS["slot_y"] = int(SCREEN_HEIGHT * 0.48)     
         print(f"   📍 좌표 설정 완료: 목록Y={SWIPE_OPTS['material_y']}, 슬롯Y={SWIPE_OPTS['slot_y']}")
-        
     else:
         print("   ⚠️ 해상도 감지 실패. 기본값(720p) 사용")
 
@@ -111,9 +116,7 @@ def find_image(target_file, threshold=0.8, screen=None):
     if not os.path.exists(target_file): return None
     if screen is None: screen = capture_screen(is_color=True)
     if screen is None: return None
-    
     template = cv2.imread(target_file, cv2.IMREAD_UNCHANGED)
-    
     if template.shape[2] == 4:
         template_img = template[:, :, :3]
         mask = template[:, :, 3]
@@ -121,7 +124,6 @@ def find_image(target_file, threshold=0.8, screen=None):
         if threshold < 0.9: threshold = 0.9
     else:
         result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
-        
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
     if max_val >= threshold:
         h, w = template.shape[:2]
@@ -132,121 +134,94 @@ def click(x, y):
     run_adb(f'shell input tap {x} {y}')
 
 def swipe(start_x, start_y, end_x, end_y):
-    run_adb(f'shell input swipe {start_x} {start_y} {end_x} {end_y} 1000') # 1초 동안 부드럽게
+    run_adb(f'shell input swipe {start_x} {start_y} {end_x} {end_y} 1000')
     time.sleep(1.5)
 
-# ✅ [수정] 갱신된 SWIPE_OPTS 사용
 def find_image_with_scroll(target_file):
     y_pos = SWIPE_OPTS["material_y"]
     start_x = SWIPE_OPTS["start_x"]
     end_x = SWIPE_OPTS["end_x"]
     
-    # 1. 현재 화면 확인
     loc = find_image(target_file)
     if loc: return loc
-    
     print(f"🔎 목록에서 {target_file} 찾는 중...")
     
-    # 2. 오른쪽으로 넘기기 (6회)
     for i in range(6):
         print(f"   👉 [스크롤 {i+1}/6] 오른쪽 목록 확인 중...")
         swipe(start_x, y_pos, end_x, y_pos)
         time.sleep(1.5)
-        
         loc = find_image(target_file)
         if loc: 
             print(f"   ✨ 발견했습니다!")
             return loc
             
-    # 3. 없으면 다시 왼쪽으로 복귀 (7회)
     print("   👈 아이콘이 없어 처음으로 돌아갑니다.")
     for _ in range(7):
         swipe(end_x, y_pos, start_x, y_pos)
         loc = find_image(target_file)
         if loc: return loc
-        
     return None
 
-# 테두리 인식 (유지)
 def check_active_border(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False
-    
     w, h = 220, 238
     x = int(center_x - w/2)
     y = int(center_y - 110)
-    
     h_img, w_img = screen_color.shape[:2]
     if x < 0: x = 0
     if y < 0: y = 0
     if x + w > w_img: x = w_img - w
     if y + h > h_img: y = h_img - h
-    
     roi = screen_color[y:y+h, x:x+w].copy() 
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    
     lower_orange_red = np.array([0, 100, 140])
     upper_orange_red = np.array([35, 255, 255])
     lower_deep_red = np.array([160, 100, 140])
     upper_deep_red = np.array([180, 255, 255])
-    
     mask1 = cv2.inRange(hsv, lower_orange_red, upper_orange_red)
     mask2 = cv2.inRange(hsv, lower_deep_red, upper_deep_red)
     mask = mask1 + mask2
-    
     mh, mw = mask.shape
     cy, cx = mh // 2, mw // 2
     gap = 85
     mask[cy-gap-5:cy+gap-5, cx-gap:cx+gap] = 0
-    
     red_pixel_count = cv2.countNonZero(mask)
-    
-    cv2.rectangle(roi, (cx-gap, cy-gap-5), (cx+gap, cy+gap-5), (255, 0, 0), 2)
-    green_overlay = roi.copy()
-    green_overlay[mask > 0] = (0, 255, 0) 
-    debug_final = cv2.addWeighted(roi, 0.7, green_overlay, 0.3, 0) 
-
-    cv2.imwrite("border_debug.png", debug_final)
-    print(f"   🎨 감지된 테두리 빛(픽셀 수): {red_pixel_count}")
-    
-    if red_pixel_count > 3000: 
-        return True
+    if red_pixel_count > 3000: return True
     return False
 
-# OCR (유지)
-def read_dynamic_count(center_x, center_y):
+# 🔥 [수정] 3번 읽어서 다수결로 결정하는 OCR 함수
+def read_dynamic_count_robust(center_x, center_y):
+    readings = []
+    print("   👀 [정밀 검사] 수량 확인 중 (3회 측정)...")
+    
+    for i in range(3):
+        val = _read_single_count(center_x, center_y)
+        readings.append(val)
+        time.sleep(0.5) # 0.5초 간격
+        
+    # 빈도수가 가장 높은 숫자 선택 (다수결)
+    most_common = Counter(readings).most_common(1)
+    final_val = most_common[0][0]
+    
+    print(f"      👉 측정값들: {readings} -> 최종판단: {final_val}")
+    return final_val
+
+# 내부용 단일 측정 함수 (기존 로직)
+def _read_single_count(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return 0
-    
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
-    x = int(center_x - 45)       
-    y = int(center_y + 50)  
-    w = 135
-    h = 42
-    
+    x = int(center_x - 45); y = int(center_y + 50)
+    w = 135; h = 42
     h_img, w_img = screen_gray.shape[:2]
     if x < 0: x = 0
     if y < 0: y = 0
     if x + w > w_img: x = w_img - w
     if y + h > h_img: y = h_img - h
-    
     roi = screen_gray[y:y+h, x:x+w]
     roi = cv2.resize(roi, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
     _, roi_thresh = cv2.threshold(roi, 160, 255, cv2.THRESH_BINARY) 
-    
-    debug_view = screen_color.copy()
-    cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 2) 
-    crop_y_start = max(0, y - 80)
-    crop_y_end = min(h_img, y + 80)
-    crop_x_start = max(0, x - 50)
-    crop_x_end = min(w_img, x + 150)
-    debug_crop = debug_view[crop_y_start:crop_y_end, crop_x_start:crop_x_end]
-    
-    if debug_crop.size > 0:
-        cv2.imwrite("ocr_debug.png", debug_crop)
-    else:
-        cv2.imwrite("ocr_debug.png", debug_view)
-
     text = pytesseract.image_to_string(roi_thresh, config='--psm 7 outputbase digits')
     numbers = re.findall(r'\d+', text)
     if numbers: return int(numbers[0])
@@ -271,12 +246,11 @@ def step1_restart_game():
     run_adb('shell input swipe 800 360 100 360 300') 
     time.sleep(1)
     run_adb('shell input keyevent KEYCODE_HOME')
-    
     loc = find_image("icon.png")
     if loc:
         click(loc[0], loc[1])
-        print("🚀 게임 실행... (40초 로딩 대기)")
-        time.sleep(40)
+        print("🚀 게임 실행... (25초 로딩 대기)")
+        time.sleep(25)
     else:
         print("⚠️ 게임 아이콘을 못 찾았습니다.")
 
@@ -346,7 +320,6 @@ def step5_open_production_tab():
         click(loc[0], loc[1]); time.sleep(2)
     return True
 
-# ✅ [수정] SWIPE_OPTS 사용
 def step8_clear_slots():
     print("[Step 8] 슬롯 비우기 (전체 취소)")
     def clear_routine():
@@ -364,17 +337,14 @@ def step8_clear_slots():
             else:
                 break
             retry += 1
-            
-    # SWIPE_OPTS에 저장된 자동 계산 좌표 사용
     y = SWIPE_OPTS["slot_y"]
     sx = SWIPE_OPTS["start_x"]
     ex = SWIPE_OPTS["end_x"]
-    
     clear_routine()
-    swipe(sx, y, ex, y) # 왼쪽으로 스와이프
+    swipe(sx, y, ex, y) 
     time.sleep(1)
     clear_routine()
-    swipe(ex, y, sx, y) # 오른쪽으로 원복
+    swipe(ex, y, sx, y) 
     time.sleep(1)
 
 def step9_fill_slots(icon_loc):
@@ -389,15 +359,17 @@ def step9_fill_slots(icon_loc):
 
 def main():
     global CURRENT_INDEX
-    print(f"=== 🏭 도미네이션즈 봇 (변수 복구 및 최종 안정화) ===")
+    print(f"=== 🏭 도미네이션즈 봇 (OCR정밀 + 즉시전환) ===")
     os.system(f"{ADB_CMD} connect {DEVICE_ADDRESS}")
-    
-    # 🔥 시작 시 해상도 및 좌표 자동 계산
     get_screen_resolution()
+    
+    # 🔥 [핵심 수정] 게임이 켜져 있는 상태를 기억하는 변수
+    is_game_ready = False 
 
     while True:
         if CURRENT_INDEX >= len(PRODUCTION_QUEUE):
             print("🎉 모든 목표 달성! (대기 중...)")
+            send_discord_msg("🎉 [전체 완료] 모든 생산 목표를 달성했습니다!")
             time.sleep(60); continue
             
         target_info = PRODUCTION_QUEUE[CURRENT_INDEX]
@@ -406,53 +378,79 @@ def main():
         
         print(f"\n🎯 목표: {target_name} ({target_amount}개)")
 
-        step1_restart_game()
-        step2_close_popups()
+        # 🔥 게임이 준비되지 않았을 때만 재시작 수행
+        if not is_game_ready:
+            step1_restart_game()
+            step2_close_popups()
+            
+            if not step3_4_enter_factory():
+                print("⚠️ 제조소 진입 실패. 재시도...")
+                is_game_ready = False # 실패했으니 다시 시도하도록 설정
+                continue
+                
+            if not step5_open_production_tab():
+                print("⚠️ 생산 탭 열기 실패.")
+                is_game_ready = False
+                continue
+                
+            # 여기까지 무사히 오면 게임 준비 완료
+            is_game_ready = True
+
+        # --- 여기서부터는 게임이 켜져 있는 상태에서 반복 ---
         
-        if step3_4_enter_factory():
-            if step5_open_production_tab():
+        icon_loc = find_image_with_scroll(target_info['icon'])
+        if icon_loc:
+            print(f"   🧐 '{target_name}' 선택 여부 확인 중...")
+            is_active = check_active_border(icon_loc[0], icon_loc[1])
+            
+            if is_active:
+                print("   ✅ [활성 확인] 현재 이 재료가 선택되어 있습니다.")
+            else:
+                print("   ❌ [비활성] 이 재료가 선택되지 않았습니다.")
+            
+            # 🔥 [수정] 정밀 OCR 함수 사용
+            current_cnt = read_dynamic_count_robust(icon_loc[0], icon_loc[1])
+            eta = calculate_eta(target_name, current_cnt, target_amount)
+            print(f"[Step 6] 현황: {current_cnt}개 / 남은 시간: {eta}")
+
+            if current_cnt >= target_amount and current_cnt > 0:
+                print(f"🎊 목표 달성! 다음 단계로 즉시 이동")
+                send_discord_msg(f"🎊 [목표 달성] {target_name} 완료! 다음 재료로 넘어갑니다.")
                 
-                icon_loc = find_image_with_scroll(target_info['icon'])
+                step8_clear_slots() # 생산 취소
+                CURRENT_INDEX += 1  # 다음 목표 설정
                 
-                if icon_loc:
-                    print(f"   🧐 '{target_name}' 선택 여부 확인 중...")
-                    is_active = check_active_border(icon_loc[0], icon_loc[1])
-                    
-                    if is_active:
-                        print("   ✅ [활성 확인] 현재 이 재료가 선택되어 있습니다.")
-                    else:
-                        print("   ❌ [비활성] 이 재료가 선택되지 않았습니다.")
-                    
-                    current_cnt = read_dynamic_count(icon_loc[0], icon_loc[1])
-                    eta = calculate_eta(target_name, current_cnt, target_amount)
-                    print(f"[Step 6] 현황: {current_cnt}개 / 남은 시간: {eta}")
+                # 🔥 [핵심] continue를 하면 위로 올라가는데, 
+                # is_game_ready가 True이므로 재시작 없이 바로 다음 아이콘을 찾으러 갑니다!
+                continue 
 
-                    if current_cnt >= target_amount and current_cnt > 0:
-                        print(f"🎊 목표 달성! 다음 단계로 이동")
-                        step8_clear_slots()
-                        CURRENT_INDEX += 1
-                        continue 
+            if not is_active:
+                print(f"[Step 8] 다른 재료 생산 중 -> 전체 취소 후 변경")
+                step8_clear_slots()
+                print(f"[Step 9] 새 목표({target_name}) 생산 시작")
+                step9_fill_slots(icon_loc)
+            else:
+                print(f"[Step 7] 생산 유지 (수집/보충)")
+                click(300, 350); click(600, 350)
+                step9_fill_slots(icon_loc)
+        else:
+            print(f"⚠️ {target_name} 아이콘을 목록에서 못 찾았습니다.")
+            # 아이콘을 못 찾으면 혹시 오류일 수 있으니 재시작하도록 유도
+            is_game_ready = False 
+            continue
 
-                    if not is_active:
-                        print(f"[Step 8] 다른 재료 생산 중 -> 전체 취소 후 변경")
-                        step8_clear_slots()
-                        print(f"[Step 9] 새 목표({target_name}) 생산 시작")
-                        step9_fill_slots(icon_loc)
-                    else:
-                        print(f"[Step 7] 생산 유지 (수집/보충)")
-                        click(300, 350); click(600, 350)
-                        step9_fill_slots(icon_loc)
-                else:
-                    print(f"⚠️ {target_name} 아이콘을 목록에서 못 찾았습니다.")
-
-        # [수정됨] 카운트다운 대기 로직 (분/초 표시)
+        # 대기 시간 (생산 중일 때만 대기)
         remaining_time = WAIT_TIME
         while remaining_time > 0:
             mins = remaining_time // 60
             print(f"⏳ {mins}분 대기 ({remaining_time}초)...    ", end='\r')
             time.sleep(1)
             remaining_time -= 1
-        print("") # 줄바꿈
+        print("") 
+        
+        # 90분 대기 후에는 혹시 모를 렉 방지를 위해 재부팅을 하는 것이 안전합니다.
+        # 즉시 전환을 원하면 아래 줄을 주석 처리하세요.
+        is_game_ready = False 
 
 if __name__ == "__main__":
     main()
