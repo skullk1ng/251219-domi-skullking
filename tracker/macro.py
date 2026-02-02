@@ -42,19 +42,15 @@ MATERIAL_INFO = {
     "바이오포일": {"time_min": 70, "amount": 10},
 }
 
-# ✅ 목표 리스트 (이미지 파일명 확인 필수)
+# ✅ 목표 리스트
 PRODUCTION_QUEUE = [
-    {"name": "백금",         "icon": "res_platinum.png", "target": 100},
-    {"name": "티타늄",       "icon": "res_titanium.png", "target": 100},
-    {"name": "철",           "icon": "res_iron.png",     "target": 100},
-    {"name": "탄소",         "icon": "res_carbon.png",   "target": 100},
-    {"name": "열 황동",      "icon": "res_brass.png",    "target": 100},
-    {"name": "플라스틱",     "icon": "res_plastic.png",  "target": 100},
-    {"name": "폴리카보네이트", "icon": "res_poly.png",     "target": 100},
-    {"name": "유리",         "icon": "res_glass.png",    "target": 100},
-    {"name": "실리코나이트",  "icon": "res_silicon.png",  "target": 100},
-    {"name": "섬유망",       "icon": "res_fiber.png",    "target": 100},
-    {"name": "바이오포일",    "icon": "res_bio.png",      "target": 10000},
+    {"name": "바이오포일",     "icon": "res_bio.png",       "target": 10000},
+    {"name": "유리",           "icon": "res_glass.png",     "target": 10000},
+    {"name": "폴리카보네이트", "icon": "res_poly.png",      "target": 10000},
+    {"name": "티타늄",         "icon": "res_titanium.png",  "target": 10000},
+    {"name": "철",             "icon": "res_iron.png",      "target": 10000},
+    {"name": "탄소",           "icon": "res_carbon.png",    "target": 20000},
+    {"name": "백금",           "icon": "res_platinum.png",  "target": 10000},
 ]
 
 CURRENT_INDEX = 0 
@@ -153,7 +149,6 @@ def swipe(start_x, start_y, end_x, end_y):
     run_adb(f'shell input swipe {start_x} {start_y} {end_x} {end_y} 1000')
     time.sleep(1.5)
 
-# 🔥 [안전구역] 화면 양쪽 끝 100px 내의 아이콘은 무시 (잘림 방지)
 def is_safe_zone(x):
     margin = int(100 * SCALE_RATIO) 
     if x < margin: return False
@@ -191,12 +186,10 @@ def find_image_with_scroll(target_file):
         
     return None
 
-# 🔥 [핵심 기능] 테두리를 감지하고 '보정된 진짜 중앙 좌표'를 반환
 def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
-    # 1. 파란색 박스 (전체 영역)
     box_w = int(145 * SCALE_RATIO) 
     box_h = int(165 * SCALE_RATIO) 
     shift_down = int(8 * SCALE_RATIO) 
@@ -212,7 +205,6 @@ def check_active_border_and_get_center(center_x, center_y):
     
     roi = screen_color[roi_y:roi_y+box_h, roi_x:roi_x+box_w].copy() 
     
-    # 2. 주황색 빛 감지
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
     lower_orange_red = np.array([0, 100, 140])
     upper_orange_red = np.array([35, 255, 255])
@@ -222,7 +214,6 @@ def check_active_border_and_get_center(center_x, center_y):
     mask2 = cv2.inRange(hsv, lower_deep_red, upper_deep_red)
     mask = mask1 + mask2
     
-    # 3. 초록색 내부 마스킹 (도넛 모양 만들기)
     mh, mw = mask.shape
     shift_mask_x = int(5 * SCALE_RATIO)
     shift_mask_y = int(-5 * SCALE_RATIO)
@@ -239,7 +230,6 @@ def check_active_border_and_get_center(center_x, center_y):
     
     red_pixel_count = cv2.countNonZero(mask)
     
-    # 디버그 이미지 저장
     cv2.rectangle(roi, (0, 0), (box_w-2, box_h-2), (255, 0, 0), 2)
     cv2.rectangle(roi, (x1, y1), (x2, y2), (0, 255, 0), 2)
     green_overlay = roi.copy()
@@ -251,20 +241,15 @@ def check_active_border_and_get_center(center_x, center_y):
     print(f"      🎨 테두리 픽셀: {red_pixel_count} (기준: {threshold_pixel})")
     
     if red_pixel_count > threshold_pixel: 
-        # ✨ [자동 보정] 감지된 테두리의 무게 중심을 계산
         ys, xs = np.nonzero(mask)
         if len(ys) > 0 and len(xs) > 0:
             local_center_y = int(np.mean(ys))
             local_center_x = int(np.mean(xs))
-            
             true_center_x = roi_x + local_center_x
             true_center_y = roi_y + local_center_y
-            
             print(f"      🎯 [자동 보정] 아이콘({center_x},{center_y}) -> 테두리 중심({true_center_x},{true_center_y})")
             return True, true_center_x, true_center_y
-            
         return True, center_x, center_y 
-        
     return False, None, None
 
 def read_dynamic_count_robust(center_x, center_y):
@@ -284,11 +269,10 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [최종 OCR 좌표] (좌측 7px, 하단 32px)
+    # 🔥 [좌표 유지] 사용자님이 맞춘 완벽한 오프셋 (7, -32)
     offset_x = int(7 * SCALE_RATIO)     
     offset_y = int(-32 * SCALE_RATIO)   
     
-    # 크기: 70 x 30
     w = int(70 * SCALE_RATIO)           
     h = int(30 * SCALE_RATIO)           
 
@@ -304,7 +288,6 @@ def _read_single_count(center_x, center_y):
     roi = screen_gray[y:y+h, x:x+w]
     
     debug_view = screen_color.copy()
-    # 초록색 박스(0, 255, 0)
     cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 255, 0), 2) 
     cv2.imwrite("ocr_debug.png", debug_view) 
 
@@ -486,16 +469,19 @@ def main():
         if icon_loc:
             print(f"   🧐 '{target_name}' 선택 여부 확인 중...")
             
-            # 🔥 [업그레이드된 함수 사용]
+            # 🔥 [업그레이드] 아이콘 좌표가 아니라, 보정된 '진짜 중앙 좌표'를 받아옴
             is_active, true_x, true_y = check_active_border_and_get_center(icon_loc[0], icon_loc[1])
             
             if is_active:
                 print("   ✅ [활성 확인] 현재 이 재료가 선택되어 있습니다.")
-                # 🔥 자동 보정된 좌표로 OCR 수행
+                # 활성 상태: 테두리 중심(정확함) 사용
                 current_cnt = read_dynamic_count_robust(true_x, true_y)
             else:
                 print("   ❌ [비활성] 이 재료가 선택되지 않았습니다.")
-                current_cnt = read_dynamic_count_robust(icon_loc[0], icon_loc[1])
+                # 🔥 [비활성 보정] 이미지가 잘려서 중심이 위로 올라갔으므로,
+                # 강제로 Y좌표를 20픽셀 내려서 원래 카드 중심과 맞춰줍니다.
+                fix_y = int(20 * SCALE_RATIO) 
+                current_cnt = read_dynamic_count_robust(icon_loc[0], icon_loc[1] + fix_y)
             
             eta = calculate_eta(target_name, current_cnt, target_amount)
             print(f"[Step 6] 현황: {current_cnt}개 / 남은 시간: {eta}")
