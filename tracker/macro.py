@@ -194,7 +194,7 @@ def check_active_border(center_x, center_y):
     box_w = int(145 * SCALE_RATIO) 
     box_h = int(165 * SCALE_RATIO) 
     
-    shift_down = int(8 * SCALE_RATIO) # 위치 상향 조정 (유지)
+    shift_down = int(8 * SCALE_RATIO) 
 
     x = int(center_x - (box_w / 2))
     y = int(center_y - (box_h / 2) + shift_down)
@@ -221,14 +221,13 @@ def check_active_border(center_x, center_y):
     # ==========================================
     mh, mw = mask.shape
     
-    # 도넛 구멍 중심점 이동 (유지)
+    # 도넛 구멍 중심점 이동 (오른쪽, 위로 미세 이동)
     shift_mask_x = int(5 * SCALE_RATIO)
     shift_mask_y = int(-5 * SCALE_RATIO)
 
     cy = mh // 2 + shift_mask_y
     cx = mw // 2 + shift_mask_x
     
-    # 크기 유지
     gap_w = int(60 * SCALE_RATIO)
     gap_h = int(60 * SCALE_RATIO)
 
@@ -244,7 +243,6 @@ def check_active_border(center_x, center_y):
     # ==========================================
     red_pixel_count = cv2.countNonZero(mask)
     
-    # 디버그 이미지 생성
     cv2.rectangle(roi, (0, 0), (box_w-2, box_h-2), (255, 0, 0), 2)
     cv2.rectangle(roi, (x1, y1), (x2, y2), (0, 255, 0), 2)
     green_overlay = roi.copy()
@@ -252,7 +250,7 @@ def check_active_border(center_x, center_y):
     debug_final = cv2.addWeighted(roi, 0.7, green_overlay, 0.3, 0) 
     cv2.imwrite("border_debug.png", debug_final)
 
-    # 🔥 [수정] 활성화 기준을 5000 픽셀로 상향 조정
+    # 🔥 [설정] 활성화 기준 5000 픽셀
     threshold_pixel = 5000 
     print(f"      🎨 테두리 픽셀: {red_pixel_count} (기준: {threshold_pixel})")
     
@@ -276,13 +274,16 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [좌표 재보정] "숫자 중간에 걸침" -> 왼쪽으로 더 이동 필요
-    # offset_x 값을 키울수록 박스 시작점이 왼쪽으로 갑니다.
+    # 🔥 [좌표 최종 확정]
+    # 이전 두 시도의 중간값 적용 -> 숫자가 있는 우측 하단 정밀 타격
     
-    offset_x = int(40 * SCALE_RATIO)    # 기존 20 -> 40 (왼쪽으로 더 이동)
-    offset_y = int(-10 * SCALE_RATIO)   # 높이는 유지
+    # 1. 가로 (X): 중앙보다 살짝 왼쪽에서 시작 (그래야 오른쪽 끝 숫자를 포함)
+    offset_x = int(5 * SCALE_RATIO)     # 양수 = 왼쪽으로 이동
     
-    # 박스 크기 (유지)
+    # 2. 세로 (Y): 바닥에서 살짝 위로 (숫자 높이 맞춤)
+    offset_y = int(-27 * SCALE_RATIO)   # 음수 = 아래로 이동
+    
+    # 3. 크기: 70 x 30
     w = int(70 * SCALE_RATIO)           
     h = int(30 * SCALE_RATIO)           
 
@@ -298,7 +299,7 @@ def _read_single_count(center_x, center_y):
     roi = screen_gray[y:y+h, x:x+w]
     
     debug_view = screen_color.copy()
-    # 🔥 [색상 변경] 빨간색(0,0,255) -> 형광 초록색(0,255,0)으로 변경
+    # 초록색 박스(0, 255, 0)
     cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 255, 0), 2) 
     cv2.imwrite("ocr_debug.png", debug_view) 
 
