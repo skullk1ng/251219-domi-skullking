@@ -276,17 +276,19 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [좌표 정밀 보정] 
-    # 기존: 중앙보다 우측(+5)에서 시작해서 숫자가 잘림
-    # 수정: 중앙보다 좌측(-20)에서 시작하도록 변경 (Left Move)
+    # 🔥 [최종 좌표 보정] 
+    # 현재 박스가 "숫자 바로 아래"에 있습니다. -> 위로 올려야 함 (UP)
+    # 현재 박스가 "숫자보다 왼쪽"에 걸쳐 있습니다 -> 오른쪽으로 밀어야 함 (RIGHT)
     
-    # offset_x: 20 (중앙에서 왼쪽으로 20px 이동 -> x = center - 20)
-    # offset_y: -45 (중앙에서 아래로 45px 이동 -> 유지)
+    # 1. 위로 올리기: offset_y를 -45에서 -12로 변경 
+    # (절대값이 작아지면 덜 내려갑니다. 즉, 위로 올라갑니다)
+    offset_y = int(-12 * SCALE_RATIO)   
     
-    offset_x = int(20 * SCALE_RATIO)    # 양수(+)를 주면 왼쪽으로 이동
-    offset_y = int(-45 * SCALE_RATIO)   # 음수(-)를 주면 아래로 이동
+    # 2. 오른쪽으로 밀기: offset_x를 -5에서 -55로 변경
+    # (음수 값이 커질수록 오른쪽으로 더 이동합니다)
+    offset_x = int(-55 * SCALE_RATIO)   
     
-    # 박스 크기 (5자리 숫자에 맞게 70px로 축소)
+    # 3. 박스 크기 최적화 (5자리 숫자)
     w = int(70 * SCALE_RATIO)           
     h = int(30 * SCALE_RATIO)           
 
@@ -294,6 +296,7 @@ def _read_single_count(center_x, center_y):
     y = int(center_y - offset_y)
     
     h_img, w_img = screen_gray.shape[:2]
+    # 화면 밖으로 나가는 것 방지
     if x < 0: x = 0
     if y < 0: y = 0
     if x + w > w_img: x = w_img - w
@@ -305,7 +308,7 @@ def _read_single_count(center_x, center_y):
     cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 2) 
     cv2.imwrite("ocr_debug.png", debug_view) 
 
-    # 인식률 높이기 (3배 확대)
+    # 인식률 높이기 (3배 확대 및 이진화)
     roi = cv2.resize(roi, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
     _, roi_thresh = cv2.threshold(roi, 160, 255, cv2.THRESH_BINARY) 
     text = pytesseract.image_to_string(roi_thresh, config='--psm 7 outputbase digits')
