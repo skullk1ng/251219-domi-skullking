@@ -276,15 +276,17 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [OCR 좌표 재수정] 사용자가 제공한 좌표 기반 정밀 계산값 적용
-    # 목표: 중앙에서 오른쪽(+66), 아래쪽(+86) 이동
-    # 식: center - offset 이므로 offset은 음수여야 함
-
-    offset_x = int(-66 * SCALE_RATIO)   # 오른쪽으로 이동
-    offset_y = int(-86 * SCALE_RATIO)   # 아래쪽으로 이동
+    # 🔥 [좌표 긴급 수정] 
+    # 이전 설정이 너무 멀리 나갔습니다. 다시 안쪽으로 당깁니다.
     
-    # 크기: 사용자 측정값 (110 x 35) 적용
-    w = int(110 * SCALE_RATIO)          
+    # offset_x: -5 (중앙에서 아주 살짝만 오른쪽으로 이동)
+    # offset_y: -45 (중앙에서 적당히 아래로 이동 -> 아이콘 하단 숫자 위치)
+    
+    offset_x = int(-5 * SCALE_RATIO)    # 기존 -66 -> -5 (왼쪽으로 복구)
+    offset_y = int(-45 * SCALE_RATIO)   # 기존 -86 -> -45 (위로 복구)
+    
+    # 박스 크기 (유지)
+    w = int(100 * SCALE_RATIO)          
     h = int(35 * SCALE_RATIO)           
 
     x = int(center_x - offset_x)
@@ -302,13 +304,13 @@ def _read_single_count(center_x, center_y):
     cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 2) 
     cv2.imwrite("ocr_debug.png", debug_view) 
 
+    # 인식률 높이기 (3배 확대)
     roi = cv2.resize(roi, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
     _, roi_thresh = cv2.threshold(roi, 160, 255, cv2.THRESH_BINARY) 
     text = pytesseract.image_to_string(roi_thresh, config='--psm 7 outputbase digits')
     numbers = re.findall(r'\d+', text)
     if numbers: return int(numbers[0])
     return 0
-
 def calculate_eta(name, current, target):
     if name not in MATERIAL_INFO: return "정보없음"
     needed = target - current
