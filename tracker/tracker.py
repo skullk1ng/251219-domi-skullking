@@ -7,23 +7,20 @@ import subprocess
 import json
 from datetime import datetime
 import sys
-import requests # 👈 디스코드 전송용 라이브러리
+import requests 
 
 # ================= 1. 설정 및 경로 =================
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 ADB_CMD = "adb"
-
-# 트래커 봇은 1번 창(5555) 고정
 TARGET_DEVICE = "127.0.0.1:5555"
 
 # 🔄 전체 사이클 주기 (5분 = 300초)
 CYCLE_INTERVAL = 300 
 
-# 🔔 [설정] 디스코드 웹후크 URL (적용 완료!)
+# 🔔 [설정] 디스코드 웹후크 URL
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
 USE_DISCORD = True 
 
-# 파일 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json") 
 HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
@@ -39,14 +36,40 @@ GUILD_WIDTH = 250
 
 # ================= 3. 기본 함수들 =================
 
-def send_discord_msg(message):
-    """ 🚀 디스코드 메시지 발송 함수 """
+def send_discord_msg(guild_name, old_score, new_score, current_time):
+    """ 🚀 디스코드 임베드(박스) 발송 함수 """
     if not USE_DISCORD: return
     try:
-        data = {"content": message}
+        embed = {
+            "title": "📈 순위 변동 감지",
+            "description": f"**{guild_name}**", # 👈 "점수가 변동되었습니다" 문구 삭제함
+            "color": 5763719,
+            "fields": [
+                {
+                    "name": "기존 점수",
+                    "value": f"{old_score}",
+                    "inline": True
+                },
+                {
+                    "name": "현재 점수",
+                    "value": f"**{new_score}**",
+                    "inline": True
+                },
+                {
+                    "name": "변동폭",
+                    "value": f"+{new_score - old_score}",
+                    "inline": True
+                }
+            ],
+            "footer": {
+                "text": f"측정 시간: {current_time}"
+            }
+        }
+
+        data = {"embeds": [embed]}
         headers = {"Content-Type": "application/json"}
         requests.post(DISCORD_WEBHOOK_URL, data=json.dumps(data), headers=headers)
-        print("   📨 디스코드 알림 발송 완료")
+        print("   📨 디스코드 임베드 알림 발송 완료")
     except Exception as e:
         print(f"   ⚠️ 디스코드 발송 실패: {e}")
 
@@ -188,7 +211,7 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 
 def main():
-    print(f"=== 🤖 스마트 트래커 (디스코드 알림 + 300초 주기) ===")
+    print(f"=== 🤖 스마트 트래커 (임베드 문구 수정됨) ===")
     os.system(f"{ADB_CMD} connect {TARGET_DEVICE}")
     history_db = load_history()
     print(f"📂 히스토리 로드: {len(history_db)}개")
@@ -257,9 +280,8 @@ def main():
                         if score != last_score:
                             print(f"  🔔 변동: {guild_name} ({last_score} -> {score})")
                             
-                            # 🔥 [디스코드 알림 발송]
-                            msg = f"{current_time_str}\n[{guild_name} 점수 변동 발생: {last_score} -> {score}]"
-                            send_discord_msg(msg)
+                            # 🔥 [디스코드 박스형 알림 발송]
+                            send_discord_msg(guild_name, last_score, score, current_time_str)
                             
                             guild_logs.insert(0, {'score': score, 'time': current_time_str})
                             if len(guild_logs) > 5: guild_logs = guild_logs[:5]
@@ -278,7 +300,6 @@ def main():
             else:
                 print("⚠️ OCR 캡처 실패")
 
-        # 300초 카운트다운
         elapsed_time = time.time() - start_time
         wait_seconds = int(max(0, CYCLE_INTERVAL - elapsed_time))
         
