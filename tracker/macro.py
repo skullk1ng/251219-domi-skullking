@@ -191,14 +191,11 @@ def check_active_border(center_x, center_y):
     # ==========================================
     # 1. 🔵 파란색 박스 (빛을 감지할 전체 영역)
     # ==========================================
-    # 크기 설정 (가로 145, 세로 165)
     box_w = int(145 * SCALE_RATIO) 
     box_h = int(165 * SCALE_RATIO) 
     
-    # 🔥 박스 위치 상향 조정 (유지)
-    shift_down = int(8 * SCALE_RATIO) 
+    shift_down = int(8 * SCALE_RATIO) # 위치 상향 조정 (유지)
 
-    # 박스 시작점 계산 
     x = int(center_x - (box_w / 2))
     y = int(center_y - (box_h / 2) + shift_down)
     
@@ -223,9 +220,17 @@ def check_active_border(center_x, center_y):
     # 2. 🟢 초록색 박스 (내부 구멍)
     # ==========================================
     mh, mw = mask.shape
-    cy, cx = mh // 2, mw // 2
     
-    # 🔥 [수정] 도넛 구멍 미세하게 줄임 (65 -> 60)
+    # 🔥 [수정] 도넛 구멍 중심점 이동 (오른쪽, 위로 미세 이동)
+    # shift_mask_x: 양수(+)면 오른쪽 이동
+    # shift_mask_y: 음수(-)면 위로 이동
+    shift_mask_x = int(5 * SCALE_RATIO)
+    shift_mask_y = int(-5 * SCALE_RATIO)
+
+    cy = mh // 2 + shift_mask_y
+    cx = mw // 2 + shift_mask_x
+    
+    # 크기 유지 (미세하게 줄인 값 60 그대로 사용)
     gap_w = int(60 * SCALE_RATIO)
     gap_h = int(60 * SCALE_RATIO)
 
@@ -241,7 +246,6 @@ def check_active_border(center_x, center_y):
     # ==========================================
     red_pixel_count = cv2.countNonZero(mask)
     
-    # 디버그 이미지 생성
     cv2.rectangle(roi, (0, 0), (box_w-2, box_h-2), (255, 0, 0), 2)
     cv2.rectangle(roi, (x1, y1), (x2, y2), (0, 255, 0), 2)
     green_overlay = roi.copy()
