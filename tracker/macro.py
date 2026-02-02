@@ -51,7 +51,7 @@ PRODUCTION_QUEUE = [
 
 CURRENT_INDEX = 0 
 
-# 👇 좌표 변수 (초기값은 720p 기준, get_screen_resolution에서 비율 계산)
+# 👇 좌표 변수
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 SCALE_RATIO = 1.0  # 🔥 화면 배율 (1080p면 1.5가 됨)
@@ -129,10 +129,6 @@ def find_image(target_file, threshold=0.8, screen=None):
     if screen is None: return None
     template = cv2.imread(target_file, cv2.IMREAD_UNCHANGED)
     
-    # 템플릿 매칭 시 해상도가 다르면 실패할 수 있음. 
-    # (이미지가 720p용이면 1080p에서 작게 보임 -> matchTemplate이 못 찾을 수 있음)
-    # 하지만 아이콘은 보통 찾긴 하므로 일단 좌표 보정에 집중.
-    
     if template.shape[2] == 4:
         template_img = template[:, :, :3]
         mask = template[:, :, 3]
@@ -182,10 +178,10 @@ def check_active_border(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False
     
-    # 🔥 [수정] 좌표와 크기에 배율(SCALE_RATIO) 적용
-    w = int(220 * SCALE_RATIO)
+    # 1. 외곽선(Outer Box) 크기 - 살짝 여유있게
+    w = int(220 * SCALE_RATIO) 
     h = int(238 * SCALE_RATIO)
-    offset_y = int(110 * SCALE_RATIO) # 위로 올라가는 거리
+    offset_y = int(110 * SCALE_RATIO)
     
     x = int(center_x - w/2)
     y = int(center_y - offset_y)
@@ -206,23 +202,31 @@ def check_active_border(center_x, center_y):
     mask2 = cv2.inRange(hsv, lower_deep_red, upper_deep_red)
     mask = mask1 + mask2
     
-    # 내부 구멍 뚫기 (배율 적용)
+    # 2. 도넛 구멍(Inner Hole) 뚫기
     mh, mw = mask.shape
     cy, cx = mh // 2, mw // 2
-    gap = int(85 * SCALE_RATIO)
+    
+    # 🔥 [수정] gap을 살짝 줄여서(85 -> 75) 구멍을 작게 만듦 (테두리 빛 보호)
+    gap = int(75 * SCALE_RATIO) 
+    
+    # 구멍 뚫기 (검은색 처리)
     mask[cy-gap-5:cy+gap-5, cx-gap:cx+gap] = 0
     
     red_pixel_count = cv2.countNonZero(mask)
     
-    # 디버그 이미지 저장
-    cv2.rectangle(roi, (cx-gap, cy-gap-5), (cx+gap, cy+gap-5), (255, 0, 0), 2)
+    # 3. 디버그 이미지 저장 (사용자 확인용)
+    # 파란색: 전체 감지 영역
+    cv2.rectangle(roi, (0, 0), (w-2, h-2), (255, 0, 0), 2)
+    # 초록색: 무시하는 내부 영역 (도넛 구멍) -> 이게 너무 크면 안됨
+    cv2.rectangle(roi, (cx-gap, cy-gap-5), (cx+gap, cy+gap-5), (0, 255, 0), 2)
+    
     green_overlay = roi.copy()
+    # 감지된 빛(빨간색)을 초록색으로 칠해서 보여줌
     green_overlay[mask > 0] = (0, 255, 0) 
     debug_final = cv2.addWeighted(roi, 0.7, green_overlay, 0.3, 0) 
     cv2.imwrite("border_debug.png", debug_final)
 
-    # 픽셀 임계값도 배율의 제곱만큼 늘려야 함 (면적이므로)
-    threshold_pixel = int(3000 * (SCALE_RATIO * SCALE_RATIO))
+    threshold_pixel = 500 
     print(f"      🎨 테두리 픽셀: {red_pixel_count} (기준: {threshold_pixel})")
     
     if red_pixel_count > threshold_pixel: return True
@@ -244,18 +248,19 @@ def read_dynamic_count_robust(center_x, center_y):
     print(f"      👉 측정값들: {readings} -> 최종판단: {final_val}")
     return final_val
 
-# 내부용 단일 측정 함수 (배율 적용)
+# 내부용 단일 측정 함수 (OCR 위치 보정)
 def _read_single_count(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [수정] 1080p 대응 좌표 계산
-    # 720p 기준: x-45, y+50, w135, h42
+    # 🔥 [수정] 박스 위치를 위로 확 올림
+    # 기존: offset_y = 50 or 20 (너무 낮음) -> 15로 더 줄여서 위로 당김
     offset_x = int(45 * SCALE_RATIO)
-    offset_y = int(50 * SCALE_RATIO)
+    offset_y = int(15 * SCALE_RATIO) 
+    
     w = int(135 * SCALE_RATIO)
-    h = int(42 * SCALE_RATIO)
+    h = int(45 * SCALE_RATIO)
 
     x = int(center_x - offset_x)
     y = int(center_y + offset_y)
@@ -268,12 +273,11 @@ def _read_single_count(center_x, center_y):
     
     roi = screen_gray[y:y+h, x:x+w]
     
-    # 이미지 디버그 저장 (확인용)
+    # 디버그 이미지
     debug_view = screen_color.copy()
     cv2.rectangle(debug_view, (x, y), (x+w, y+h), (0, 0, 255), 3) 
-    cv2.imwrite("ocr_debug.png", debug_view) # 전체 화면에 박스 표시
+    cv2.imwrite("ocr_debug.png", debug_view) 
 
-    # 인식률 높이기: 3배 확대 -> 2배로 조정 (해상도 높으면 너무 커짐)
     roi = cv2.resize(roi, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
     _, roi_thresh = cv2.threshold(roi, 160, 255, cv2.THRESH_BINARY) 
     text = pytesseract.image_to_string(roi_thresh, config='--psm 7 outputbase digits')
