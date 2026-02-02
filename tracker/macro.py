@@ -242,13 +242,9 @@ def _read_single_count(center_x, center_y):
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
     # 🔥 [수정 2] OCR 박스 정밀 타격
-    # - offset_x: -20 (왼쪽으로 이동? NO. center - (-20) = center + 20) -> 오른쪽으로 20px 이동하여 왼쪽 공백 제거
-    # - offset_y: -40 (위쪽으로 이동? NO. center - (-40) = center + 40) -> 아래쪽으로 40px 이동하여 위쪽 공백 제거
-    # - w: 95 (폭을 줄여서 숫자에 딱 맞춤)
-    # - h: 60 (높이를 늘려서 숫자 아랫부분 확보)
 
-    offset_x = int(-20 * SCALE_RATIO)  # 센터보다 오른쪽에서 시작
-    offset_y = int(-40 * SCALE_RATIO)  # 센터보다 아래쪽에서 시작
+    offset_x = int(58 * SCALE_RATIO)   # 👈 -20에서 58로 변경
+    offset_y = int(10 * SCALE_RATIO)   # 👈 -40에서 10으로 변경
     
     w = int(95 * SCALE_RATIO)          
     h = int(60 * SCALE_RATIO)          
