@@ -221,16 +221,14 @@ def check_active_border(center_x, center_y):
     # ==========================================
     mh, mw = mask.shape
     
-    # 🔥 [수정] 도넛 구멍 중심점 이동 (오른쪽, 위로 미세 이동)
-    # shift_mask_x: 양수(+)면 오른쪽 이동
-    # shift_mask_y: 음수(-)면 위로 이동
+    # 도넛 구멍 중심점 이동 (유지)
     shift_mask_x = int(5 * SCALE_RATIO)
     shift_mask_y = int(-5 * SCALE_RATIO)
 
     cy = mh // 2 + shift_mask_y
     cx = mw // 2 + shift_mask_x
     
-    # 크기 유지 (미세하게 줄인 값 60 그대로 사용)
+    # 크기 유지
     gap_w = int(60 * SCALE_RATIO)
     gap_h = int(60 * SCALE_RATIO)
 
@@ -246,6 +244,7 @@ def check_active_border(center_x, center_y):
     # ==========================================
     red_pixel_count = cv2.countNonZero(mask)
     
+    # 디버그 이미지 생성
     cv2.rectangle(roi, (0, 0), (box_w-2, box_h-2), (255, 0, 0), 2)
     cv2.rectangle(roi, (x1, y1), (x2, y2), (0, 255, 0), 2)
     green_overlay = roi.copy()
@@ -253,7 +252,8 @@ def check_active_border(center_x, center_y):
     debug_final = cv2.addWeighted(roi, 0.7, green_overlay, 0.3, 0) 
     cv2.imwrite("border_debug.png", debug_final)
 
-    threshold_pixel = 500 
+    # 🔥 [수정] 활성화 기준을 5000 픽셀로 상향 조정
+    threshold_pixel = 5000 
     print(f"      🎨 테두리 픽셀: {red_pixel_count} (기준: {threshold_pixel})")
     
     if red_pixel_count > threshold_pixel: return True
@@ -276,11 +276,15 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [OCR 좌표 수정 유지] 우측 하단 타겟팅
-    offset_x = int(-10 * SCALE_RATIO)   
-    offset_y = int(-55 * SCALE_RATIO)   
+    # 🔥 [OCR 좌표 재수정] 사용자가 제공한 좌표 기반 정밀 계산값 적용
+    # 목표: 중앙에서 오른쪽(+66), 아래쪽(+86) 이동
+    # 식: center - offset 이므로 offset은 음수여야 함
+
+    offset_x = int(-66 * SCALE_RATIO)   # 오른쪽으로 이동
+    offset_y = int(-86 * SCALE_RATIO)   # 아래쪽으로 이동
     
-    w = int(100 * SCALE_RATIO)          
+    # 크기: 사용자 측정값 (110 x 35) 적용
+    w = int(110 * SCALE_RATIO)          
     h = int(35 * SCALE_RATIO)           
 
     x = int(center_x - offset_x)
