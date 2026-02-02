@@ -191,28 +191,25 @@ def check_active_border(center_x, center_y):
     # ==========================================
     # 1. 🔵 파란색 박스 (빛을 감지할 전체 영역)
     # ==========================================
-    # 크기 설정 (가로 145, 세로 165 - 세로를 좀 더 길게)
+    # 크기 설정 (가로 145, 세로 165)
     box_w = int(145 * SCALE_RATIO) 
     box_h = int(165 * SCALE_RATIO) 
     
-    # 🔥 [위치 이동] 박스를 아래로 내리기 위한 변수
-    shift_down = int(20 * SCALE_RATIO) 
+    # 🔥 박스 위치 상향 조정 (유지)
+    shift_down = int(8 * SCALE_RATIO) 
 
-    # 박스 시작점 계산 (중심점에서 절반만큼 빼고, shift_down만큼 더해서 내림)
+    # 박스 시작점 계산 
     x = int(center_x - (box_w / 2))
     y = int(center_y - (box_h / 2) + shift_down)
     
-    # 이미지 범위 체크
     h_img, w_img = screen_color.shape[:2]
     if x < 0: x = 0
     if y < 0: y = 0
     if x + box_w > w_img: x = w_img - box_w
     if y + box_h > h_img: y = h_img - box_h
     
-    # ROI(관심 영역) 잘라내기
     roi = screen_color[y:y+box_h, x:x+box_w].copy() 
     
-    # HSV 변환 및 색상 감지 (주황색/붉은색)
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
     lower_orange_red = np.array([0, 100, 140])
     upper_orange_red = np.array([35, 255, 255])
@@ -223,24 +220,24 @@ def check_active_border(center_x, center_y):
     mask = mask1 + mask2
     
     # ==========================================
-    # 2. 🟢 초록색 박스 (빛 감지를 제외할 내부 구멍)
+    # 2. 🟢 초록색 박스 (내부 구멍)
     # ==========================================
     mh, mw = mask.shape
     cy, cx = mh // 2, mw // 2
     
-    # 🔥 [마스킹 확장] 내부의 숫자, 물음표 등을 가리기 위해 구멍을 크게 뚫음
-    gap_w = int(55 * SCALE_RATIO)
-    gap_h = int(65 * SCALE_RATIO)
+    # 🔥 [수정] 도넛 구멍 미세하게 줄임 (65 -> 60)
+    gap_w = int(60 * SCALE_RATIO)
+    gap_h = int(60 * SCALE_RATIO)
 
-    # 구멍 뚫기
     y1 = max(0, cy - gap_h)
     y2 = min(mh, cy + gap_h)
     x1 = max(0, cx - gap_w)
     x2 = min(mw, cx + gap_w)
+    
     mask[y1:y2, x1:x2] = 0
     
     # ==========================================
-    # 3. 결과 판단 및 디버그
+    # 3. 결과 판단
     # ==========================================
     red_pixel_count = cv2.countNonZero(mask)
     
@@ -275,10 +272,9 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [OCR 좌표 수정] 중앙보다 오른쪽/아래로 이동 (음수 적용)
-    
-    offset_x = int(-10 * SCALE_RATIO)   # 오른쪽으로 이동
-    offset_y = int(-55 * SCALE_RATIO)   # 아래로 이동
+    # 🔥 [OCR 좌표 수정 유지] 우측 하단 타겟팅
+    offset_x = int(-10 * SCALE_RATIO)   
+    offset_y = int(-55 * SCALE_RATIO)   
     
     w = int(100 * SCALE_RATIO)          
     h = int(35 * SCALE_RATIO)           
