@@ -174,10 +174,13 @@ def check_active_border(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False
     
-    # 🔥 [수정 1] 파란 박스(Outer) 폭을 140으로 줄여 옆 재료 침범 방지
-    w = int(140 * SCALE_RATIO)  # 기존 160 -> 140
-    h = int(220 * SCALE_RATIO)
-    offset_y = int(110 * SCALE_RATIO)
+    # 🔥 [수정 1] 세로 길이(h)를 220 -> 155로 축소 (위쪽 텍스트 침범 방지)
+    # 가로(140) x 세로(155) = 약간 긴 직사각형 형태
+    w = int(140 * SCALE_RATIO) 
+    h = int(155 * SCALE_RATIO) # 세로 줄임
+    
+    # offset_y는 h/2 (중심점 맞추기)
+    offset_y = int(77 * SCALE_RATIO) 
     
     x = int(center_x - w/2)
     y = int(center_y - offset_y)
@@ -200,9 +203,7 @@ def check_active_border(center_x, center_y):
     
     mh, mw = mask.shape
     cy, cx = mh // 2, mw // 2
-
-    # 🔥 [수정 2] 초록 박스(도넛 구멍)를 45로 줄여서 테두리 빛을 침범하지 않게 함
-    gap = int(45 * SCALE_RATIO) # 기존 55 -> 45
+    gap = int(45 * SCALE_RATIO) 
     
     # 구멍 뚫기
     mask[cy-gap-5:cy+gap-5, cx-gap:cx+gap] = 0
@@ -240,20 +241,20 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [수정 3] OCR 박스 정밀 조정
-    # - offset_x: 45 -> 10으로 줄임 (박스를 오른쪽으로 당겨서 왼쪽 여백 제거)
-    # - offset_y: -25 -> -10으로 줄임 (박스 상단을 아래로 내려서 위쪽 여백 제거)
-    # - w: 135 -> 110으로 줄임 (왼쪽 여백이 사라진 만큼 폭도 줄임)
-    # - h: 45 -> 55로 늘림 (아래 공간 확보)
+    # 🔥 [수정 2] OCR 박스 정밀 타격
+    # - offset_x: -20 (왼쪽으로 이동? NO. center - (-20) = center + 20) -> 오른쪽으로 20px 이동하여 왼쪽 공백 제거
+    # - offset_y: -40 (위쪽으로 이동? NO. center - (-40) = center + 40) -> 아래쪽으로 40px 이동하여 위쪽 공백 제거
+    # - w: 95 (폭을 줄여서 숫자에 딱 맞춤)
+    # - h: 60 (높이를 늘려서 숫자 아랫부분 확보)
+
+    offset_x = int(-20 * SCALE_RATIO)  # 센터보다 오른쪽에서 시작
+    offset_y = int(-40 * SCALE_RATIO)  # 센터보다 아래쪽에서 시작
     
-    offset_x = int(10 * SCALE_RATIO)   # 센터에서 조금만 왼쪽으로 이동
-    offset_y = int(-10 * SCALE_RATIO)  # 센터에서 살짝 위로 이동
-    
-    w = int(110 * SCALE_RATIO)         # 폭 줄임
-    h = int(55 * SCALE_RATIO)          # 높이 늘림
+    w = int(95 * SCALE_RATIO)          
+    h = int(60 * SCALE_RATIO)          
 
     x = int(center_x - offset_x)
-    y = int(center_y + offset_y)
+    y = int(center_y - offset_y)
     
     h_img, w_img = screen_gray.shape[:2]
     if x < 0: x = 0
