@@ -7,7 +7,11 @@ import subprocess
 import json
 from datetime import datetime
 import sys
-import requests 
+import requests
+import window_manager
+
+# ✅ [핵심] 한글 깨짐(외계어) 방지 코드 추가
+sys.stdout.reconfigure(encoding='utf-8')
 
 # ================= 1. 설정 및 경로 =================
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -27,7 +31,7 @@ CYCLE_INTERVAL = 200
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
 USE_DISCORD = True 
 
-# 🔥 [경로 수정] 현재 파일이 있는 폴더를 기준으로 설정 (파일 못 찾는 문제 해결)
+# 🔥 [경로 수정] 현재 파일이 있는 폴더를 기준으로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json") 
 HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
@@ -44,48 +48,42 @@ GUILD_WIDTH = 250
 # ================= 3. 기본 함수들 =================
 
 def send_discord_msg(guild_name, old_score, new_score, current_time, image_path=None):
-    """ 🚀 디스코드 알림 + 이미지 전송 함수 (최종 수정됨) """
+    """ 🚀 디스코드 알림 + 이미지 전송 함수 """
     if not USE_DISCORD: return
     
     try:
-        # 1. 임베드 데이터 생성
         embed_data = {
             "embeds": [{
                 "title": "📈 순위 변동 감지",
                 "description": f"**{guild_name}**",
-                "color": 5763719, # 초록색 계열
+                "color": 5763719, 
                 "fields": [
                     {"name": "기존 점수", "value": f"{old_score}", "inline": True},
                     {"name": "현재 점수", "value": f"**{new_score}**", "inline": True},
                     {"name": "변동폭", "value": f"+{new_score - old_score}", "inline": True}
                 ],
                 "footer": {"text": f"측정 시간: {current_time}"},
-                # 이미지가 있을 경우 임베드 내부에 표시
                 "image": {"url": "attachment://capture.png"} if image_path else {}
             }]
         }
 
-        # 2. 전송 요청 (이미지 유무에 따라 분기)
         if image_path and os.path.exists(image_path):
             with open(image_path, "rb") as f:
-                # JSON 데이터는 payload_json 필드에 문자열로 넣어야 함
                 files = {
                     "file": ("capture.png", f, "image/png"),
                     "payload_json": (None, json.dumps(embed_data))
                 }
                 requests.post(DISCORD_WEBHOOK_URL, files=files)
         else:
-            # 이미지가 없으면 텍스트만 전송
             headers = {"Content-Type": "application/json"}
             requests.post(DISCORD_WEBHOOK_URL, data=json.dumps(embed_data), headers=headers)
             
-        print("   📨 디스코드 알림(이미지 포함) 발송 완료")
+        print("   📨 디스코드 알림 발송 완료")
         
     except Exception as e:
         print(f"   ⚠️ 디스코드 발송 실패: {e}")
 
 def run_adb(command):
-    # ADB 경로에 공백이 있으므로 따옴표 처리
     full_cmd = f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}'
     subprocess.call(full_cmd, shell=True)
 
@@ -102,13 +100,9 @@ def capture_screen(is_ocr=False):
     try:
         filename = "monitor_tracker.png"
         local_path = os.path.join(BASE_DIR, filename)
-        
-        # 캡처 및 PC로 가져오기
         run_adb(f'shell screencap -p /sdcard/{filename}')
         run_adb(f'pull /sdcard/{filename} "{local_path}"')
-        
         if os.path.exists(local_path):
-            # 이미지 객체와 파일 경로를 함께 반환
             return imread_unicode(local_path, cv2.IMREAD_COLOR), local_path 
         return None, None
     except Exception as e:
@@ -121,7 +115,6 @@ def find_image(target_filename, threshold=0.8):
     target_path = os.path.join(BASE_DIR, target_filename)
     if not os.path.exists(target_path): return None
 
-    # 이미지 찾을 때는 경로 정보 필요 없음 (_)
     screen, _ = capture_screen(is_ocr=False) 
     if screen is None: return None
 
@@ -224,7 +217,11 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 
 def main():
-    print(f"=== 🤖 스마트 트래커 (이미지 전송 기능 추가됨) ===")
+    # 👇 창 위치 기억 기능 (이름을 .bat 파일 타이틀이나 이 문자열과 일치시켜야 함)
+    window_name = "영예점수 모니터링 실행"
+    window_manager.restore_and_autosave(window_name)
+    
+    print(f"=== 🤖 스마트 트래커 (안정화 버전) ===")
     
     # ADB 연결 시도
     try:
@@ -277,7 +274,6 @@ def main():
             print("📊 순위표 로딩 대기 (10초)...")
             time.sleep(10)
             
-            # 🔥 [핵심] OCR 수행 시 캡처된 이미지의 '경로'도 받습니다.
             img, captured_path = capture_screen(is_ocr=True)
             
             if img is not None:
@@ -301,8 +297,6 @@ def main():
                     if score != 0:
                         if score != last_score:
                             print(f"  🔔 변동: {guild_name} ({last_score} -> {score})")
-                            
-                            # 🔥 [전송] 캡처된 이미지 파일 경로를 함께 전달
                             send_discord_msg(guild_name, last_score, score, current_time_str, image_path=captured_path)
                             
                             guild_logs.insert(0, {'score': score, 'time': current_time_str})
