@@ -5,7 +5,7 @@ import time
 import os
 import subprocess
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 import requests
 import window_manager
@@ -196,10 +196,19 @@ def upload_to_github():
     except Exception as e:
         print(f"⚠️ 업로드 중 오류 발생: {e}")
 
+# 🔥 [Helper] 마지막 정상 기준점(Baseline) 찾기
+def get_last_baseline_time(logs):
+    for log in logs:
+        # 비정상이 아닌(정상, 재진입, 신규) 기록을 기준점으로 삼음
+        log_type = log.get('type', 'normal')
+        if log_type != 'abnormal' and log['time'] != 'UnKnown':
+            return log['time']
+    return None
+
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (신규진입=Unknown) ===")
+    print(f"=== 🤖 스마트 트래커 (초기화 날짜 예외 처리) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -212,6 +221,11 @@ def main():
     
     known_aliases = load_aliases() 
     print(f"📂 알림 내역 로드: {len(known_aliases)}개")
+
+    previous_active_guilds = set()
+
+    # 🔥 [설정] 최초 기능 구현 날짜 (이 날짜 기록은 실제 달성 시각이 아니므로 48h 체크에서 제외)
+    INITIAL_COLLECT_TIME = "2026-01-29 10:48:43"
 
     while True:
         start_time = time.time()
@@ -259,6 +273,8 @@ def main():
                 print(f"\n[Check: {current_time_str}]")
                 
                 scanned_items = []
+                current_cycle_guilds = set()
+
                 for i in range(14):
                     rank = int(i + 1)
                     raw_name = extract_guild_name(img, i)
@@ -275,14 +291,15 @@ def main():
                         'real_key': None
                     })
 
-                # 매칭 알고리즘
                 matched_db_keys = set()
                 
+                # 1. 이름 매칭
                 for item in scanned_items:
                     if item['display_name'] in history_db:
                         item['real_key'] = item['display_name']
                         matched_db_keys.add(item['display_name'])
 
+                # 2. 지문(점수+WW) 매칭
                 for item in scanned_items:
                     if item['real_key'] is None:
                         found_original_name = None
@@ -305,7 +322,7 @@ def main():
                         else:
                             item['real_key'] = item['display_name']
 
-                # 중복 키 해결
+                # 3. 중복 처리
                 key_counts = {}
                 for item in scanned_items:
                     k = item['real_key']
@@ -319,7 +336,7 @@ def main():
                             suffix = chr(65 + idx)
                             item['real_key'] = f"{k} ({suffix})"
 
-                # 결과 처리 및 저장
+                # 4. 결과 처리
                 current_display_data = {}
                 for item in scanned_items:
                     final_key = item['real_key']
@@ -327,8 +344,9 @@ def main():
                     ww = item['ww']
                     rank = item['rank']
                     display_name = item['display_name']
+                    
+                    current_cycle_guilds.add(final_key)
 
-                    # 길드명 변경 체크
                     if final_key != display_name:
                         if (final_key not in known_aliases) or (known_aliases[final_key] != display_name):
                             print(f"  🔔 [알림] 이름 변경 감지: {final_key} -> {display_name}")
@@ -345,19 +363,58 @@ def main():
                             del known_aliases[final_key]
                             save_aliases(known_aliases)
 
-                    # 🔥 [로직 복구] 신규 길드인지 확인
-                    is_new_guild = False
+                    # 상태 판단 로직
+                    is_new_entry = False
+                    is_re_entry = False
+
                     if final_key not in history_db: 
                         history_db[final_key] = []
-                        is_new_guild = True # 족보에 없는 새로운 길드다!
+                        is_new_entry = True
+                    elif final_key not in previous_active_guilds and len(previous_active_guilds) > 0:
+                        is_re_entry = True
                     
                     guild_logs = history_db[final_key]
                     last_score = guild_logs[0]['score'] if guild_logs else 0
                     
+                    # 점수 변동 발생 시
                     if score != 0:
                         if score != last_score:
                             print(f"  🔔 변동: {final_key} ({last_score} -> {score})")
-                            desc_text = f"**{final_key}**"
+                            
+                            log_time = current_time_str
+                            change_type = "normal"
+                            discord_title = "📈 순위 변동 감지"
+                            desc_prefix = ""
+
+                            if is_new_entry:
+                                change_type = "new"
+                                log_time = "UnKnown"
+                                discord_title = "🆕 신규 길드 진입"
+                                desc_prefix = "(신규)"
+                            elif is_re_entry:
+                                change_type = "re_entry"
+                                log_time = current_time_str
+                                discord_title = "🔄 [재진입] 순위권 복귀"
+                                desc_prefix = "(재진입)"
+                            else:
+                                # 정상적인 연속 감시 중 변동 -> 48시간 체크
+                                last_baseline = get_last_baseline_time(guild_logs)
+                                
+                                # 🔥 [예외 처리] 기준 시간이 '최초 수집 날짜'라면 48시간 미달이어도 '정상' 처리
+                                if last_baseline and last_baseline != "UnKnown" and last_baseline != INITIAL_COLLECT_TIME:
+                                    try:
+                                        last_dt = datetime.strptime(last_baseline, "%Y-%m-%d %H:%M:%S")
+                                        curr_dt = datetime.strptime(current_time_str, "%Y-%m-%d %H:%M:%S")
+                                        diff_hours = (curr_dt - last_dt).total_seconds() / 3600
+                                        
+                                        if diff_hours < 48:
+                                            change_type = "abnormal"
+                                            discord_title = "⚠️ [비정상] 순위 변동 (48시간 미달)"
+                                            desc_prefix = "(비정상)"
+                                            print(f"   ⚠️ 48시간 내 변동 감지! (경과: {int(diff_hours)}시간)")
+                                    except: pass
+
+                            desc_text = f"**{final_key}** {desc_prefix}"
                             if final_key != display_name:
                                 desc_text += f"\n(현재 닉네임: {display_name})"
                             fields = [
@@ -365,32 +422,42 @@ def main():
                                 {"name": "현재 점수", "value": f"**{score}**", "inline": True},
                                 {"name": "변동폭", "value": f"+{score - last_score}", "inline": True}
                             ]
-                            send_discord_msg("📈 순위 변동 감지", desc_text, fields=fields, image_path=captured_path)
+                            send_discord_msg(discord_title, desc_text, fields=fields, image_path=captured_path)
                             
-                            # 🔥 [핵심 로직] 신규 길드면 'UnKnown', 아니면 '현재 시간'
-                            if is_new_guild:
-                                log_time = "UnKnown"
-                            else:
-                                log_time = current_time_str
-                                
-                            guild_logs.insert(0, {'score': score, 'ww': ww, 'time': log_time})
-                            
+                            new_log = {'score': score, 'ww': ww, 'time': log_time, 'type': change_type}
+                            guild_logs.insert(0, new_log)
                             if len(guild_logs) > 5: guild_logs = guild_logs[:5]
                             history_db[final_key] = guild_logs
                         else:
                             if guild_logs: guild_logs[0]['ww'] = ww
 
-                    # 웹사이트 표시용 시간
-                    display_time = current_time_str
-                    if guild_logs:
-                        display_time = guild_logs[0]['time']
+                    # 웹사이트 표시용 데이터 가공
+                    display_history = []
+                    if history_db[final_key]:
+                        for log in history_db[final_key]:
+                            t_str = log['time']
+                            t_type = log.get('type', 'normal')
+                            
+                            if t_type == 'abnormal': t_str += " (비정상⚠️)"
+                            elif t_type == 'new': t_str += " (신규)"
+                            elif t_type == 're_entry': t_str += " (재진입)"
+                            
+                            display_history.append({
+                                'score': log['score'],
+                                'time': t_str
+                            })
+
+                    main_display_time = "UnKnown"
+                    if display_history:
+                        main_display_time = display_history[0]['time']
 
                     current_display_data[rank] = {
                         'name': final_key, 
                         'score': score, 
                         'ww': ww, 
-                        'time': display_time,
+                        'time': main_display_time, 
                         'history': history_db[final_key],
+                        'display_history_patched': display_history,
                         'current_alias': display_name
                     }
                     
@@ -398,10 +465,19 @@ def main():
                     if final_key != display_name:
                         log_text += f" (Alias: {display_name})"
                     print(log_text)
+                
+                previous_active_guilds = current_cycle_guilds.copy()
 
                 save_history(history_db)
+                
+                website_data = {}
+                for r, d in current_display_data.items():
+                    d_copy = d.copy()
+                    d_copy['history'] = d.pop('display_history_patched')
+                    website_data[r] = d_copy
+
                 with open(DATA_FILE_PATH, "w", encoding="utf-8") as f:
-                    json.dump(current_display_data, f, ensure_ascii=False, indent=4)
+                    json.dump(website_data, f, ensure_ascii=False, indent=4)
                     print("💾 데이터 저장 완료")
                 upload_to_github()
             else:
