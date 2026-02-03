@@ -218,7 +218,7 @@ def upload_to_github():
 
 def main():
     # 👇 창 위치 기억 기능 (이름을 .bat 파일 타이틀이나 이 문자열과 일치시켜야 함)
-    window_name = "영예점수 모니터링 실행"
+    window_name = "영예점수 모니터링"
     window_manager.restore_and_autosave(window_name)
     
     print(f"=== 🤖 스마트 트래커 (안정화 버전) ===")

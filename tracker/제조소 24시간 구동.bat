@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title 도미네이션즈 매크로 실행
+title 제조소 24시간 구동
 mode con: cols=80 lines=30
 
 :: 이 파일이 있는 폴더로 이동

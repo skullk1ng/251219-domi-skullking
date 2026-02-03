@@ -202,9 +202,9 @@ def step3_go_production():
 
 def main():
     # 👇 [추가] 창 위치 기억 기능 활성화
-    window_manager.restore_and_autosave("도미네이션즈 매크로 실행")
+    window_manager.restore_and_autosave("제조소 24시간 구동")
 
-    print(f"=== 🏭 도미네이션즈 심플 봇 (2시간 주기 / ADB 수정판) ===")
+    print(f"=== 🏭 제조소 24시간 구동 (2시간 주기 / ADB 수정판) ===")
     
     # ADB 연결 시도
     try:
