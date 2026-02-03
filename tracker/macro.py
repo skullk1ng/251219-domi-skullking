@@ -9,16 +9,19 @@ import re
 # ✅ 한글 출력 깨짐 방지
 sys.stdout.reconfigure(encoding='utf-8')
 
-# ================= 1. 기본 설정 =================
-ADB_CMD = "adb"
+# ================= 1. 기본 설정 (자동 감지된 정보 반영) =================
+
+# 1. 블루스택 ADB 경로 (스크린샷에서 확인된 경로)
+ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
+
+# 2. 게임 패키지 이름 (스크린샷에서 확인된 이름)
+GAME_PACKAGE = "com.nexon.dominations.asia.g"
+
+# 3. 디바이스 주소
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
 
-# 🔥 [중요] 도미네이션즈 패키지 이름 (한국/아시아 서버 기준)
-# 만약 이 이름으로 안 꺼지면, 구글 플레이 스토어 주소 끝부분을 확인해야 함.
-GAME_PACKAGE = "com.nexon.dominations.asia.adk" 
-
-# 🕒 반복 주기 (2시간)
+# 🕒 반복 주기 (2시간 = 7200초)
 WAIT_TIME = 2 * 60 * 60 
 
 # 화면 해상도 (자동 감지)
@@ -29,6 +32,7 @@ SCALE_RATIO = 1.0
 # ================= 2. 기본 함수들 =================
 
 def run_adb(command):
+    # ADB 경로에 공백이 있으므로 따옴표로 감싸서 실행
     subprocess.call(f'"{ADB_CMD}" -s {DEVICE_ADDRESS} {command}', shell=True)
 
 def run_adb_output(command):
@@ -93,6 +97,7 @@ def click(x, y):
     print(f"   👆 클릭: {x}, {y}")
 
 def swipe_screen():
+    # 화면 중앙을 살짝 움직여서 건물을 찾기 쉽게 함
     start_x = int(SCREEN_WIDTH * 0.6)
     end_x = int(SCREEN_WIDTH * 0.4)
     y = int(SCREEN_HEIGHT * 0.5)
@@ -106,9 +111,9 @@ def step1_restart_game():
     # 🔥 1. 게임 강제 종료 (Kill Process)
     print(f"   💀 앱 강제 종료: {GAME_PACKAGE}")
     run_adb(f'shell am force-stop {GAME_PACKAGE}')
-    time.sleep(2.0)
+    time.sleep(3.0) # 확실히 꺼질 때까지 대기
     
-    # 2. 홈 화면으로 이동 (바탕화면 아이콘 찾기 위해)
+    # 2. 홈 화면으로 이동
     run_adb('shell input keyevent KEYCODE_HOME')
     time.sleep(1.0)
     
@@ -182,7 +187,15 @@ def step3_go_production():
 
 def main():
     print(f"=== 🏭 도미네이션즈 심플 봇 (2시간 주기) ===")
-    os.system(f"{ADB_CMD} connect {DEVICE_ADDRESS}")
+    
+    # ADB 연결 시도 (경로 지정됨)
+    try:
+        subprocess.call(f'"{ADB_CMD}" connect {DEVICE_ADDRESS}', shell=True)
+    except Exception as e:
+        print(f"❌ ADB 실행 오류: {e}")
+        print(f"경로를 확인해주세요: {ADB_CMD}")
+        return
+
     get_screen_resolution()
 
     while True:

@@ -11,7 +11,13 @@ import requests
 
 # ================= 1. 설정 및 경로 =================
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-ADB_CMD = "adb"
+
+# 🔥 [수정] 블루스택 전용 ADB 경로 (아까 확인한 경로)
+ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
+
+# 🔥 [수정] 게임 패키지 이름 (아까 확인한 이름)
+GAME_PACKAGE = "com.nexon.dominations.asia.g"
+
 TARGET_DEVICE = "127.0.0.1:5555"
 
 # 🔄 전체 사이클 주기 (5분 = 300초)
@@ -42,7 +48,7 @@ def send_discord_msg(guild_name, old_score, new_score, current_time):
     try:
         embed = {
             "title": "📈 순위 변동 감지",
-            "description": f"**{guild_name}**", # 👈 "점수가 변동되었습니다" 문구 삭제함
+            "description": f"**{guild_name}**",
             "color": 5763719,
             "fields": [
                 {
@@ -74,6 +80,7 @@ def send_discord_msg(guild_name, old_score, new_score, current_time):
         print(f"   ⚠️ 디스코드 발송 실패: {e}")
 
 def run_adb(command):
+    # ADB 경로에 공백이 있으므로 따옴표 처리
     full_cmd = f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}'
     subprocess.call(full_cmd, shell=True)
 
@@ -130,15 +137,13 @@ def click(x, y):
     print(f"👆 클릭: ({x}, {y})")
 
 def force_close_app():
-    print("💀 게임 재시작 프로세스...")
+    print(f"💀 게임 강제 종료 (패키지: {GAME_PACKAGE})")
+    # 🔥 [수정] 스와이프 방식 -> ADB 명령어로 즉시 종료 방식
+    run_adb(f'shell am force-stop {GAME_PACKAGE}')
+    time.sleep(2)
+    # 바탕화면 아이콘을 찾기 위해 홈으로 이동
     run_adb('shell input keyevent KEYCODE_HOME')
-    time.sleep(1)
-    run_adb('shell input keyevent 187') 
-    time.sleep(1.5)
-    run_adb('shell input swipe 800 450 100 450 300') 
-    time.sleep(1)
-    run_adb('shell input keyevent KEYCODE_HOME')
-    print("✨ 종료 완료")
+    print("✨ 종료 및 홈 이동 완료")
 
 # ================= 5. OCR 처리 기능 =================
 
@@ -211,14 +216,22 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 
 def main():
-    print(f"=== 🤖 스마트 트래커 (임베드 문구 수정됨) ===")
-    os.system(f"{ADB_CMD} connect {TARGET_DEVICE}")
+    print(f"=== 🤖 스마트 트래커 (안정성 강화 버전) ===")
+    
+    # ADB 연결 시도 (경로 지정됨)
+    try:
+        subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
+    except Exception as e:
+        print(f"❌ ADB 연결 오류: {e}")
+        return
+
     history_db = load_history()
     print(f"📂 히스토리 로드: {len(history_db)}개")
 
     while True:
         start_time = time.time()
         
+        # 🔥 [안정화] 강제 종료 기능 사용
         force_close_app()
         time.sleep(2)
         
@@ -279,8 +292,6 @@ def main():
                     if score != 0:
                         if score != last_score:
                             print(f"  🔔 변동: {guild_name} ({last_score} -> {score})")
-                            
-                            # 🔥 [디스코드 박스형 알림 발송]
                             send_discord_msg(guild_name, last_score, score, current_time_str)
                             
                             guild_logs.insert(0, {'score': score, 'time': current_time_str})
