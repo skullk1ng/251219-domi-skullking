@@ -190,7 +190,7 @@ def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
-    # 🔥 [수정] 파란색 박스 높이 3px 추가 축소 (237 -> 234)
+    # 🔥 [수정] 파란색 박스 높이 추가 축소 (237 -> 234)
     box_w = int(217 * SCALE_RATIO) 
     box_h = int(234 * SCALE_RATIO) 
     
@@ -227,9 +227,7 @@ def check_active_border_and_get_center(center_x, center_y):
     y1 = max(0, cy - gap_h)
     y2 = min(mh, cy + gap_h)
     x1 = max(0, cx - gap_w)
-    
-    # 초록색 마스크 우측 보정 (9px 유지 - 직전 단계에서 적용됨)
-    x2 = min(mw, cx + gap_w - int(9 * SCALE_RATIO))
+    x2 = min(mw, cx + gap_w - int(9 * SCALE_RATIO)) # 우측 마스킹 유지
     
     mask[y1:y2, x1:x2] = 0
     
@@ -274,8 +272,7 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [수정] OCR 박스 위로 2px 추가 이동 (-37 -> -35)
-    
+    # OCR 박스 위치 보정 (유지)
     offset_x = int(12 * SCALE_RATIO)     
     offset_y = int(-35 * SCALE_RATIO)   
     
@@ -427,8 +424,15 @@ def step8_clear_slots():
 def step9_fill_slots(icon_loc):
     print("[Step 9] 슬롯 채우기 (12연타)")
     if icon_loc:
+        # 🔥 [수정] 클릭 좌표 안전 보정 (Safe Click)
+        # 이미지의 정중앙(icon_loc)은 물음표(?)와 가깝습니다.
+        # 따라서 좌측(-15px) 하단(+50px)으로 이동하여 몸통을 클릭합니다.
+        
+        safe_x = icon_loc[0] - int(15 * SCALE_RATIO)
+        safe_y = icon_loc[1] + int(50 * SCALE_RATIO)
+        
         for i in range(12): 
-            click(icon_loc[0], icon_loc[1])
+            click(safe_x, safe_y)
             time.sleep(0.3) 
         print("   ✅ 완료")
 
