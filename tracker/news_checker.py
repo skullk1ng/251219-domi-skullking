@@ -5,6 +5,7 @@ import json
 import os
 from datetime import datetime
 import sys
+import window_manager  # 👈 [추가] 창 관리 모듈
 
 # ✅ 한글 출력 깨짐 방지
 sys.stdout.reconfigure(encoding='utf-8')
@@ -98,7 +99,10 @@ def save_last_title(title):
 # ================= 메인 실행 =================
 
 def main():
-    print(f"=== 📰 뉴스 알림 봇 시작 ({TARGET_URL}) ===")
+    # 👇 [추가] 창 위치 기억 기능 활성화
+    window_manager.restore_and_autosave("업데이트 알림 봇")
+
+    print(f"=== 📰 업데이트 알림 봇 ({TARGET_URL}) ===")
     print(f"   👉 알림 채널: #업데이트-알림")
     
     last_title = load_last_title()
