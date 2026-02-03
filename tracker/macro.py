@@ -190,11 +190,11 @@ def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
-    # 🔥 [수정] 파란색 외부 박스 높이 줄임 (247 -> 245)
+    # 🔥 [수정] 박스 높이 축소 (247 -> 244)
     box_w = int(217 * SCALE_RATIO) 
-    box_h = int(245 * SCALE_RATIO) 
+    box_h = int(244 * SCALE_RATIO) 
     
-    # 이미지가 잘려서 중심이 위로 올라간 만큼, 박스를 아래로 내림
+    # 이미지가 잘려서 중심이 위로 올라간 만큼, 박스를 아래로 내림 (유지)
     shift_down = int(42 * SCALE_RATIO) 
 
     roi_x = int(center_x - (box_w / 2))
@@ -229,8 +229,9 @@ def check_active_border_and_get_center(center_x, center_y):
     y1 = max(0, cy - gap_h)
     y2 = min(mh, cy + gap_h)
     x1 = max(0, cx - gap_w)
-    # 🔥 [수정] 초록색 내부 마스크 우측을 왼쪽으로 2px 당김
-    x2 = min(mw, cx + gap_w - int(2 * SCALE_RATIO))
+    
+    # 🔥 [수정] 초록색 마스크 우측을 왼쪽으로 3px 당김 (확실한 변화)
+    x2 = min(mw, cx + gap_w - int(3 * SCALE_RATIO))
     
     mask[y1:y2, x1:x2] = 0
     
@@ -275,9 +276,11 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # 🔥 [수정] OCR 박스 위로 3px 이동 (-42 -> -45)
+    # 🔥 [수정] OCR 박스 위치 상향 조정 (UP)
+    # 이전값: -45 (너무 아래) -> -39 (위로 올림)
+    
     offset_x = int(12 * SCALE_RATIO)     
-    offset_y = int(-45 * SCALE_RATIO)   
+    offset_y = int(-39 * SCALE_RATIO)   
     
     w = int(105 * SCALE_RATIO) 
     h = int(45 * SCALE_RATIO)  
