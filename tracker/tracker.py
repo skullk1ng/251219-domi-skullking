@@ -25,7 +25,6 @@ USE_DISCORD = True
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json") 
 HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
-# 🔥 [추가] 알림 보낸 내역 저장용 파일
 ALIAS_FILE_PATH = os.path.join(BASE_DIR, "aliases.json")
 
 # ================= 2. OCR 좌표 설정 =================
@@ -168,7 +167,6 @@ def save_history(history_data):
     with open(HISTORY_FILE_PATH, "w", encoding="utf-8") as f:
         json.dump(history_data, f, ensure_ascii=False, indent=4)
 
-# 🔥 [추가] 알림 내역 불러오기/저장하기
 def load_aliases():
     if os.path.exists(ALIAS_FILE_PATH):
         try:
@@ -201,7 +199,7 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (알림 중복 방지 기능 탑재) ===")
+    print(f"=== 🤖 스마트 트래커 (웹사이트 시간 표시 수정판) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -212,7 +210,6 @@ def main():
     history_db = load_history()
     print(f"📂 히스토리 로드: {len(history_db)}개")
     
-    # 🔥 [수정] 파일에서 알림 내역 불러오기
     known_aliases = load_aliases() 
     print(f"📂 알림 내역 로드: {len(known_aliases)}개")
 
@@ -278,7 +275,7 @@ def main():
                         'real_key': None
                     })
 
-                # 2. 매칭 알고리즘
+                # 매칭 알고리즘
                 matched_db_keys = set()
                 
                 for item in scanned_items:
@@ -308,7 +305,7 @@ def main():
                         else:
                             item['real_key'] = item['display_name']
 
-                # 3. 중복 키 해결
+                # 중복 키 해결
                 key_counts = {}
                 for item in scanned_items:
                     k = item['real_key']
@@ -322,7 +319,7 @@ def main():
                             suffix = chr(65 + idx)
                             item['real_key'] = f"{k} ({suffix})"
 
-                # 4. 결과 처리 및 저장
+                # 결과 처리 및 저장
                 current_display_data = {}
                 for item in scanned_items:
                     final_key = item['real_key']
@@ -331,23 +328,18 @@ def main():
                     rank = item['rank']
                     display_name = item['display_name']
 
-                    # 🔥 [수정] 파일에 저장된 내역과 비교 (재부팅해도 유지됨)
                     if final_key != display_name:
                         if (final_key not in known_aliases) or (known_aliases[final_key] != display_name):
                             print(f"  🔔 [알림] 이름 변경 감지: {final_key} -> {display_name}")
-                            
                             fields = [
                                 {"name": "원래 이름 (DB)", "value": f"**{final_key}**", "inline": True},
                                 {"name": "현재 표시 이름", "value": f"**{display_name}**", "inline": True},
                                 {"name": "판단 근거", "value": f"점수({score})와 월드워({ww}회)가 일치함", "inline": False}
                             ]
                             send_discord_msg("🏷️ 길드명 변경 감지", f"봇이 **{final_key}** 길드가 이름을 변경한 것으로 판단했습니다.", color=3447003, fields=fields, image_path=captured_path)
-                            
-                            # 알림 보냈음을 기록하고 즉시 파일 저장
                             known_aliases[final_key] = display_name
                             save_aliases(known_aliases)
                     else:
-                        # 이름이 다시 원래대로 돌아왔다면, 기록 삭제 (나중에 또 바꾸면 알림 줘야 하니까)
                         if final_key in known_aliases:
                             del known_aliases[final_key]
                             save_aliases(known_aliases)
@@ -356,10 +348,6 @@ def main():
                     guild_logs = history_db[final_key]
                     last_score = guild_logs[0]['score'] if guild_logs else 0
                     
-# [디버깅] 이 줄을 추가해서 봇의 생각을 훔쳐봅니다.
-                    if final_key == "ARES":
-                        print(f"🔍 [ARES 점검] 현재: {score} (타입: {type(score)}) vs 기록: {last_score} (타입: {type(last_score)})")
-
                     if score != 0:
                         if score != last_score:
                             print(f"  🔔 변동: {final_key} ({last_score} -> {score})")
@@ -379,11 +367,17 @@ def main():
                         else:
                             if guild_logs: guild_logs[0]['ww'] = ww
 
+                    # 🔥 [수정 핵심] 웹사이트 표시용 시간
+                    # 점수 변동이 없으면 '최신 로그 시간'을, 변동 있으면(새로 insert됨) '현재 시간'을 사용
+                    display_time = current_time_str
+                    if guild_logs:
+                        display_time = guild_logs[0]['time']
+
                     current_display_data[rank] = {
                         'name': final_key, 
                         'score': score, 
                         'ww': ww, 
-                        'time': current_time_str, 
+                        'time': display_time, # 👈 여기가 수정됨 (현재시간 -> 마지막 기록 시간)
                         'history': history_db[final_key],
                         'current_alias': display_name
                     }
