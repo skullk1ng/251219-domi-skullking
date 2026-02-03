@@ -4,22 +4,25 @@ import time
 import json
 import os
 from datetime import datetime
+import sys
+
+# ✅ 한글 출력 깨짐 방지
+sys.stdout.reconfigure(encoding='utf-8')
 
 # ================= 설정 =================
 # 감시할 웹사이트
 TARGET_URL = "https://www.dominationsworld.com/news"
 
-# 🔔 디스코드 웹후크 URL
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
+# 🔥 [수정됨] '#업데이트-알림' 채널 전용 웹후크
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1468066940533866605/4u4WgLUt6zVGvOhcU0ReB311EJ-5XuwwMZOk7UKTRcPUgkHkqlLUNlvdyigxAtnkQSvC"
 
 # 🔄 확인 주기 (10분 = 600초)
 CHECK_INTERVAL = 600
 
-# 💾 데이터 저장 파일
+# 💾 데이터 저장 파일 (중복 알림 방지용)
 LOG_FILE = "latest_news_log.txt"
 
-# 🔥 [분석 완료] 개발자 도구 이미지를 바탕으로 만든 최신 글 선택자
-# (ID가 아닌 클래스 기반이라 업데이트가 되어도 계속 작동합니다)
+# 🕵️‍♂️ 최신 글 찾는 규칙 (CSS 선택자)
 CSS_SELECTOR = "div.highlighted-article-card a.stretched-link"
 
 # ================= 기능 =================
@@ -31,7 +34,7 @@ def send_discord_msg(title, link):
             "embeds": [{
                 "title": "🆕 도미네이션즈 새 소식!",
                 "description": f"**[{title}]({link})**",
-                "color": 16776960, # 노란색
+                "color": 16776960, # 노란색 (Gold)
                 "footer": {
                     "text": f"감지 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 }
@@ -46,7 +49,6 @@ def send_discord_msg(title, link):
 def get_latest_post():
     """ 웹사이트 크롤링 """
     try:
-        # 봇 차단 방지를 위한 헤더
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -58,31 +60,25 @@ def get_latest_post():
 
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 🔥 최신 글 요소 찾기
+        # 최신 글 요소 찾기
         elements = soup.select(CSS_SELECTOR)
         
         if elements:
-            # 가장 첫 번째(최신) 요소를 가져옴
             latest = elements[0]
             
-            # 제목 추출 (링크 태그 안에 텍스트가 숨어있거나, aria-label 등에 있을 수 있음)
-            # 1. 텍스트 확인
+            # 제목 추출 시도 (텍스트 -> aria-label -> id 순서)
             title = latest.get_text().strip()
-            # 2. 텍스트가 비어있으면 aria-label 확인 (접근성 태그)
-            if not title:
-                title = latest.get('aria-label')
-            # 3. 그래도 없으면 ID라도 가져옴
-            if not title:
-                title = latest.get('id')
+            if not title: title = latest.get('aria-label')
+            if not title: title = latest.get('id')
             
-            # 링크 추출 (href가 상대경로일 경우 처리)
+            # 링크 추출 (상대경로 처리)
             link = latest.get('href')
             if link and not link.startswith('http'):
                 link = "https://www.dominationsworld.com" + link
                 
             return title, link
         else:
-            print("   ⚠️ 최신 글 요소를 찾을 수 없습니다. (사이트 구조 변경 가능성)")
+            print("   ⚠️ 최신 글 요소를 찾을 수 없습니다.")
             return None, None
 
     except Exception as e:
@@ -103,11 +99,11 @@ def save_last_title(title):
 
 def main():
     print(f"=== 📰 뉴스 알림 봇 시작 ({TARGET_URL}) ===")
+    print(f"   👉 알림 채널: #업데이트-알림")
     
-    # 시작할 때 현재 최신글을 저장 (첫 실행 시 알림 방지)
     last_title = load_last_title()
     
-    # 만약 저장된 기록이 없다면, 현재 최신글을 가져와서 저장만 하고 알림은 안 보냄
+    # 첫 실행 시 기준점 잡기
     if not last_title:
         print("   📂 첫 실행입니다. 현재 최신글을 기준점으로 잡습니다.")
         curr_title, _ = get_latest_post()
@@ -115,6 +111,8 @@ def main():
             save_last_title(curr_title)
             last_title = curr_title
             print(f"   ✅ 기준점 설정 완료: {last_title}")
+    else:
+        print(f"   📂 기존 기록 로드됨: {last_title}")
 
     while True:
         print(f"\n🔍 ({datetime.now().strftime('%H:%M')}) 새 글 확인 중...")
@@ -122,12 +120,10 @@ def main():
         current_title, current_link = get_latest_post()
         
         if current_title:
-            # 저장된 제목과 다르면 -> 새 글이다!
             if last_title != current_title:
                 print(f"   ✨ [NEW] 발견! : {current_title}")
                 send_discord_msg(current_title, current_link)
                 
-                # 파일 갱신
                 save_last_title(current_title)
                 last_title = current_title
             else:
