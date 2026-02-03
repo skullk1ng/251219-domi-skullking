@@ -356,6 +356,10 @@ def main():
                     guild_logs = history_db[final_key]
                     last_score = guild_logs[0]['score'] if guild_logs else 0
                     
+# [디버깅] 이 줄을 추가해서 봇의 생각을 훔쳐봅니다.
+                    if final_key == "ARES":
+                        print(f"🔍 [ARES 점검] 현재: {score} (타입: {type(score)}) vs 기록: {last_score} (타입: {type(last_score)})")
+
                     if score != 0:
                         if score != last_score:
                             print(f"  🔔 변동: {final_key} ({last_score} -> {score})")
