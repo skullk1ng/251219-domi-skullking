@@ -190,7 +190,7 @@ def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
-    # 🔥 [수정] 파란색 박스 높이 추가 축소 (237 -> 234)
+    # 🔥 [수정] 파란색 박스 높이 (234 유지)
     box_w = int(217 * SCALE_RATIO) 
     box_h = int(234 * SCALE_RATIO) 
     
@@ -227,7 +227,9 @@ def check_active_border_and_get_center(center_x, center_y):
     y1 = max(0, cy - gap_h)
     y2 = min(mh, cy + gap_h)
     x1 = max(0, cx - gap_w)
-    x2 = min(mw, cx + gap_w - int(9 * SCALE_RATIO)) # 우측 마스킹 유지
+    
+    # 초록색 마스크 우측 보정 (9px 유지)
+    x2 = min(mw, cx + gap_w - int(9 * SCALE_RATIO))
     
     mask[y1:y2, x1:x2] = 0
     
@@ -421,15 +423,26 @@ def step8_clear_slots():
     swipe(ex, y, sx, y) 
     time.sleep(1)
 
+# 🔥 [NEW] 클릭 위치 디버깅 함수
+def debug_click_location(x, y):
+    screen = capture_screen(is_color=True)
+    if screen is not None:
+        # 빨간색 원 (반지름 10, 두께 채움)
+        cv2.circle(screen, (x, y), 10, (0, 0, 255), -1) 
+        cv2.imwrite("click_debug.png", screen)
+        print(f"      📸 클릭 위치 저장됨: click_debug.png (좌표: {x}, {y})")
+
 def step9_fill_slots(icon_loc):
     print("[Step 9] 슬롯 채우기 (12연타)")
     if icon_loc:
-        # 🔥 [수정] 클릭 좌표 안전 보정 (Safe Click)
-        # 이미지의 정중앙(icon_loc)은 물음표(?)와 가깝습니다.
-        # 따라서 좌측(-15px) 하단(+50px)으로 이동하여 몸통을 클릭합니다.
+        # 🔥 [수정] 클릭 좌표를 왼쪽(-60) 아래(+70)로 대폭 수정
+        # 물음표(우상단)를 피하기 위해 반대 방향인 좌하단으로 깊숙이 이동
         
-        safe_x = icon_loc[0] - int(15 * SCALE_RATIO)
-        safe_y = icon_loc[1] + int(50 * SCALE_RATIO)
+        safe_x = icon_loc[0] - int(60 * SCALE_RATIO)
+        safe_y = icon_loc[1] + int(70 * SCALE_RATIO)
+        
+        # 디버그 이미지 저장
+        debug_click_location(safe_x, safe_y)
         
         for i in range(12): 
             click(safe_x, safe_y)
@@ -440,7 +453,7 @@ def step9_fill_slots(icon_loc):
 
 def main():
     global CURRENT_INDEX
-    print(f"=== 🏭 도미네이션즈 봇 (1920x1080 Native) ===")
+    print(f"=== 🏭 도미네이션즈 봇 (1920x1080 Native + ClickDebug) ===")
     os.system(f"{ADB_CMD} connect {DEVICE_ADDRESS}")
     get_screen_resolution()
     
