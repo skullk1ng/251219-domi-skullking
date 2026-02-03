@@ -29,21 +29,15 @@ HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
 # ================= 2. OCR 좌표 설정 =================
 SCORE_START_X = 1121    
 SCORE_WIDTH = 100       
-
-# 월드워 횟수 (점수 왼쪽)
 WW_START_X = 990 
 WW_WIDTH = 60
-
-# 길드 이름 (왼쪽)
 GUILD_START_X = 445     
 GUILD_WIDTH = 250       
-
 START_Y = 275           
 ROW_GAP = 50.8          
 HEIGHT = 30             
 
 # ================= 3. 기본 함수들 =================
-
 def send_discord_msg(title, desc, color=5763719, fields=None, image_path=None):
     if not USE_DISCORD: return
     try:
@@ -55,9 +49,7 @@ def send_discord_msg(title, desc, color=5763719, fields=None, image_path=None):
             "footer": {"text": f"측정 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"},
             "image": {"url": "attachment://capture.png"} if image_path else {}
         }
-        
         embed_data = {"embeds": [embed]}
-
         if image_path and os.path.exists(image_path):
             with open(image_path, "rb") as f:
                 files = {
@@ -192,10 +184,9 @@ def upload_to_github():
         print(f"⚠️ 업로드 중 오류 발생: {e}")
 
 # ================= 6. 메인 로직 =================
-
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (원래 이름 유지 기능 탑재) ===")
+    print(f"=== 🤖 스마트 트래커 (하이브리드: 지문인식 + 중복방지) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -251,93 +242,95 @@ def main():
                 current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"\n[Check: {current_time_str}]")
                 
-                # 1. 현재 화면의 14개 데이터를 모두 읽어옴
                 scanned_items = []
+                # 1. 화면 스캔
                 for i in range(14):
                     rank = int(i + 1)
                     raw_name = extract_guild_name(img, i)
                     if not raw_name: raw_name = "Unknown"
-                    
                     y_pos = int(START_Y + (i * ROW_GAP))
                     score = extract_number(img, SCORE_START_X, y_pos, SCORE_WIDTH, HEIGHT)
                     ww = extract_number(img, WW_START_X, y_pos, WW_WIDTH, HEIGHT)
 
-                    # 일단 임시 딕셔너리에 저장
                     scanned_items.append({
                         'rank': rank,
-                        'display_name': raw_name, # 화면에 보이는 이름 (예: ESH OK)
+                        'display_name': raw_name,
                         'score': score,
                         'ww': ww,
-                        'real_key': None # 우리가 찾아내야 할 진짜 이름
+                        'real_key': None
                     })
 
-                # 2. 매칭 알고리즘 시작 (소거법)
-                
-                # [단계 1] 이름이 똑같은 애들 먼저 매칭 (변동 없는 길드)
+                # 2. 매칭 알고리즘 (지문 인식)
                 matched_db_keys = set()
                 
+                # [단계 1] 이름 일치 매칭
                 for item in scanned_items:
                     if item['display_name'] in history_db:
                         item['real_key'] = item['display_name']
                         matched_db_keys.add(item['display_name'])
 
-                # [단계 2] 이름은 다르지만 점수+월드워가 같은 애들 매칭 (이름 바꾼 길드)
+                # [단계 2] 변장 감지 매칭
                 for item in scanned_items:
-                    if item['real_key'] is None: # 아직 짝을 못 찾은 경우
-                        
+                    if item['real_key'] is None:
                         found_original_name = None
-                        
-                        # DB를 뒤져서 "점수랑 월드워가 똑같은데, 아직 화면에 안 나온 애"를 찾음
                         for db_key, logs in history_db.items():
                             if not logs: continue
-                            if db_key in matched_db_keys: continue # 이미 다른 놈이랑 매칭됨
-                            
-                            last_log = logs[0] # 가장 최근 기록(직전 기록)
+                            if db_key in matched_db_keys: continue
+                            last_log = logs[0]
                             last_score = last_log.get('score', 0)
                             last_ww = last_log.get('ww', -1)
-                            
-                            if last_ww == -1: continue # 정보 부족하면 패스
+                            if last_ww == -1: continue
 
-                            # 🔥 핵심: 점수와 월드워가 직전 기록과 완전 일치하면 동일 길드로 간주
                             if (item['score'] == last_score) and (item['ww'] == last_ww):
                                 found_original_name = db_key
                                 break
                         
                         if found_original_name:
-                            item['real_key'] = found_original_name # 원래 이름 부여!
+                            item['real_key'] = found_original_name
                             matched_db_keys.add(found_original_name)
                             print(f"  🕵️‍♂️ [신분 확인] {item['display_name']} -> {found_original_name} (변장 감지)")
                         else:
-                            # 매칭 실패하면 그냥 화면에 보이는 이름이 진짜 이름임
+                            # 매칭 실패 시 화면 이름 사용
                             item['real_key'] = item['display_name']
 
-                # 3. 결과 처리 및 저장
-                current_display_data = {}
-                
+                # 3. [최종 방어선] 중복 키 해결 (동명이인 처리)
+                # 예: 매칭에 실패한 신생 길드 3개가 모두 'ESH OK'인 경우
+                key_counts = {}
                 for item in scanned_items:
-                    final_key = item['real_key'] # 이게 진짜 이름 (예: 百分百戰爭 1)
+                    k = item['real_key']
+                    if k not in key_counts: key_counts[k] = []
+                    key_counts[k].append(item)
+                
+                for k, items in key_counts.items():
+                    if len(items) > 1:
+                        # 같은 이름을 가진 애들이 2명 이상이면 (A), (B) 붙임
+                        # 단, 점수 높은 순으로 A, B...
+                        items.sort(key=lambda x: x['score'], reverse=True)
+                        for idx, item in enumerate(items):
+                            suffix = chr(65 + idx) # A, B...
+                            # 주의: 이미 (A)가 붙어있는지 확인하거나, 그냥 무조건 붙임
+                            # 여기서는 원래 키에 괄호 추가
+                            item['real_key'] = f"{k} ({suffix})"
+
+                # 4. 결과 처리 및 저장
+                current_display_data = {}
+                for item in scanned_items:
+                    final_key = item['real_key']
                     score = item['score']
                     ww = item['ww']
                     rank = item['rank']
-                    display_name = item['display_name'] # (예: ESH OK)
+                    display_name = item['display_name']
 
-                    # DB 초기화 (처음 본 길드일 경우)
                     if final_key not in history_db: history_db[final_key] = []
-                    
                     guild_logs = history_db[final_key]
                     last_score = guild_logs[0]['score'] if guild_logs else 0
                     
-                    # 변동 감지 로직
                     if score != 0:
                         if score != last_score:
                             print(f"  🔔 변동: {final_key} ({last_score} -> {score})")
-                            
-                            # 알림 내용 구성
                             desc_text = f"**{final_key}**"
-                            # 만약 화면 이름과 진짜 이름이 다르면 각주 추가
                             if final_key != display_name:
                                 desc_text += f"\n(현재 닉네임: {display_name})"
-
                             fields = [
                                 {"name": "기존 점수", "value": f"{last_score}", "inline": True},
                                 {"name": "현재 점수", "value": f"**{score}**", "inline": True},
@@ -345,23 +338,19 @@ def main():
                             ]
                             send_discord_msg("📈 순위 변동 감지", desc_text, fields=fields, image_path=captured_path)
                             
-                            # 로그 저장 (진짜 이름인 final_key 아래에 저장됨)
                             guild_logs.insert(0, {'score': score, 'ww': ww, 'time': current_time_str})
                             if len(guild_logs) > 5: guild_logs = guild_logs[:5]
                             history_db[final_key] = guild_logs
                         else:
-                            # 점수는 그대로지만, 혹시 이름만 바꼈을 때 정보 갱신을 위해 ww 업데이트 (메모리만)
-                            if guild_logs:
-                                guild_logs[0]['ww'] = ww
+                            if guild_logs: guild_logs[0]['ww'] = ww
 
-                    # 데이터 파일 저장 (웹사이트 업로드용) -> 여기서도 final_key(원래이름) 사용
                     current_display_data[rank] = {
                         'name': final_key, 
                         'score': score, 
                         'ww': ww, 
                         'time': current_time_str, 
                         'history': history_db[final_key],
-                        'current_alias': display_name # 참고용으로 현재 닉네임도 넣어둠
+                        'current_alias': display_name
                     }
                     
                     log_text = f"#{rank} | {final_key} | {score}"
