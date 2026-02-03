@@ -18,7 +18,7 @@ ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 # 게임 패키지 이름
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 
-# 포트 번호 (스크린샷에 5565로 확인됨)
+# 포트 번호
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
 
@@ -33,7 +33,6 @@ SCALE_RATIO = 1.0
 # ================= 2. 기본 함수들 =================
 
 def run_adb(command):
-    # 경로에 공백이 있으므로 따옴표로 감싸서 실행
     try:
         subprocess.call(f'"{ADB_CMD}" -s {DEVICE_ADDRESS} {command}', shell=True)
     except Exception as e:
@@ -123,7 +122,6 @@ def step1_restart_game():
     loc = find_image("icon.png", threshold=0.8)
     if loc:
         click(loc[0], loc[1])
-        # 🔥 [수정] 대기 시간 25초로 변경
         print("   🚀 게임 실행 중... (25초 로딩 대기)")
         time.sleep(25) 
     else:
@@ -144,44 +142,77 @@ def step1_restart_game():
 def step2_enter_building():
     print("[Step 2] 제조소 찾기 및 진입")
     
-    # 1. 건물 찾기 (수확 가능 or 일반)
-    target_img = "building_done.png"
-    loc = find_image(target_img, threshold=0.7)
-    
-    if not loc:
-        target_img = "building.png"
-        loc = find_image(target_img, threshold=0.7)
-        
-    if loc:
-        print(f"   🏭 건물 발견 ({target_img}) -> 클릭")
-        
-        # 🔥🔥🔥 [디버깅 추가] 클릭 위치 확인용 이미지 저장 🔥🔥🔥
-        try:
-            debug_img = cv2.imread("view.png") # find_image가 캡처해둔 이미지 로드
-            if debug_img is not None:
-                # loc[0], loc[1] 위치에 빨간색 동그라미 그리기
-                cv2.circle(debug_img, (loc[0], loc[1]), 20, (0, 0, 255), 5)
-                cv2.imwrite("debug_click_check.png", debug_img)
-                print("   📸 [디버깅] 클릭 위치 저장됨: debug_click_check.png 확인 필수!")
-        except Exception as e:
-            print(f"   ⚠️ 디버그 이미지 저장 실패: {e}")
-        # ---------------------------------------------------------
+    # 🚨 [추가 1] 팝업(불가사의 교체 등)이 떠 있다면 먼저 닫기
+    close_loc = find_image("close.png", threshold=0.8)
+    if close_loc:
+        print("   🧹 건물 찾기 전 방해되는 팝업 닫기")
+        click(close_loc[0], close_loc[1])
+        time.sleep(2.0)
 
-        click(loc[0], loc[1]) # 좌표 수정 없이 원본 좌표 클릭
-        # 🔥 [수정] 건물 클릭 후 버튼 뜰 때까지 약간 대기
+    # 우선순위 이미지 목록
+    target_images = ["building_done.png", "building.png"]
+    found_loc = None
+
+    # 🔍 [1차 시도] 현재 화면에서 찾기 (정확도 0.9로 상향)
+    for img_name in target_images:
+        loc = find_image(img_name, threshold=0.9)
+        if loc:
+            print(f"   🏭 (1차) 건물 발견 ({img_name}) -> 클릭")
+            found_loc = loc
+            break
+
+    # 🔍 [2차 시도] 못 찾았다면 4방향 스와이프하며 찾기
+    if not found_loc:
+        print("   🔭 현재 화면에 없음. 4방향 탐색을 시작합니다.")
+        
+        # 탐색 방향: 오른쪽, 아래, 왼쪽, 위 (화면 기준)
+        # (스와이프 제스처는 반대 방향이어야 시야가 이동됨)
+        # 좌표: start_x, start_y, end_x, end_y
+        swipe_moves = [
+            ("➡️ 오른쪽 보기", 1400, 540, 500, 540), 
+            ("⬇️ 아래 보기", 960, 800, 960, 300),   
+            ("⬅️ 왼쪽 보기", 500, 540, 1400, 540),
+            ("⬆️ 위 보기", 960, 300, 960, 800)
+        ]
+
+        for move_name, sx, sy, ex, ey in swipe_moves:
+            print(f"   🏃 {move_name}...")
+            run_adb(f'shell input swipe {sx} {sy} {ex} {ey} 800')
+            time.sleep(1.5) # 화면 멈출 때까지 대기
+
+            # 이동 후 다시 찾기
+            for img_name in target_images:
+                loc = find_image(img_name, threshold=0.9) # 여기서도 높은 정확도 유지
+                if loc:
+                    print(f"   🏭 (2차) {move_name} 후 발견! -> 클릭")
+                    found_loc = loc
+                    break
+            
+            if found_loc: break # 찾았으면 루프 탈출
+
+    # ✅ 건물을 찾았을 때 클릭 로직
+    if found_loc:
+        # 🔥 [좌표 보정] 건물 중앙(지붕)보다 30px 아래(바닥) 클릭
+        target_x = found_loc[0]
+        target_y = found_loc[1] + 30 
+
+        # [디버깅] 클릭 위치 저장
+        try:
+            debug_img = cv2.imread("view.png")
+            if debug_img is not None:
+                cv2.circle(debug_img, (target_x, target_y), 20, (0, 0, 255), 5)
+                cv2.imwrite("debug_click_check.png", debug_img)
+        except: pass
+
+        click(target_x, target_y)
         time.sleep(2.0)
     else:
-        print("   🔭 건물이 안 보여서 화면을 살짝 이동합니다.")
-        swipe_screen()
-        time.sleep(1.5)
-        loc = find_image("building.png", threshold=0.7)
-        if loc: 
-            click(loc[0], loc[1])
-            time.sleep(2.0)
-    
-    # 2. [진입] 버튼 찾기 (재시도 로직 추가)
+        print("   ❌ 결국 건물을 찾지 못했습니다. (메인 화면으로 복귀 시도)")
+        return False
+
+    # 3. [진입] 버튼 찾기
     for i in range(3): # 3번 시도
-        enter_btn = find_image("enter_factory.png", threshold=0.8)
+        enter_btn = find_image("enter_factory.png", threshold=0.85) # 버튼 정확도도 소폭 상향
         if enter_btn:
             print("   🔘 [진입] 버튼 발견 -> 클릭")
             click(enter_btn[0], enter_btn[1])
@@ -189,13 +220,14 @@ def step2_enter_building():
             return True
         else:
             print(f"   ⚠️ 진입 버튼 찾는 중... ({i+1}/3)")
-            # 혹시 건물이 제대로 안 눌렸을 수 있으니 건물 위치(loc)가 있으면 다시 클릭
-            if loc:
+            # 건물을 찾았는데(found_loc) 버튼이 안 떴다면 건물 다시 클릭
+            if found_loc:
                 print("   ♻️ 건물 다시 클릭 시도")
-                click(loc[0], loc[1])
+                # 여기서도 좌표 보정 적용
+                click(found_loc[0], found_loc[1] + 30)
             time.sleep(1.5)
     
-    print("   ❌ 결국 제조소 진입에 실패했습니다.")
+    print("   ❌ 건물은 찾았으나 [진입] 버튼이 안 뜹니다.")
     return False
 
 def step3_go_production():
@@ -214,10 +246,10 @@ def step3_go_production():
 # ================= 4. 메인 실행 =================
 
 def main():
-    # 👇 [추가] 창 위치 기억 기능 활성화
+    # 👇 창 위치 기억 기능 활성화
     window_manager.restore_and_autosave("제조소 24시간 구동")
 
-    print(f"=== 🏭 제조소 24시간 구동 (2시간 주기 / ADB 수정판) ===")
+    print(f"=== 🏭 제조소 24시간 구동 (2시간 주기 / 스마트 탐색 적용) ===")
     
     # ADB 연결 시도
     try:
@@ -231,7 +263,7 @@ def main():
     while True:
         # 1. 게임 끄고 켜기
         if step1_restart_game():
-            # 2. 건물 들어가기
+            # 2. 건물 들어가기 (스마트 탐색)
             if step2_enter_building():
                 # 3. 탭 누르기
                 step3_go_production()
