@@ -44,7 +44,6 @@ MATERIAL_INFO = {
 
 # ✅ 목표 리스트
 PRODUCTION_QUEUE = [
-    {"name": "바이오포일",     "icon": "res_bio.png",       "target": 10000},
     {"name": "유리",           "icon": "res_glass.png",     "target": 10000},
     {"name": "폴리카보네이트", "icon": "res_poly.png",      "target": 10000},
     {"name": "티타늄",         "icon": "res_titanium.png",  "target": 10000},
@@ -190,11 +189,10 @@ def check_active_border_and_get_center(center_x, center_y):
     screen_color = capture_screen(is_color=True)
     if screen_color is None: return False, None, None
     
-    # 🔥 [수정] 파란색 외부 박스 높이 축소 (244 -> 240, 아래쪽 4px 올림)
+    # 🔥 [수정] 박스 높이 3px 추가 축소 (240 -> 237)
     box_w = int(217 * SCALE_RATIO) 
-    box_h = int(240 * SCALE_RATIO) 
+    box_h = int(237 * SCALE_RATIO) 
     
-    # 이미지가 잘려서 중심이 위로 올라간 만큼, 박스를 아래로 내림 (유지)
     shift_down = int(42 * SCALE_RATIO) 
 
     roi_x = int(center_x - (box_w / 2))
@@ -218,7 +216,6 @@ def check_active_border_and_get_center(center_x, center_y):
     mask = mask1 + mask2
     
     mh, mw = mask.shape
-    # 1080p 마스킹 보정
     shift_mask_x = int(7 * SCALE_RATIO)
     shift_mask_y = int(-7 * SCALE_RATIO)
     cy = mh // 2 + shift_mask_y
@@ -230,8 +227,8 @@ def check_active_border_and_get_center(center_x, center_y):
     y2 = min(mh, cy + gap_h)
     x1 = max(0, cx - gap_w)
     
-    # 초록색 마스크 우측 보정 (5px 유지)
-    x2 = min(mw, cx + gap_w - int(5 * SCALE_RATIO))
+    # 🔥 [수정] 우측 마스킹 2px 추가 이동 (-5 -> -7)
+    x2 = min(mw, cx + gap_w - int(7 * SCALE_RATIO))
     
     mask[y1:y2, x1:x2] = 0
     
@@ -276,9 +273,11 @@ def _read_single_count(center_x, center_y):
     if screen_color is None: return 0
     screen_gray = cv2.cvtColor(screen_color, cv2.COLOR_BGR2GRAY)
     
-    # OCR 박스 위치 보정 (유지)
+    # 🔥 [수정] OCR 박스 위로 2px 이동 (-41 -> -39)
+    # Y값이 작을수록 위로 이동합니다.
+    
     offset_x = int(12 * SCALE_RATIO)     
-    offset_y = int(-37 * SCALE_RATIO)   
+    offset_y = int(-39 * SCALE_RATIO)   
     
     w = int(105 * SCALE_RATIO) 
     h = int(45 * SCALE_RATIO)  
