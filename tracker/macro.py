@@ -14,6 +14,10 @@ ADB_CMD = "adb"
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
 
+# 🔥 [중요] 도미네이션즈 패키지 이름 (한국/아시아 서버 기준)
+# 만약 이 이름으로 안 꺼지면, 구글 플레이 스토어 주소 끝부분을 확인해야 함.
+GAME_PACKAGE = "com.nexon.dominations.asia.adk" 
+
 # 🕒 반복 주기 (2시간)
 WAIT_TIME = 2 * 60 * 60 
 
@@ -89,7 +93,6 @@ def click(x, y):
     print(f"   👆 클릭: {x}, {y}")
 
 def swipe_screen():
-    # 화면 중앙을 살짝 움직여서 건물을 찾기 쉽게 함
     start_x = int(SCREEN_WIDTH * 0.6)
     end_x = int(SCREEN_WIDTH * 0.4)
     y = int(SCREEN_HEIGHT * 0.5)
@@ -98,20 +101,23 @@ def swipe_screen():
 # ================= 3. 핵심 로직 =================
 
 def step1_restart_game():
-    print("\n[Step 1] 게임 강제 종료 및 재접속")
-    # 1. 홈 키로 나감
+    print(f"\n[Step 1] 게임 강제 종료 및 재접속")
+    
+    # 🔥 1. 게임 강제 종료 (Kill Process)
+    print(f"   💀 앱 강제 종료: {GAME_PACKAGE}")
+    run_adb(f'shell am force-stop {GAME_PACKAGE}')
+    time.sleep(2.0)
+    
+    # 2. 홈 화면으로 이동 (바탕화면 아이콘 찾기 위해)
     run_adb('shell input keyevent KEYCODE_HOME')
     time.sleep(1.0)
-    
-    # 2. 최근 앱 열기 -> 모두 닫기 (메모리 정리)
-    # (일부 기기에서는 다를 수 있음, 여기선 홈->아이콘 클릭 방식을 씀)
     
     # 3. 게임 아이콘 찾아서 클릭
     loc = find_image("icon.png", threshold=0.8)
     if loc:
         click(loc[0], loc[1])
         print("   🚀 게임 실행 중... (40초 로딩 대기)")
-        time.sleep(40) # 넉넉하게 대기
+        time.sleep(40) # 로딩 시간 넉넉히
     else:
         print("   ⚠️ 바탕화면에서 게임 아이콘을 못 찾았습니다.")
         return False
@@ -180,11 +186,11 @@ def main():
     get_screen_resolution()
 
     while True:
-        # 1. 게임 켜기
+        # 1. 게임 끄고 켜기
         if step1_restart_game():
             # 2. 건물 들어가기
             if step2_enter_building():
-                # 3. 탭 누르기 (여기까지만 하면, 기존 생산된 건 자동 수거되고 창이 켜짐)
+                # 3. 탭 누르기
                 step3_go_production()
         
         # 4. 2시간 대기
@@ -194,7 +200,7 @@ def main():
         while remaining > 0:
             mins = remaining // 60
             print(f"   ⏳ 남은 시간: {mins}분      ", end='\r')
-            time.sleep(60) # 1분 단위 카운트다운
+            time.sleep(60) 
             remaining -= 60
         
         print("\n⏰ 대기 종료! 다시 시작합니다.\n")
