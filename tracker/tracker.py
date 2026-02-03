@@ -18,13 +18,15 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_DEVICE = "127.0.0.1:5555"
-CYCLE_INTERVAL = 200 # 3분 20초 (14개 스캔이므로 빠르게)
+CYCLE_INTERVAL = 200 # 3분 20초
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
 USE_DISCORD = True 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json") 
 HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
+# 🔥 [추가] 알림 보낸 내역 저장용 파일
+ALIAS_FILE_PATH = os.path.join(BASE_DIR, "aliases.json")
 
 # ================= 2. OCR 좌표 설정 =================
 SCORE_START_X = 1121    
@@ -166,6 +168,19 @@ def save_history(history_data):
     with open(HISTORY_FILE_PATH, "w", encoding="utf-8") as f:
         json.dump(history_data, f, ensure_ascii=False, indent=4)
 
+# 🔥 [추가] 알림 내역 불러오기/저장하기
+def load_aliases():
+    if os.path.exists(ALIAS_FILE_PATH):
+        try:
+            with open(ALIAS_FILE_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except: pass
+    return {}
+
+def save_aliases(data):
+    with open(ALIAS_FILE_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
 def upload_to_github():
     print("☁️ GitHub 업로드 시도...")
     try:
@@ -186,7 +201,7 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (안정성 최우선: 14위 감시 모드) ===")
+    print(f"=== 🤖 스마트 트래커 (알림 중복 방지 기능 탑재) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -196,6 +211,10 @@ def main():
 
     history_db = load_history()
     print(f"📂 히스토리 로드: {len(history_db)}개")
+    
+    # 🔥 [수정] 파일에서 알림 내역 불러오기
+    known_aliases = load_aliases() 
+    print(f"📂 알림 내역 로드: {len(known_aliases)}개")
 
     while True:
         start_time = time.time()
@@ -243,7 +262,6 @@ def main():
                 print(f"\n[Check: {current_time_str}]")
                 
                 scanned_items = []
-                # 1. 화면 스캔 (딱 14개만)
                 for i in range(14):
                     rank = int(i + 1)
                     raw_name = extract_guild_name(img, i)
@@ -260,16 +278,14 @@ def main():
                         'real_key': None
                     })
 
-                # 2. 매칭 알고리즘 (지문 인식)
+                # 2. 매칭 알고리즘
                 matched_db_keys = set()
                 
-                # [단계 1] 이름 일치 매칭
                 for item in scanned_items:
                     if item['display_name'] in history_db:
                         item['real_key'] = item['display_name']
                         matched_db_keys.add(item['display_name'])
 
-                # [단계 2] 변장 감지 매칭
                 for item in scanned_items:
                     if item['real_key'] is None:
                         found_original_name = None
@@ -288,12 +304,11 @@ def main():
                         if found_original_name:
                             item['real_key'] = found_original_name
                             matched_db_keys.add(found_original_name)
-                            print(f"  🕵️‍♂️ [신분 확인] {item['display_name']} -> {found_original_name} (변장 감지)")
+                            print(f"  🕵️‍♂️ [신분 확인] {item['display_name']} -> {found_original_name}")
                         else:
-                            # 매칭 실패 시 화면 이름 사용
                             item['real_key'] = item['display_name']
 
-                # 3. [최종 방어선] 중복 키 해결 (동명이인 처리)
+                # 3. 중복 키 해결
                 key_counts = {}
                 for item in scanned_items:
                     k = item['real_key']
@@ -304,7 +319,7 @@ def main():
                     if len(items) > 1:
                         items.sort(key=lambda x: x['score'], reverse=True)
                         for idx, item in enumerate(items):
-                            suffix = chr(65 + idx) # A, B...
+                            suffix = chr(65 + idx)
                             item['real_key'] = f"{k} ({suffix})"
 
                 # 4. 결과 처리 및 저장
@@ -315,6 +330,27 @@ def main():
                     ww = item['ww']
                     rank = item['rank']
                     display_name = item['display_name']
+
+                    # 🔥 [수정] 파일에 저장된 내역과 비교 (재부팅해도 유지됨)
+                    if final_key != display_name:
+                        if (final_key not in known_aliases) or (known_aliases[final_key] != display_name):
+                            print(f"  🔔 [알림] 이름 변경 감지: {final_key} -> {display_name}")
+                            
+                            fields = [
+                                {"name": "원래 이름 (DB)", "value": f"**{final_key}**", "inline": True},
+                                {"name": "현재 표시 이름", "value": f"**{display_name}**", "inline": True},
+                                {"name": "판단 근거", "value": f"점수({score})와 월드워({ww}회)가 일치함", "inline": False}
+                            ]
+                            send_discord_msg("🏷️ 길드명 변경 감지", f"봇이 **{final_key}** 길드가 이름을 변경한 것으로 판단했습니다.", color=3447003, fields=fields, image_path=captured_path)
+                            
+                            # 알림 보냈음을 기록하고 즉시 파일 저장
+                            known_aliases[final_key] = display_name
+                            save_aliases(known_aliases)
+                    else:
+                        # 이름이 다시 원래대로 돌아왔다면, 기록 삭제 (나중에 또 바꾸면 알림 줘야 하니까)
+                        if final_key in known_aliases:
+                            del known_aliases[final_key]
+                            save_aliases(known_aliases)
 
                     if final_key not in history_db: history_db[final_key] = []
                     guild_logs = history_db[final_key]
