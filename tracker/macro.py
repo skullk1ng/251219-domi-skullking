@@ -5,30 +5,21 @@ import os
 import subprocess
 import sys
 import re
-import window_manager  # 👈 [추가] 창 관리 모듈
+import window_manager
 
 # ✅ 한글 출력 깨짐 방지
 sys.stdout.reconfigure(encoding='utf-8')
 
 # ================= 1. 기본 설정 =================
-
-# 🔥 [핵심] 블루스택 전용 ADB 경로로 고정 (버전 충돌 방지)
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
-
-# 게임 패키지 이름
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
-
-# 포트 번호
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
-
-# 🕒 반복 주기 (2시간)
 WAIT_TIME = 2 * 60 * 60 
 
-# 화면 해상도 (자동 감지)
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
-SCALE_RATIO = 1.0
+# 해상도 비율 (자동 계산됨)
+REAL_RATIO_X = 1.0
+REAL_RATIO_Y = 1.0
 
 # ================= 2. 기본 함수들 =================
 
@@ -44,21 +35,36 @@ def run_adb_output(command):
         return result.decode('utf-8').strip()
     except: return ""
 
-def get_screen_resolution():
-    global SCREEN_WIDTH, SCREEN_HEIGHT, SCALE_RATIO
-    print("📏 화면 해상도 확인 중...")
-    output = run_adb_output("shell wm size") 
+def update_screen_ratio(image_shape):
+    """
+    캡처된 이미지 크기와 실제 ADB 입력 해상도를 비교하여 비율을 계산합니다.
+    """
+    global REAL_RATIO_X, REAL_RATIO_Y
+    
+    # 1. 이미지 해상도 (OpenCV는 H, W 순서)
+    img_h, img_w = image_shape[:2]
+    
+    # 2. ADB 해상도 가져오기
+    output = run_adb_output("shell wm size")
     match = re.search(r'(\d+)x(\d+)', output)
+    
     if match:
-        w = int(match.group(1))
-        h = int(match.group(2))
-        if h > w: SCREEN_WIDTH, SCREEN_HEIGHT = h, w
-        else: SCREEN_WIDTH, SCREEN_HEIGHT = w, h
+        # wm size는 보통 "Physical size: WxH" 형식
+        # 하지만 가로/세로 모드에 따라 값이 뒤집힐 수 있으므로 큰 값을 너비로 간주
+        val1 = int(match.group(1))
+        val2 = int(match.group(2))
         
-        SCALE_RATIO = SCREEN_WIDTH / 1920.0
-        print(f"   📺 감지된 해상도: {SCREEN_WIDTH} x {SCREEN_HEIGHT}")
+        adb_w = max(val1, val2) # 가로 모드 강제 가정 (1920)
+        adb_h = min(val1, val2) # (1080)
+        
+        # 3. 비율 계산
+        REAL_RATIO_X = adb_w / img_w
+        REAL_RATIO_Y = adb_h / img_h
+        
+        print(f"   📏 [해상도 보정] 이미지({img_w}x{img_h}) vs 기기({adb_w}x{adb_h})")
+        print(f"   ✨ 보정 비율: X={REAL_RATIO_X:.4f}, Y={REAL_RATIO_Y:.4f}")
     else:
-        print("   ⚠️ 해상도 감지 실패. 1080p 기준으로 진행합니다.")
+        print("   ⚠️ ADB 해상도 확인 실패, 비율 1.0 유지")
 
 def capture_screen():
     try:
@@ -66,7 +72,11 @@ def capture_screen():
         run_adb(f'shell screencap -p /sdcard/{filename}')
         run_adb(f'pull /sdcard/{filename} .')
         if os.path.exists(filename):
-            return cv2.imread(filename)
+            img = cv2.imread(filename)
+            # 이미지를 처음 읽었을 때 해상도 비율 갱신
+            if img is not None:
+                update_screen_ratio(img.shape)
+            return img
         return None
     except: return None
 
@@ -75,7 +85,7 @@ def find_image(target_file, threshold=0.8):
         print(f"   ⚠️ 파일 없음: {target_file}")
         return None
     
-    screen = capture_screen()
+    screen = capture_screen() # 여기서 비율 계산됨
     if screen is None: return None
     
     template = cv2.imread(target_file, cv2.IMREAD_UNCHANGED)
@@ -92,33 +102,32 @@ def find_image(target_file, threshold=0.8):
     
     if max_val >= threshold:
         h, w = template.shape[:2]
+        # 이미지 상의 좌표 (아직 클릭 좌표 아님)
         return int(max_loc[0] + w/2), int(max_loc[1] + h/2)
     return None
 
 def click(x, y):
-    run_adb(f'shell input tap {x} {y}')
-    print(f"   👆 클릭: {x}, {y}")
+    # 🔥 [핵심 수정] 비율을 적용하여 실제 클릭 좌표 계산
+    real_x = int(x * REAL_RATIO_X)
+    real_y = int(y * REAL_RATIO_Y)
+    
+    # Swipe로 클릭 (정확도 향상)
+    run_adb(f'shell input swipe {real_x} {real_y} {real_x} {real_y} 100')
+    print(f"   👆 클릭: ({real_x}, {real_y}) [원본: {x}, {y}]")
 
 def swipe_screen():
-    start_x = int(SCREEN_WIDTH * 0.6)
-    end_x = int(SCREEN_WIDTH * 0.4)
-    y = int(SCREEN_HEIGHT * 0.5)
-    run_adb(f'shell input swipe {start_x} {y} {end_x} {y} 500')
+    # 스와이프는 비율 계산 안 해도 대충 밀면 됨
+    run_adb('shell input swipe 1200 540 800 540 500')
 
 # ================= 3. 핵심 로직 =================
 
 def step1_restart_game():
     print(f"\n[Step 1] 게임 강제 종료 및 재접속")
-    
-    # 1. 게임 강제 종료
     run_adb(f'shell am force-stop {GAME_PACKAGE}')
     time.sleep(2.0)
-    
-    # 2. 홈 화면 이동
     run_adb('shell input keyevent KEYCODE_HOME')
     time.sleep(1.0)
     
-    # 3. 게임 실행
     loc = find_image("icon.png", threshold=0.8)
     if loc:
         click(loc[0], loc[1])
@@ -128,7 +137,6 @@ def step1_restart_game():
         print("   ⚠️ 바탕화면에서 게임 아이콘을 못 찾았습니다.")
         return False
 
-    # 4. 팝업 닫기
     print("   🧹 팝업/광고 닫기 시도...")
     for _ in range(5):
         close_loc = find_image("close.png", threshold=0.8)
@@ -142,92 +150,83 @@ def step1_restart_game():
 def step2_enter_building():
     print("[Step 2] 제조소 찾기 및 진입")
     
-    # 🚨 [추가 1] 팝업(불가사의 교체 등)이 떠 있다면 먼저 닫기
     close_loc = find_image("close.png", threshold=0.8)
     if close_loc:
-        print("   🧹 건물 찾기 전 방해되는 팝업 닫기")
+        print("   🧹 팝업 닫기")
         click(close_loc[0], close_loc[1])
         time.sleep(2.0)
 
-    # 우선순위 이미지 목록
     target_images = ["building_done.png", "building.png"]
     found_loc = None
 
-    # 🔍 [1차 시도] 현재 화면에서 찾기 (정확도 0.9로 상향)
+    # 1차 탐색
     for img_name in target_images:
         loc = find_image(img_name, threshold=0.9)
         if loc:
-            print(f"   🏭 (1차) 건물 발견 ({img_name}) -> 클릭")
+            print(f"   🏭 (1차) 건물 발견 ({img_name})")
             found_loc = loc
             break
 
-    # 🔍 [2차 시도] 못 찾았다면 4방향 스와이프하며 찾기
+    # 2차 탐색 (4방향)
     if not found_loc:
-        print("   🔭 현재 화면에 없음. 4방향 탐색을 시작합니다.")
-        
-        # 탐색 방향: 오른쪽, 아래, 왼쪽, 위 (화면 기준)
-        # (스와이프 제스처는 반대 방향이어야 시야가 이동됨)
-        # 좌표: start_x, start_y, end_x, end_y
+        print("   🔭 4방향 탐색 시작")
+        # 스와이프는 대략적인 좌표라 하드코딩 유지 (비율 영향 적음)
         swipe_moves = [
             ("➡️ 오른쪽 보기", 1400, 540, 500, 540), 
             ("⬇️ 아래 보기", 960, 800, 960, 300),   
             ("⬅️ 왼쪽 보기", 500, 540, 1400, 540),
             ("⬆️ 위 보기", 960, 300, 960, 800)
         ]
-
         for move_name, sx, sy, ex, ey in swipe_moves:
-            print(f"   🏃 {move_name}...")
+            print(f"   🏃 {move_name}")
             run_adb(f'shell input swipe {sx} {sy} {ex} {ey} 800')
-            time.sleep(1.5) # 화면 멈출 때까지 대기
-
-            # 이동 후 다시 찾기
+            time.sleep(1.5)
             for img_name in target_images:
-                loc = find_image(img_name, threshold=0.9) # 여기서도 높은 정확도 유지
+                loc = find_image(img_name, threshold=0.9)
                 if loc:
-                    print(f"   🏭 (2차) {move_name} 후 발견! -> 클릭")
+                    print(f"   🏭 (2차) 발견!")
                     found_loc = loc
                     break
-            
-            if found_loc: break # 찾았으면 루프 탈출
+            if found_loc: break
 
-    # ✅ 건물을 찾았을 때 클릭 로직
+    # ✅ 클릭 실행
     if found_loc:
-        # 🔥 [좌표 보정] 건물 중앙(지붕)보다 30px 아래(바닥) 클릭
+        # 🚨 [임의 보정 삭제] 사용자 요청대로 보정 없이 원본 좌표 사용
         target_x = found_loc[0]
-        target_y = found_loc[1] + 30 
+        target_y = found_loc[1]
 
-        # [디버깅] 클릭 위치 저장
+        # 디버깅 이미지 저장
         try:
             debug_img = cv2.imread("view.png")
             if debug_img is not None:
-                cv2.circle(debug_img, (target_x, target_y), 20, (0, 0, 255), 5)
+                cv2.circle(debug_img, (target_x, target_y), 15, (0, 0, 255), 4)
                 cv2.imwrite("debug_click_check.png", debug_img)
+                print("   📸 [디버깅] 클릭 위치 저장됨")
         except: pass
 
+        # 여기 click() 함수 안에서 비율(Scale) 보정이 자동으로 일어납니다.
         click(target_x, target_y)
         time.sleep(2.0)
     else:
-        print("   ❌ 결국 건물을 찾지 못했습니다. (메인 화면으로 복귀 시도)")
+        print("   ❌ 건물을 찾지 못했습니다.")
         return False
 
-    # 3. [진입] 버튼 찾기
-    for i in range(3): # 3번 시도
-        enter_btn = find_image("enter_factory.png", threshold=0.85) # 버튼 정확도도 소폭 상향
+    # 진입 버튼 클릭
+    for i in range(3):
+        enter_btn = find_image("enter_factory.png", threshold=0.85)
         if enter_btn:
-            print("   🔘 [진입] 버튼 발견 -> 클릭")
+            print("   🔘 [진입] 버튼 클릭")
             click(enter_btn[0], enter_btn[1])
-            time.sleep(3) # 화면 전환 대기
+            time.sleep(3)
             return True
         else:
-            print(f"   ⚠️ 진입 버튼 찾는 중... ({i+1}/3)")
-            # 건물을 찾았는데(found_loc) 버튼이 안 떴다면 건물 다시 클릭
+            print(f"   ⚠️ 버튼 대기 중... ({i+1}/3)")
             if found_loc:
-                print("   ♻️ 건물 다시 클릭 시도")
-                # 여기서도 좌표 보정 적용
-                click(found_loc[0], found_loc[1] + 30)
+                print("   ♻️ 건물 재클릭")
+                click(found_loc[0], found_loc[1])
             time.sleep(1.5)
     
-    print("   ❌ 건물은 찾았으나 [진입] 버튼이 안 뜹니다.")
+    print("   ❌ 진입 실패")
     return False
 
 def step3_go_production():
@@ -236,49 +235,36 @@ def step3_go_production():
         loc = find_image("tab.png", threshold=0.8)
         if loc:
             click(loc[0], loc[1])
-            print("   ✅ [생산] 탭 클릭 완료")
+            print("   ✅ [생산] 탭 클릭")
             return True
         time.sleep(1)
-    
-    print("   ⚠️ 생산 탭을 못 찾았습니다.")
+    print("   ⚠️ 생산 탭 못 찾음")
     return False
 
-# ================= 4. 메인 실행 =================
-
 def main():
-    # 👇 창 위치 기억 기능 활성화
     window_manager.restore_and_autosave("제조소 24시간 구동")
-
-    print(f"=== 🏭 제조소 24시간 구동 (2시간 주기 / 스마트 탐색 적용) ===")
+    print(f"=== 🏭 제조소 24시간 구동 (자동 스케일링 적용) ===")
     
-    # ADB 연결 시도
     try:
         subprocess.call(f'"{ADB_CMD}" connect {DEVICE_ADDRESS}', shell=True)
-    except Exception as e:
-        print(f"❌ ADB 연결 실패: {e}")
-        return
-
-    get_screen_resolution()
+    except: pass
+    
+    # 캡처 한 번 떠서 해상도 비율 초기화
+    capture_screen()
 
     while True:
-        # 1. 게임 끄고 켜기
         if step1_restart_game():
-            # 2. 건물 들어가기 (스마트 탐색)
             if step2_enter_building():
-                # 3. 탭 누르기
                 step3_go_production()
         
-        # 4. 2시간 대기
-        print(f"\n💤 작업 완료. 2시간({WAIT_TIME}초) 동안 대기합니다...")
+        print(f"\n💤 2시간 대기 시작...")
         remaining = WAIT_TIME
-        
         while remaining > 0:
             mins = remaining // 60
-            print(f"   ⏳ 남은 시간: {mins}분       ", end='\r')
-            time.sleep(60) 
+            print(f"   ⏳ {mins}분 남음...   ", end='\r')
+            time.sleep(60)
             remaining -= 60
-        
-        print("\n⏰ 대기 종료! 다시 시작합니다.\n")
+        print("\n⏰ 재시작\n")
 
 if __name__ == "__main__":
     main()
