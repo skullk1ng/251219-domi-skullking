@@ -208,7 +208,7 @@ def get_last_baseline_time(logs):
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (초기화 날짜 예외 처리) ===")
+    print(f"=== 🤖 스마트 트래커 (로그 최대 10개) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -426,7 +426,8 @@ def main():
                             
                             new_log = {'score': score, 'ww': ww, 'time': log_time, 'type': change_type}
                             guild_logs.insert(0, new_log)
-                            if len(guild_logs) > 5: guild_logs = guild_logs[:5]
+                            # 🔥 [수정] 최대 10개까지 저장
+                            if len(guild_logs) > 10: guild_logs = guild_logs[:10]
                             history_db[final_key] = guild_logs
                         else:
                             if guild_logs: guild_logs[0]['ww'] = ww
