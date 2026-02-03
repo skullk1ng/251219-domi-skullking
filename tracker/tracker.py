@@ -18,7 +18,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_DEVICE = "127.0.0.1:5555"
-CYCLE_INTERVAL = 300 
+CYCLE_INTERVAL = 200 # 3분 20초 (14개 스캔이므로 빠르게)
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
 USE_DISCORD = True 
 
@@ -114,14 +114,6 @@ def click(x, y):
     run_adb(f'shell input tap {x} {y}')
     print(f"👆 클릭: ({x}, {y})")
 
-# 🔥 [수정] 정확히 한 페이지 넘기는 함수
-def move_to_next_page():
-    # 1페이지(1~14위) -> 2페이지(15~28위) 이동을 위한 정밀 좌표
-    # 하단(960, 950)에서 상단 헤더 바로 아래(960, 140)까지 천천히 드래그
-    print("📜 [페이지 이동] 15위~28위를 보기 위해 화면을 넘깁니다...")
-    run_adb("shell input swipe 960 950 960 140 1500") 
-    time.sleep(3) # 애니메이션 안정화 대기
-
 def force_close_app():
     print(f"💀 게임 강제 종료 (패키지: {GAME_PACKAGE})")
     run_adb(f'shell am force-stop {GAME_PACKAGE}')
@@ -149,7 +141,6 @@ def extract_number(image, x, y, w, h):
         return 0
 
 def extract_guild_name(image, rank):
-    # rank는 0~13 (화면 내 순번)
     y = int(START_Y + (rank * ROW_GAP))
     x = GUILD_START_X
     w = GUILD_WIDTH
@@ -195,7 +186,7 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (1위~28위 정밀 스캔 모드) ===")
+    print(f"=== 🤖 스마트 트래커 (안정성 최우선: 14위 감시 모드) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -242,150 +233,133 @@ def main():
         if not entered_tournament:
             print("⚠️ 토너먼트 진입 실패. 다시 시작합니다.")
         else:
-            print("📊 전체 순위표(1위~28위) 정밀 스캔 시작...")
+            print("📊 상위 14개 길드 스캔 및 분석 중...")
             time.sleep(5)
             
-            current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n[Check: {current_time_str}]")
+            img, captured_path = capture_screen(is_ocr=True)
             
-            full_scanned_items = []
-            
-            # 🔥 딱 2번(2페이지)만 스캔
-            for page in range(2):
-                img, captured_path = capture_screen(is_ocr=True)
-                if img is None: continue
+            if img is not None:
+                current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"\n[Check: {current_time_str}]")
                 
-                print(f"📸 페이지 {page+1} (순위 {page*14 + 1} ~ {(page+1)*14}) 분석 중...")
-                
+                scanned_items = []
+                # 1. 화면 스캔 (딱 14개만)
                 for i in range(14):
-                    # 🔥 [핵심] 순위는 OCR로 읽지 않고 계산으로 처리 (100% 정확)
-                    # 1페이지(page=0) -> 1, 2, 3 ... 14
-                    # 2페이지(page=1) -> 15, 16, 17 ... 28
-                    calculated_rank = (page * 14) + (i + 1)
-                    
-                    y_pos = int(START_Y + (i * ROW_GAP))
-                    
+                    rank = int(i + 1)
                     raw_name = extract_guild_name(img, i)
                     if not raw_name: raw_name = "Unknown"
+                    y_pos = int(START_Y + (i * ROW_GAP))
                     score = extract_number(img, SCORE_START_X, y_pos, SCORE_WIDTH, HEIGHT)
                     ww = extract_number(img, WW_START_X, y_pos, WW_WIDTH, HEIGHT)
-                    
-                    full_scanned_items.append({
-                        'rank': calculated_rank,
+
+                    scanned_items.append({
+                        'rank': rank,
                         'display_name': raw_name,
                         'score': score,
                         'ww': ww,
                         'real_key': None
                     })
+
+                # 2. 매칭 알고리즘 (지문 인식)
+                matched_db_keys = set()
                 
-                # 1페이지 스캔이 끝나면 다음 페이지로 넘김 (마지막 페이지에선 안 넘김)
-                if page == 0:
-                    move_to_next_page()
-                    # 2페이지 로딩된 후 다시 캡처를 위해 루프 반복
-            
-            print(f"📋 총 {len(full_scanned_items)}개의 길드 정보를 수집했습니다.")
-
-            # ========================================================
-            # 👇 기존 로직과 동일 (매칭 -> 분석 -> 저장)
-            # ========================================================
-
-            # 2. 매칭 알고리즘 (지문 인식)
-            matched_db_keys = set()
-            
-            # [단계 1] 이름 일치 매칭
-            for item in full_scanned_items:
-                if item['display_name'] in history_db:
-                    item['real_key'] = item['display_name']
-                    matched_db_keys.add(item['display_name'])
-
-            # [단계 2] 변장 감지 매칭
-            for item in full_scanned_items:
-                if item['real_key'] is None:
-                    found_original_name = None
-                    for db_key, logs in history_db.items():
-                        if not logs: continue
-                        if db_key in matched_db_keys: continue
-                        last_log = logs[0]
-                        last_score = last_log.get('score', 0)
-                        last_ww = last_log.get('ww', -1)
-                        if last_ww == -1: continue
-
-                        if (item['score'] == last_score) and (item['ww'] == last_ww):
-                            found_original_name = db_key
-                            break
-                    
-                    if found_original_name:
-                        item['real_key'] = found_original_name
-                        matched_db_keys.add(found_original_name)
-                        print(f"  🕵️‍♂️ [신분 확인] #{item['rank']} {item['display_name']} -> {found_original_name}")
-                    else:
+                # [단계 1] 이름 일치 매칭
+                for item in scanned_items:
+                    if item['display_name'] in history_db:
                         item['real_key'] = item['display_name']
+                        matched_db_keys.add(item['display_name'])
 
-            # 3. [최종 방어선] 중복 키 해결
-            key_counts = {}
-            for item in full_scanned_items:
-                k = item['real_key']
-                if k not in key_counts: key_counts[k] = []
-                key_counts[k].append(item)
-            
-            for k, items in key_counts.items():
-                if len(items) > 1:
-                    items.sort(key=lambda x: x['score'], reverse=True)
-                    for idx, item in enumerate(items):
-                        suffix = chr(65 + idx)
-                        item['real_key'] = f"{k} ({suffix})"
+                # [단계 2] 변장 감지 매칭
+                for item in scanned_items:
+                    if item['real_key'] is None:
+                        found_original_name = None
+                        for db_key, logs in history_db.items():
+                            if not logs: continue
+                            if db_key in matched_db_keys: continue
+                            last_log = logs[0]
+                            last_score = last_log.get('score', 0)
+                            last_ww = last_log.get('ww', -1)
+                            if last_ww == -1: continue
 
-            # 4. 결과 처리 및 저장
-            current_display_data = {}
-            for item in full_scanned_items:
-                final_key = item['real_key']
-                score = item['score']
-                ww = item['ww']
-                rank = item['rank']
-                display_name = item['display_name']
-
-                if final_key not in history_db: history_db[final_key] = []
-                guild_logs = history_db[final_key]
-                last_score = guild_logs[0]['score'] if guild_logs else 0
-                
-                if score != 0:
-                    if score != last_score:
-                        print(f"  🔔 변동: {final_key} ({last_score} -> {score})")
-                        desc_text = f"**{final_key}** (#{rank})"
-                        if final_key != display_name:
-                            desc_text += f"\n(현재 닉네임: {display_name})"
-                        fields = [
-                            {"name": "기존 점수", "value": f"{last_score}", "inline": True},
-                            {"name": "현재 점수", "value": f"**{score}**", "inline": True},
-                            {"name": "변동폭", "value": f"+{score - last_score}", "inline": True}
-                        ]
-                        send_discord_msg("📈 순위 변동 감지", desc_text, fields=fields, image_path=captured_path)
+                            if (item['score'] == last_score) and (item['ww'] == last_ww):
+                                found_original_name = db_key
+                                break
                         
-                        guild_logs.insert(0, {'score': score, 'ww': ww, 'time': current_time_str})
-                        if len(guild_logs) > 5: guild_logs = guild_logs[:5]
-                        history_db[final_key] = guild_logs
-                    else:
-                        if guild_logs: guild_logs[0]['ww'] = ww
+                        if found_original_name:
+                            item['real_key'] = found_original_name
+                            matched_db_keys.add(found_original_name)
+                            print(f"  🕵️‍♂️ [신분 확인] {item['display_name']} -> {found_original_name} (변장 감지)")
+                        else:
+                            # 매칭 실패 시 화면 이름 사용
+                            item['real_key'] = item['display_name']
 
-                current_display_data[rank] = {
-                    'name': final_key, 
-                    'score': score, 
-                    'ww': ww, 
-                    'time': current_time_str, 
-                    'history': history_db[final_key],
-                    'current_alias': display_name
-                }
+                # 3. [최종 방어선] 중복 키 해결 (동명이인 처리)
+                key_counts = {}
+                for item in scanned_items:
+                    k = item['real_key']
+                    if k not in key_counts: key_counts[k] = []
+                    key_counts[k].append(item)
                 
-                log_text = f"#{rank} | {final_key} | {score}"
-                if final_key != display_name:
-                    log_text += f" (Alias: {display_name})"
-                print(log_text)
+                for k, items in key_counts.items():
+                    if len(items) > 1:
+                        items.sort(key=lambda x: x['score'], reverse=True)
+                        for idx, item in enumerate(items):
+                            suffix = chr(65 + idx) # A, B...
+                            item['real_key'] = f"{k} ({suffix})"
 
-            save_history(history_db)
-            with open(DATA_FILE_PATH, "w", encoding="utf-8") as f:
-                json.dump(current_display_data, f, ensure_ascii=False, indent=4)
-                print("💾 데이터 저장 완료")
-            upload_to_github()
+                # 4. 결과 처리 및 저장
+                current_display_data = {}
+                for item in scanned_items:
+                    final_key = item['real_key']
+                    score = item['score']
+                    ww = item['ww']
+                    rank = item['rank']
+                    display_name = item['display_name']
+
+                    if final_key not in history_db: history_db[final_key] = []
+                    guild_logs = history_db[final_key]
+                    last_score = guild_logs[0]['score'] if guild_logs else 0
+                    
+                    if score != 0:
+                        if score != last_score:
+                            print(f"  🔔 변동: {final_key} ({last_score} -> {score})")
+                            desc_text = f"**{final_key}**"
+                            if final_key != display_name:
+                                desc_text += f"\n(현재 닉네임: {display_name})"
+                            fields = [
+                                {"name": "기존 점수", "value": f"{last_score}", "inline": True},
+                                {"name": "현재 점수", "value": f"**{score}**", "inline": True},
+                                {"name": "변동폭", "value": f"+{score - last_score}", "inline": True}
+                            ]
+                            send_discord_msg("📈 순위 변동 감지", desc_text, fields=fields, image_path=captured_path)
+                            
+                            guild_logs.insert(0, {'score': score, 'ww': ww, 'time': current_time_str})
+                            if len(guild_logs) > 5: guild_logs = guild_logs[:5]
+                            history_db[final_key] = guild_logs
+                        else:
+                            if guild_logs: guild_logs[0]['ww'] = ww
+
+                    current_display_data[rank] = {
+                        'name': final_key, 
+                        'score': score, 
+                        'ww': ww, 
+                        'time': current_time_str, 
+                        'history': history_db[final_key],
+                        'current_alias': display_name
+                    }
+                    
+                    log_text = f"#{rank} | {final_key} | {score}"
+                    if final_key != display_name:
+                        log_text += f" (Alias: {display_name})"
+                    print(log_text)
+
+                save_history(history_db)
+                with open(DATA_FILE_PATH, "w", encoding="utf-8") as f:
+                    json.dump(current_display_data, f, ensure_ascii=False, indent=4)
+                    print("💾 데이터 저장 완료")
+                upload_to_github()
+            else:
+                print("⚠️ OCR 캡처 실패")
 
         elapsed_time = time.time() - start_time
         wait_seconds = int(max(0, CYCLE_INTERVAL - elapsed_time))
