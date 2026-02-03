@@ -17,7 +17,8 @@ TARGET_PORT = "5565"
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
 WAIT_TIME = 2 * 60 * 60 
 
-# 해상도 비율 고정 (자동 계산 삭제 -> 1:1 강제)
+# 🔥 [핵심 수정] 해상도 비율 자동 계산 삭제 -> 1.0으로 강제 고정
+# (미사일 격납고가 눌리는 현상 해결)
 REAL_RATIO_X = 1.0
 REAL_RATIO_Y = 1.0
 
@@ -41,7 +42,6 @@ def capture_screen():
 
 def find_image(target_file, threshold=0.8):
     if not os.path.exists(target_file):
-        print(f"   ⚠️ 파일 없음: {target_file}")
         return None
     
     screen = capture_screen()
@@ -50,7 +50,6 @@ def find_image(target_file, threshold=0.8):
     template = cv2.imread(target_file, cv2.IMREAD_UNCHANGED)
     if template is None: return None
 
-    # 투명 배경 처리 (Alpha Channel)
     if template.shape[2] == 4:
         template_img = template[:, :, :3]
         mask = template[:, :, 3]
@@ -62,12 +61,11 @@ def find_image(target_file, threshold=0.8):
     
     if max_val >= threshold:
         h, w = template.shape[:2]
-        # 이미지의 중앙 좌표 리턴
         return int(max_loc[0] + w/2), int(max_loc[1] + h/2)
     return None
 
 def click(x, y):
-    # 🔥 [수정] 1:1 비율 그대로 클릭 (Swipe로 꾹 누르기)
+    # Swipe로 꾹 누르기 (좌표 변환 없이 입력값 그대로 사용)
     run_adb(f'shell input swipe {x} {y} {x} {y} 100')
     print(f"   👆 클릭: ({x}, {y})")
 
@@ -89,29 +87,35 @@ def step1_restart_game():
         print("   ⚠️ 바탕화면에서 게임 아이콘을 못 찾았습니다.")
         return False
 
-    print("   🧹 팝업/광고 닫기 시도...")
-    for _ in range(5):
-        close_loc = find_image("close.png", threshold=0.8)
+    # 🔥 [수정] 광고 닫기 로직 최적화
+    # 5번 반복하지 않고, 1~2번만 빠르게 체크하고 없으면 바로 넘어감
+    print("   👀 팝업/광고 확인 중...")
+    for _ in range(2):
+        # 닫기 버튼은 오인식이 많으므로 정확도(threshold)를 0.85로 높게 설정
+        close_loc = find_image("close.png", threshold=0.85)
         if close_loc:
+            print("   🧹 팝업 발견 -> 닫기")
             click(close_loc[0], close_loc[1])
             time.sleep(1.5)
         else:
-            break
+            print("   ✨ 팝업 없음 -> 즉시 진행")
+            break # 팝업 없으면 반복문 탈출 -> 바로 Step 2로 이동
     return True
 
 def step2_enter_building():
     print("[Step 2] 제조소 찾기 및 진입")
     
-    close_loc = find_image("close.png", threshold=0.8)
+    # 혹시 모를 잔여 팝업 1회 체크 (없으면 통과)
+    close_loc = find_image("close.png", threshold=0.85)
     if close_loc:
-        print("   🧹 팝업 닫기")
+        print("   🧹 잔여 팝업 닫기")
         click(close_loc[0], close_loc[1])
-        time.sleep(2.0)
+        time.sleep(1.5)
 
     target_images = ["building_done.png", "building.png"]
     found_loc = None
 
-    # 1차 탐색
+    # 1. 1차 탐색
     for img_name in target_images:
         loc = find_image(img_name, threshold=0.9)
         if loc:
@@ -119,7 +123,7 @@ def step2_enter_building():
             found_loc = loc
             break
 
-    # 2차 탐색 (스와이프)
+    # 2. 2차 탐색 (스와이프)
     if not found_loc:
         print("   🔭 4방향 탐색 시작")
         swipe_moves = [
@@ -142,21 +146,18 @@ def step2_enter_building():
 
     # ✅ 클릭 실행
     if found_loc:
-        # 🔥 [최종 보정]
-        # 원인 1: 아크로폴리스 클릭됨 -> 오른쪽(+20)으로 피하기
-        # 원인 2: 미사일 격납고 클릭됨 -> 비율 문제였으므로 1:1 복구
-        # 원인 3: 지붕 인식됨 -> 바닥(+70)으로 내리기
-        
-        target_x = found_loc[0] + 20  # 오른쪽으로 살짝
-        target_y = found_loc[1] + 70  # 아래로 많이
+        # 🔥 [좌표 보정]
+        # 아크로폴리스 회피(+20) + 바닥 클릭(+70)
+        target_x = found_loc[0] + 20
+        target_y = found_loc[1] + 70
 
-        # 디버깅 이미지 저장
+        # 디버깅 저장
         try:
             debug_img = cv2.imread("view.png")
             if debug_img is not None:
                 cv2.circle(debug_img, (target_x, target_y), 15, (0, 0, 255), 4)
                 cv2.imwrite("debug_click_check.png", debug_img)
-                print(f"   📸 [디버깅] 클릭 예정 좌표: {target_x}, {target_y}")
+                print(f"   📸 [디버깅] 클릭 예정: {target_x}, {target_y}")
         except: pass
 
         click(target_x, target_y)
@@ -177,7 +178,7 @@ def step2_enter_building():
             print(f"   ⚠️ 버튼 대기 중... ({i+1}/3)")
             if found_loc:
                 print("   ♻️ 건물 재클릭")
-                # 재시도 할 때도 보정된 좌표 사용
+                # 재시도 시에도 보정 좌표 사용
                 click(found_loc[0] + 20, found_loc[1] + 70)
             time.sleep(1.5)
     
@@ -190,7 +191,7 @@ def step3_go_production():
         loc = find_image("tab.png", threshold=0.8)
         if loc:
             click(loc[0], loc[1])
-            print("   ✅ [생산] 탭 클릭 완료")
+            print("   ✅ [생산] 탭 클릭")
             return True
         time.sleep(1)
     print("   ⚠️ 생산 탭 못 찾음")
@@ -198,7 +199,7 @@ def step3_go_production():
 
 def main():
     window_manager.restore_and_autosave("제조소 24시간 구동")
-    print(f"=== 🏭 제조소 24시간 구동 (자동보정 OFF / 1:1 강제) ===")
+    print(f"=== 🏭 제조소 24시간 구동 (해상도 1:1 강제 + 빠른 진행) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {DEVICE_ADDRESS}', shell=True)
