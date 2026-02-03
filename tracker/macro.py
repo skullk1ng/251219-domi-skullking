@@ -9,19 +9,19 @@ import re
 # ✅ 한글 출력 깨짐 방지
 sys.stdout.reconfigure(encoding='utf-8')
 
-# ================= 1. 기본 설정 (자동 감지된 정보 반영) =================
+# ================= 1. 기본 설정 =================
 
-# 1. 블루스택 ADB 경로 (스크린샷에서 확인된 경로)
+# 🔥 [핵심] 블루스택 전용 ADB 경로로 고정 (버전 충돌 방지)
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 
-# 2. 게임 패키지 이름 (스크린샷에서 확인된 이름)
+# 게임 패키지 이름
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 
-# 3. 디바이스 주소
+# 포트 번호 (스크린샷에 5565로 확인됨)
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
 
-# 🕒 반복 주기 (2시간 = 7200초)
+# 🕒 반복 주기 (2시간)
 WAIT_TIME = 2 * 60 * 60 
 
 # 화면 해상도 (자동 감지)
@@ -32,8 +32,11 @@ SCALE_RATIO = 1.0
 # ================= 2. 기본 함수들 =================
 
 def run_adb(command):
-    # ADB 경로에 공백이 있으므로 따옴표로 감싸서 실행
-    subprocess.call(f'"{ADB_CMD}" -s {DEVICE_ADDRESS} {command}', shell=True)
+    # 경로에 공백이 있으므로 따옴표로 감싸서 실행
+    try:
+        subprocess.call(f'"{ADB_CMD}" -s {DEVICE_ADDRESS} {command}', shell=True)
+    except Exception as e:
+        print(f"   ❌ ADB 명령 오류: {e}")
 
 def run_adb_output(command):
     try:
@@ -97,7 +100,6 @@ def click(x, y):
     print(f"   👆 클릭: {x}, {y}")
 
 def swipe_screen():
-    # 화면 중앙을 살짝 움직여서 건물을 찾기 쉽게 함
     start_x = int(SCREEN_WIDTH * 0.6)
     end_x = int(SCREEN_WIDTH * 0.4)
     y = int(SCREEN_HEIGHT * 0.5)
@@ -108,32 +110,32 @@ def swipe_screen():
 def step1_restart_game():
     print(f"\n[Step 1] 게임 강제 종료 및 재접속")
     
-    # 🔥 1. 게임 강제 종료 (Kill Process)
-    print(f"   💀 앱 강제 종료: {GAME_PACKAGE}")
+    # 1. 게임 강제 종료
     run_adb(f'shell am force-stop {GAME_PACKAGE}')
-    time.sleep(3.0) # 확실히 꺼질 때까지 대기
+    time.sleep(2.0)
     
-    # 2. 홈 화면으로 이동
+    # 2. 홈 화면 이동
     run_adb('shell input keyevent KEYCODE_HOME')
     time.sleep(1.0)
     
-    # 3. 게임 아이콘 찾아서 클릭
+    # 3. 게임 실행
     loc = find_image("icon.png", threshold=0.8)
     if loc:
         click(loc[0], loc[1])
-        print("   🚀 게임 실행 중... (40초 로딩 대기)")
-        time.sleep(40) # 로딩 시간 넉넉히
+        # 🔥 [수정] 대기 시간 25초로 변경
+        print("   🚀 게임 실행 중... (25초 로딩 대기)")
+        time.sleep(25) 
     else:
         print("   ⚠️ 바탕화면에서 게임 아이콘을 못 찾았습니다.")
         return False
 
-    # 4. 팝업 닫기 (최대 5번 시도)
+    # 4. 팝업 닫기
     print("   🧹 팝업/광고 닫기 시도...")
     for _ in range(5):
         close_loc = find_image("close.png", threshold=0.8)
         if close_loc:
             click(close_loc[0], close_loc[1])
-            time.sleep(2)
+            time.sleep(1.5)
         else:
             break
     return True
@@ -141,59 +143,70 @@ def step1_restart_game():
 def step2_enter_building():
     print("[Step 2] 제조소 찾기 및 진입")
     
-    # 1. [우선순위] 완료된 건물(구슬 뜬 것) 찾기
-    loc = find_image("building_done.png", threshold=0.7)
+    # 1. 건물 찾기 (수확 가능 or 일반)
+    target_img = "building_done.png"
+    loc = find_image(target_img, threshold=0.7)
+    
+    if not loc:
+        target_img = "building.png"
+        loc = find_image(target_img, threshold=0.7)
+        
     if loc:
-        print("   🏭 [수확 가능] 건물 발견!")
+        print(f"   🏭 건물 발견 ({target_img}) -> 클릭")
         click(loc[0], loc[1])
+        # 🔥 [수정] 건물 클릭 후 버튼 뜰 때까지 약간 대기
+        time.sleep(2.0)
     else:
-        # 2. 없으면 일반 건물 찾기
+        print("   🔭 건물이 안 보여서 화면을 살짝 이동합니다.")
+        swipe_screen()
+        time.sleep(1.5)
         loc = find_image("building.png", threshold=0.7)
-        if loc:
-            print("   🏭 [일반] 건물 발견!")
+        if loc: 
             click(loc[0], loc[1])
+            time.sleep(2.0)
+    
+    # 2. [진입] 버튼 찾기 (재시도 로직 추가)
+    for i in range(3): # 3번 시도
+        enter_btn = find_image("enter_factory.png", threshold=0.8)
+        if enter_btn:
+            print("   🔘 [진입] 버튼 발견 -> 클릭")
+            click(enter_btn[0], enter_btn[1])
+            time.sleep(3) # 화면 전환 대기
+            return True
         else:
-            print("   🔭 건물이 안 보여서 화면을 살짝 이동합니다.")
-            swipe_screen()
+            print(f"   ⚠️ 진입 버튼 찾는 중... ({i+1}/3)")
+            # 혹시 건물이 제대로 안 눌렸을 수 있으니 건물 위치(loc)가 있으면 다시 클릭
+            if loc:
+                print("   ♻️ 건물 다시 클릭 시도")
+                click(loc[0], loc[1])
             time.sleep(1.5)
-            # 이동 후 재시도
-            loc = find_image("building.png", threshold=0.7)
-            if loc: click(loc[0], loc[1])
     
-    time.sleep(1.5)
-    
-    # 3. [진입] 버튼 누르기
-    enter_btn = find_image("enter_factory.png", threshold=0.8)
-    if enter_btn:
-        print("   🔘 [진입] 버튼 클릭")
-        click(enter_btn[0], enter_btn[1])
-        time.sleep(3) # 진입 대기
-        return True
-    
-    print("   ⚠️ 건물 진입 실패 (버튼 못 찾음)")
+    print("   ❌ 결국 제조소 진입에 실패했습니다.")
     return False
 
 def step3_go_production():
     print("[Step 3] 생산 탭 이동")
-    loc = find_image("tab.png", threshold=0.8)
-    if loc:
-        click(loc[0], loc[1])
-        print("   ✅ [생산] 탭 클릭 완료")
-        return True
+    for i in range(3):
+        loc = find_image("tab.png", threshold=0.8)
+        if loc:
+            click(loc[0], loc[1])
+            print("   ✅ [생산] 탭 클릭 완료")
+            return True
+        time.sleep(1)
+    
     print("   ⚠️ 생산 탭을 못 찾았습니다.")
     return False
 
 # ================= 4. 메인 실행 =================
 
 def main():
-    print(f"=== 🏭 도미네이션즈 심플 봇 (2시간 주기) ===")
+    print(f"=== 🏭 도미네이션즈 심플 봇 (2시간 주기 / ADB 수정판) ===")
     
-    # ADB 연결 시도 (경로 지정됨)
+    # ADB 연결 시도
     try:
         subprocess.call(f'"{ADB_CMD}" connect {DEVICE_ADDRESS}', shell=True)
     except Exception as e:
-        print(f"❌ ADB 실행 오류: {e}")
-        print(f"경로를 확인해주세요: {ADB_CMD}")
+        print(f"❌ ADB 연결 실패: {e}")
         return
 
     get_screen_resolution()

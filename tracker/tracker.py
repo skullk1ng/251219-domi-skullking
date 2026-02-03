@@ -20,8 +20,8 @@ GAME_PACKAGE = "com.nexon.dominations.asia.g"
 
 TARGET_DEVICE = "127.0.0.1:5555"
 
-# 🔄 전체 사이클 주기 (5분 = 300초)
-CYCLE_INTERVAL = 300 
+# 🔄 전체 사이클 주기 (3분20초 = 200초)
+CYCLE_INTERVAL = 200 
 
 # 🔔 [설정] 디스코드 웹후크 URL
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
