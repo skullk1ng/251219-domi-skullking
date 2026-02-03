@@ -199,7 +199,7 @@ def upload_to_github():
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (웹사이트 시간 표시 수정판) ===")
+    print(f"=== 🤖 스마트 트래커 (신규진입=Unknown) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -328,6 +328,7 @@ def main():
                     rank = item['rank']
                     display_name = item['display_name']
 
+                    # 길드명 변경 체크
                     if final_key != display_name:
                         if (final_key not in known_aliases) or (known_aliases[final_key] != display_name):
                             print(f"  🔔 [알림] 이름 변경 감지: {final_key} -> {display_name}")
@@ -344,7 +345,12 @@ def main():
                             del known_aliases[final_key]
                             save_aliases(known_aliases)
 
-                    if final_key not in history_db: history_db[final_key] = []
+                    # 🔥 [로직 복구] 신규 길드인지 확인
+                    is_new_guild = False
+                    if final_key not in history_db: 
+                        history_db[final_key] = []
+                        is_new_guild = True # 족보에 없는 새로운 길드다!
+                    
                     guild_logs = history_db[final_key]
                     last_score = guild_logs[0]['score'] if guild_logs else 0
                     
@@ -361,14 +367,20 @@ def main():
                             ]
                             send_discord_msg("📈 순위 변동 감지", desc_text, fields=fields, image_path=captured_path)
                             
-                            guild_logs.insert(0, {'score': score, 'ww': ww, 'time': current_time_str})
+                            # 🔥 [핵심 로직] 신규 길드면 'UnKnown', 아니면 '현재 시간'
+                            if is_new_guild:
+                                log_time = "UnKnown"
+                            else:
+                                log_time = current_time_str
+                                
+                            guild_logs.insert(0, {'score': score, 'ww': ww, 'time': log_time})
+                            
                             if len(guild_logs) > 5: guild_logs = guild_logs[:5]
                             history_db[final_key] = guild_logs
                         else:
                             if guild_logs: guild_logs[0]['ww'] = ww
 
-                    # 🔥 [수정 핵심] 웹사이트 표시용 시간
-                    # 점수 변동이 없으면 '최신 로그 시간'을, 변동 있으면(새로 insert됨) '현재 시간'을 사용
+                    # 웹사이트 표시용 시간
                     display_time = current_time_str
                     if guild_logs:
                         display_time = guild_logs[0]['time']
@@ -377,7 +389,7 @@ def main():
                         'name': final_key, 
                         'score': score, 
                         'ww': ww, 
-                        'time': display_time, # 👈 여기가 수정됨 (현재시간 -> 마지막 기록 시간)
+                        'time': display_time,
                         'history': history_db[final_key],
                         'current_alias': display_name
                     }
