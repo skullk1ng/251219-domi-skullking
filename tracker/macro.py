@@ -154,7 +154,20 @@ def step2_enter_building():
         
     if loc:
         print(f"   🏭 건물 발견 ({target_img}) -> 클릭")
-        click(loc[0], loc[1])
+        
+        # 🔥🔥🔥 [디버깅 추가] 클릭 위치 확인용 이미지 저장 🔥🔥🔥
+        try:
+            debug_img = cv2.imread("view.png") # find_image가 캡처해둔 이미지 로드
+            if debug_img is not None:
+                # loc[0], loc[1] 위치에 빨간색 동그라미 그리기
+                cv2.circle(debug_img, (loc[0], loc[1]), 20, (0, 0, 255), 5)
+                cv2.imwrite("debug_click_check.png", debug_img)
+                print("   📸 [디버깅] 클릭 위치 저장됨: debug_click_check.png 확인 필수!")
+        except Exception as e:
+            print(f"   ⚠️ 디버그 이미지 저장 실패: {e}")
+        # ---------------------------------------------------------
+
+        click(loc[0], loc[1]) # 좌표 수정 없이 원본 좌표 클릭
         # 🔥 [수정] 건물 클릭 후 버튼 뜰 때까지 약간 대기
         time.sleep(2.0)
     else:
@@ -229,7 +242,7 @@ def main():
         
         while remaining > 0:
             mins = remaining // 60
-            print(f"   ⏳ 남은 시간: {mins}분      ", end='\r')
+            print(f"   ⏳ 남은 시간: {mins}분       ", end='\r')
             time.sleep(60) 
             remaining -= 60
         
