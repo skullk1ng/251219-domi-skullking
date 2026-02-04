@@ -4,7 +4,8 @@
             "score": 23991,
             "ww": 15,
             "time": "2026-02-05 06:42:00",
-            "type": "normal"
+            "type": "normal/manual",
+            "announced": true
         },
         {
             "score": 23876,
