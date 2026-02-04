@@ -18,7 +18,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_DEVICE = "127.0.0.1:5555"
-CYCLE_INTERVAL = 90 # 1분 30초
+CYCLE_INTERVAL = 150 # 2분 30초
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
 USE_DISCORD = True 
 
@@ -196,10 +196,8 @@ def upload_to_github():
     except Exception as e:
         print(f"⚠️ 업로드 중 오류 발생: {e}")
 
-# 🔥 [Helper] 마지막 정상 기준점(Baseline) 찾기
 def get_last_baseline_time(logs):
     for log in logs:
-        # 비정상이 아닌(정상, 재진입, 신규) 기록을 기준점으로 삼음
         log_type = log.get('type', 'normal')
         if log_type != 'abnormal' and log['time'] != 'UnKnown':
             return log['time']
@@ -208,7 +206,7 @@ def get_last_baseline_time(logs):
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (탄생일 로직 수정 & +- 표기 수정) ===")
+    print(f"=== 🤖 스마트 트래커 (빈 화면 방지 & 안전장치 적용) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -224,7 +222,6 @@ def main():
 
     previous_active_guilds = set()
 
-    # 🔥 [설정] 최초 기능 구현 날짜 (이 날짜 기록은 실제 달성 시각이 아니므로 48h 체크에서 제외)
     INITIAL_COLLECT_TIME = "2026-01-29 10:48:43"
 
     while True:
@@ -273,8 +270,8 @@ def main():
                 print(f"\n[Check: {current_time_str}]")
                 
                 scanned_items = []
-                current_cycle_guilds = set()
-
+                
+                # 데이터 수집
                 for i in range(14):
                     rank = int(i + 1)
                     raw_name = extract_guild_name(img, i)
@@ -291,6 +288,26 @@ def main():
                         'real_key': None
                     })
 
+                # 🔥🔥🔥 [핵심 수정] 유효성 검사 (Sanity Check) 🔥🔥🔥
+                # 조건 1: 1위 점수가 0이면 로딩 실패로 간주
+                if scanned_items[0]['score'] == 0:
+                    print("⚠️ [오류] 1위 길드 점수가 0점입니다. (화면 로딩 실패 추정)")
+                    print("   ⏭️ 이번 사이클은 저장하지 않고 건너뜁니다.")
+                    continue
+                
+                # 조건 2: 'Unknown'이 아니고 '0점'이 아닌 유효 데이터가 최소 5개 이상이어야 함
+                valid_count = 0
+                for item in scanned_items:
+                    if item['display_name'] != "Unknown" and item['score'] > 0:
+                        valid_count += 1
+                
+                if valid_count < 5:
+                    print(f"⚠️ [오류] 유효한 데이터가 너무 적습니다. ({valid_count}/14개)")
+                    print("   ⏭️ 화면 오류 가능성이 높아 이번 업데이트를 건너뜁니다.")
+                    continue
+                # -------------------------------------------------------
+
+                current_cycle_guilds = set()
                 matched_db_keys = set()
                 
                 # 1. 이름 매칭
@@ -336,7 +353,7 @@ def main():
                             suffix = chr(65 + idx)
                             item['real_key'] = f"{k} ({suffix})"
 
-                # 4. 결과 처리
+                # 4. 결과 처리 및 저장
                 current_display_data = {}
                 for item in scanned_items:
                     final_key = item['real_key']
@@ -347,6 +364,7 @@ def main():
                     
                     current_cycle_guilds.add(final_key)
 
+                    # 닉네임 변경 감지
                     if final_key != display_name:
                         if (final_key not in known_aliases) or (known_aliases[final_key] != display_name):
                             print(f"  🔔 [알림] 이름 변경 감지: {final_key} -> {display_name}")
@@ -363,7 +381,7 @@ def main():
                             del known_aliases[final_key]
                             save_aliases(known_aliases)
 
-                    # 상태 판단 로직
+                    # 상태 판단 및 로그 업데이트
                     is_new_entry = False
                     is_re_entry = False
 
@@ -397,13 +415,9 @@ def main():
                                 discord_title = "🔄 [재진입] 순위권 복귀"
                                 desc_prefix = "(재진입)"
                             else:
-                                # 정상적인 연속 감시 중 변동 -> 48시간 체크
                                 last_baseline = get_last_baseline_time(guild_logs)
-                                
-                                # 🔥 [예외 처리] 기준 시간이 '최초 수집 날짜'라면 48시간 미달이어도 '정상' 처리
                                 if last_baseline and last_baseline != "UnKnown":
                                     if last_baseline == INITIAL_COLLECT_TIME:
-                                        # 탄생일이 기준점이면 무조건 정상
                                         pass
                                     else:
                                         try:
@@ -422,7 +436,6 @@ def main():
                             if final_key != display_name:
                                 desc_text += f"\n(현재 닉네임: {display_name})"
                             
-                            # 🔥 [수정] 변동폭 표기: +는 +100, -는 -100으로 표시
                             diff_val = score - last_score
                             diff_str = f"{diff_val:+}"
 
@@ -435,7 +448,6 @@ def main():
                             
                             new_log = {'score': score, 'ww': ww, 'time': log_time, 'type': change_type}
                             guild_logs.insert(0, new_log)
-                            # 🔥 [수정] 최대 10개까지 저장
                             if len(guild_logs) > 10: guild_logs = guild_logs[:10]
                             history_db[final_key] = guild_logs
                         else:
@@ -448,8 +460,8 @@ def main():
                             t_str = log['time']
                             t_type = log.get('type', 'normal')
                             
-                            if t_type == 'abnormal': t_str += " [비정상 감지⚠️]"
-                            elif t_type == 'new': t_str += " [순위권 신규 진입]"
+                            if t_type == 'abnormal': t_str += " [비정상 감지⚠️]" 
+                            elif t_type == 'new': t_str += "[순위권 신규 진입)"
                             elif t_type == 're_entry': t_str += " [순위권 재진입]"
                             
                             display_history.append({
