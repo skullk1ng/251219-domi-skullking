@@ -1,128 +1,540 @@
 {
     "1": {
-        "name": "Unknown (A)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "태극기휘날리며",
+        "score": 24019,
+        "ww": 13,
+        "time": "2026-02-04 14:24:45",
+        "history": [
+            {
+                "score": 24019,
+                "time": "2026-02-04 14:24:45"
+            },
+            {
+                "score": 23719,
+                "time": "2026-02-02 09:13:22"
+            },
+            {
+                "score": 23601,
+                "time": "2026-01-30 09:45:16"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 24019,
+                "time": "2026-02-04 14:24:45"
+            },
+            {
+                "score": 23719,
+                "time": "2026-02-02 09:13:22"
+            },
+            {
+                "score": 23601,
+                "time": "2026-01-30 09:45:16"
+            }
+        ],
+        "current_alias": "태극기휘날리며"
     },
     "2": {
-        "name": "Unknown (B)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "ARES",
+        "score": 23876,
+        "ww": 14,
+        "time": "2026-02-03 07:54:25 [비정상 감지⚠️]",
+        "history": [
+            {
+                "score": 23876,
+                "time": "2026-02-03 07:54:25 [비정상 감지⚠️]"
+            },
+            {
+                "score": 23692,
+                "time": "2026-02-02 21:15:30"
+            },
+            {
+                "score": 23441,
+                "time": "2026-01-31 18:40:33"
+            },
+            {
+                "score": 23298,
+                "time": "2026-01-29 17:48:47"
+            },
+            {
+                "score": 23142,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 23876,
+                "time": "2026-02-03 07:54:25 [비정상 감지⚠️]"
+            },
+            {
+                "score": 23692,
+                "time": "2026-02-02 21:15:30"
+            },
+            {
+                "score": 23441,
+                "time": "2026-01-31 18:40:33"
+            },
+            {
+                "score": 23298,
+                "time": "2026-01-29 17:48:47"
+            },
+            {
+                "score": 23142,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "ARES"
     },
     "3": {
-        "name": "Unknown (C)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "TeaStar",
+        "score": 23732,
+        "ww": 13,
+        "time": "2026-02-04 08:42:38",
+        "history": [
+            {
+                "score": 23732,
+                "time": "2026-02-04 08:42:38"
+            },
+            {
+                "score": 23433,
+                "time": "2026-02-01 21:34:23"
+            },
+            {
+                "score": 23318,
+                "time": "2026-01-30 16:26:16"
+            },
+            {
+                "score": 23101,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 23732,
+                "time": "2026-02-04 08:42:38"
+            },
+            {
+                "score": 23433,
+                "time": "2026-02-01 21:34:23"
+            },
+            {
+                "score": 23318,
+                "time": "2026-01-30 16:26:16"
+            },
+            {
+                "score": 23101,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "TeaStar"
     },
     "4": {
-        "name": "Unknown (D)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "7 62 X TEAM",
+        "score": 23457,
+        "ww": 13,
+        "time": "2026-02-03 07:04:27",
+        "history": [
+            {
+                "score": 23457,
+                "time": "2026-02-03 07:04:27"
+            },
+            {
+                "score": 23342,
+                "time": "2026-01-31 18:05:36"
+            },
+            {
+                "score": 23227,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 23457,
+                "time": "2026-02-03 07:04:27"
+            },
+            {
+                "score": 23342,
+                "time": "2026-01-31 18:05:36"
+            },
+            {
+                "score": 23227,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "7 62 X TEAM"
     },
     "5": {
-        "name": "Unknown (E)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "Ctrl Alt Exiles",
+        "score": 22931,
+        "ww": 13,
+        "time": "2026-02-04 14:38:11",
+        "history": [
+            {
+                "score": 22931,
+                "time": "2026-02-04 14:38:11"
+            },
+            {
+                "score": 23150,
+                "time": "2026-02-02 10:49:50"
+            },
+            {
+                "score": 22888,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22931,
+                "time": "2026-02-04 14:38:11"
+            },
+            {
+                "score": 23150,
+                "time": "2026-02-02 10:49:50"
+            },
+            {
+                "score": 22888,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Ctrl Alt Exiles"
     },
     "6": {
-        "name": "Unknown (F)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "百分百戰爭 1",
+        "score": 22663,
+        "ww": 13,
+        "time": "2026-02-03 13:50:13",
+        "history": [
+            {
+                "score": 22663,
+                "time": "2026-02-03 13:50:13"
+            },
+            {
+                "score": 22548,
+                "time": "2026-02-01 00:36:39"
+            },
+            {
+                "score": 22433,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22663,
+                "time": "2026-02-03 13:50:13"
+            },
+            {
+                "score": 22548,
+                "time": "2026-02-01 00:36:39"
+            },
+            {
+                "score": 22433,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "百分百戰爭 1"
     },
     "7": {
-        "name": "Unknown (G)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "ПАЛАЧИ",
+        "score": 22537,
+        "ww": 13,
+        "time": "2026-02-03 23:19:17",
+        "history": [
+            {
+                "score": 22537,
+                "time": "2026-02-03 23:19:17"
+            },
+            {
+                "score": 22422,
+                "time": "2026-02-01 17:48:07"
+            },
+            {
+                "score": 22296,
+                "time": "2026-01-30 12:18:16"
+            },
+            {
+                "score": 22168,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22537,
+                "time": "2026-02-03 23:19:17"
+            },
+            {
+                "score": 22422,
+                "time": "2026-02-01 17:48:07"
+            },
+            {
+                "score": 22296,
+                "time": "2026-01-30 12:18:16"
+            },
+            {
+                "score": 22168,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "ПАЛАЧИ"
     },
     "8": {
-        "name": "Unknown (H)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "Neustadter",
+        "score": 22290,
+        "ww": 12,
+        "time": "2026-02-03 05:44:34",
+        "history": [
+            {
+                "score": 22290,
+                "time": "2026-02-03 05:44:34"
+            },
+            {
+                "score": 22175,
+                "time": "2026-02-01 00:36:39"
+            },
+            {
+                "score": 22060,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22290,
+                "time": "2026-02-03 05:44:34"
+            },
+            {
+                "score": 22175,
+                "time": "2026-02-01 00:36:39"
+            },
+            {
+                "score": 22060,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Neustadter"
     },
     "9": {
-        "name": "Unknown (I)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "Black Commandos",
+        "score": 22249,
+        "ww": 14,
+        "time": "2026-02-04 14:24:45",
+        "history": [
+            {
+                "score": 22249,
+                "time": "2026-02-04 14:24:45"
+            },
+            {
+                "score": 22350,
+                "time": "2026-02-02 11:16:28"
+            },
+            {
+                "score": 22120,
+                "time": "2026-01-30 14:02:17"
+            },
+            {
+                "score": 22005,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22249,
+                "time": "2026-02-04 14:24:45"
+            },
+            {
+                "score": 22350,
+                "time": "2026-02-02 11:16:28"
+            },
+            {
+                "score": 22120,
+                "time": "2026-01-30 14:02:17"
+            },
+            {
+                "score": 22005,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Black Commandos"
     },
     "10": {
-        "name": "Unknown (J)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "Padawan Wizards",
+        "score": 22243,
+        "ww": 12,
+        "time": "2026-02-04 20:11:00",
+        "history": [
+            {
+                "score": 22243,
+                "time": "2026-02-04 20:11:00"
+            },
+            {
+                "score": 21980,
+                "time": "2026-02-02 11:56:25"
+            },
+            {
+                "score": 21689,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22243,
+                "time": "2026-02-04 20:11:00"
+            },
+            {
+                "score": 21980,
+                "time": "2026-02-02 11:56:25"
+            },
+            {
+                "score": 21689,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Padawan Wizards"
     },
     "11": {
-        "name": "Unknown (K)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "Fight Club",
+        "score": 22235,
+        "ww": 11,
+        "time": "2026-02-02 08:23:25",
+        "history": [
+            {
+                "score": 22235,
+                "time": "2026-02-02 08:23:25"
+            },
+            {
+                "score": 21935,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22235,
+                "time": "2026-02-02 08:23:25"
+            },
+            {
+                "score": 21935,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Fight Club"
     },
     "12": {
-        "name": "Unknown (L)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "現場獲",
+        "score": 22167,
+        "ww": 13,
+        "time": "2026-02-03 03:14:58",
+        "history": [
+            {
+                "score": 22167,
+                "time": "2026-02-03 03:14:58"
+            },
+            {
+                "score": 22022,
+                "time": "2026-01-31 22:21:42 [비정상 감지⚠️]"
+            },
+            {
+                "score": 21873,
+                "time": "2026-01-29 22:22:41"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22167,
+                "time": "2026-02-03 03:14:58"
+            },
+            {
+                "score": 22022,
+                "time": "2026-01-31 22:21:42 [비정상 감지⚠️]"
+            },
+            {
+                "score": 21873,
+                "time": "2026-01-29 22:22:41"
+            }
+        ],
+        "current_alias": "現場獲"
     },
     "13": {
-        "name": "Unknown (M)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "Ae Viét Nam",
+        "score": 22146,
+        "ww": 12,
+        "time": "2026-02-04 14:38:11 [순위권 재진입]",
+        "history": [
+            {
+                "score": 22146,
+                "time": "2026-02-04 14:38:11 [순위권 재진입]"
+            },
+            {
+                "score": 21828,
+                "time": "2026-02-02 02:17:21"
+            },
+            {
+                "score": 21700,
+                "time": "2026-01-30 21:25:02"
+            },
+            {
+                "score": 21922,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22146,
+                "time": "2026-02-04 14:38:11 [순위권 재진입]"
+            },
+            {
+                "score": 21828,
+                "time": "2026-02-02 02:17:21"
+            },
+            {
+                "score": 21700,
+                "time": "2026-01-30 21:25:02"
+            },
+            {
+                "score": 21922,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Ae Viét Nam"
     },
     "14": {
-        "name": "Unknown (N)",
-        "score": 0,
-        "ww": 0,
-        "time": "UnKnown",
-        "history": [],
-        "display_history_patched": [],
-        "current_alias": "Unknown"
+        "name": "Momineen",
+        "score": 21953,
+        "ww": 13,
+        "time": "2026-02-04 08:42:38",
+        "history": [
+            {
+                "score": 21953,
+                "time": "2026-02-04 08:42:38"
+            },
+            {
+                "score": 22053,
+                "time": "2026-02-02 03:37:15"
+            },
+            {
+                "score": 21935,
+                "time": "2026-01-31 08:23:08 [비정상 감지⚠️]"
+            },
+            {
+                "score": 21834,
+                "time": "2026-01-30 09:45:16"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 21953,
+                "time": "2026-02-04 08:42:38"
+            },
+            {
+                "score": 22053,
+                "time": "2026-02-02 03:37:15"
+            },
+            {
+                "score": 21935,
+                "time": "2026-01-31 08:23:08 [비정상 감지⚠️]"
+            },
+            {
+                "score": 21834,
+                "time": "2026-01-30 09:45:16"
+            }
+        ],
+        "current_alias": "Momineen"
     }
 }
