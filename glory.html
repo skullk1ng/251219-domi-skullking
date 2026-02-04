@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>RANK & SCORE</title>
+  <title>GLORY TRACKER</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="./style.css" />
   
   <style>
     /* ================= 스타일 정의 ================= */
-    .glory-table { display:grid; gap:8px; margin-top:10px; }
+    .glory-table { display:grid; gap:8px; margin-top:20px; }
     
     /* 랭킹 박스 (클릭 가능하도록 커서 변경) */
     .glory-row {
@@ -37,7 +37,7 @@
     .guild-score { text-align:right; font-weight:800; font-size:16px; color:var(--good); font-family:monospace; }
     .rank-1 .guild-score { color: var(--yellow); }
 
-    .update-time { text-align:center; color:var(--muted2); font-size:12px; margin-top:20px; }
+    .update-time { text-align:center; color:var(--muted2); font-size:12px; margin-top:30px; margin-bottom:50px; }
 
     /* [NEW] 히스토리 로그 스타일 */
     .history-box {
@@ -95,27 +95,47 @@
       <button class="btn ghost" onclick="location.href='./index.html'" style="margin-top:20px; border:none;">← 메인으로 돌아가기</button>
   </div>
 
-  <div class="home-wrap" id="main-content" style="display:none;">
+
+  <div id="main-content" style="display:none;">
     
-    <div class="row actions" style="margin-bottom:20px;">
-        <a href="./index.html" class="btn ghost">← 뒤로가기</a>
-        <div class="status-badge is-live">LIVE TRACKING</div>
+    <nav class="top-nav">
+      <a class="top-nav-btn active" href="./index.html">MAIN</a>
+    </nav>
+
+    <header class="app-header">
+      <h1>GLORY TRACKER</h1>
+      <p class="sub">48시간 이내 점수 변동 발생 시 [비정상 감지⚠️]가 표기됩니다.</p>
+    </header>
+
+    <div class="container hero">
+      <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="RANK & SCORE 배너">
+        <img src="./image/banner/glory.png" alt="RANK & SCORE" />
+      </a>
     </div>
 
-    <div class="banner-main-wrap" style="padding:20px; text-align:center;">
-        <h1 style="color:var(--yellow); margin-bottom:4px;">🏆 실시간 점수 현황판</h1>
-        <p class="sub"> 48시간 이내 점수에 변동이 발생할 경우 [비정상 감지⚠️]가 표기 됩니다. </p>
-    </div>
+    <main class="container">
+        
+        <div id="leaderboard" class="glory-table">
+            <div class="result" style="text-align:center;">데이터를 불러오는 중...</div>
+        </div>
 
-    <div id="leaderboard" class="glory-table">
-        <div class="result" style="text-align:center;">데이터를 불러오는 중...</div>
-    </div>
+        <div class="update-time">
+            마지막 업데이트: <span id="last-update">-</span>
+        </div>
 
-    <div class="update-time">
-        마지막 업데이트: <span id="last-update">-</span>
-    </div>
+        <div class="home-grid calc-grid" style="margin-top:40px;">
+          <a class="menu-card is-donate" href="https://buymeacoffee.com/skullking" target="_blank" rel="noopener" aria-label="Donate Crowns (새 창)">
+            <div class="menu-card-media">
+              <img src="./image/banner/donate-crown.png" alt="Donate Crowns" />
+              <span class="status-badge is-click donate-badge">CLICK</span>
+            </div>
+          </a>
+        </div>
+
+    </main>
 
   </div>
+
 
   <script>
     const ENCRYPTED_PW = "ISFURUFTVEFSPz8="; 
