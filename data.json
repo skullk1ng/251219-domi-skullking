@@ -209,6 +209,31 @@
         "current_alias": "Neustadter"
     },
     "10": {
+        "name": "現場獲",
+        "score": 22283,
+        "ww": 14,
+        "time": "2026-02-05 07:58:18",
+        "history": [
+            {
+                "score": 22283,
+                "time": "2026-02-05 07:58:18"
+            },
+            {
+                "score": 22167,
+                "time": "2026-02-03 03:14:58"
+            },
+            {
+                "score": 22022,
+                "time": "2026-01-31 22:21:42 [비정상 감지⚠️]"
+            },
+            {
+                "score": 21873,
+                "time": "2026-01-29 22:22:41"
+            }
+        ],
+        "current_alias": "現場獲"
+    },
+    "11": {
         "name": "Black Commandos",
         "score": 22249,
         "ww": 14,
@@ -233,7 +258,7 @@
         ],
         "current_alias": "Black Commandos"
     },
-    "11": {
+    "12": {
         "name": "Padawan Wizards",
         "score": 22243,
         "ww": 12,
@@ -253,27 +278,6 @@
             }
         ],
         "current_alias": "Padawan Wizards"
-    },
-    "12": {
-        "name": "現場獲",
-        "score": 22167,
-        "ww": 13,
-        "time": "2026-02-03 03:14:58",
-        "history": [
-            {
-                "score": 22167,
-                "time": "2026-02-03 03:14:58"
-            },
-            {
-                "score": 22022,
-                "time": "2026-01-31 22:21:42 [비정상 감지⚠️]"
-            },
-            {
-                "score": 21873,
-                "time": "2026-01-29 22:22:41"
-            }
-        ],
-        "current_alias": "現場獲"
     },
     "13": {
         "name": "Ae Viét Nam",
