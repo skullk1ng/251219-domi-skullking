@@ -355,6 +355,41 @@
         "current_alias": "Black Commandos"
     },
     "10": {
+        "name": "Padawan Wizards",
+        "score": 22243,
+        "ww": 12,
+        "time": "2026-02-04 20:11:00",
+        "history": [
+            {
+                "score": 22243,
+                "time": "2026-02-04 20:11:00"
+            },
+            {
+                "score": 21980,
+                "time": "2026-02-02 11:56:25"
+            },
+            {
+                "score": 21689,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22243,
+                "time": "2026-02-04 20:11:00"
+            },
+            {
+                "score": 21980,
+                "time": "2026-02-02 11:56:25"
+            },
+            {
+                "score": 21689,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Padawan Wizards"
+    },
+    "11": {
         "name": "Fight Club",
         "score": 22235,
         "ww": 11,
@@ -381,7 +416,7 @@
         ],
         "current_alias": "Fight Club"
     },
-    "11": {
+    "12": {
         "name": "現場獲",
         "score": 22167,
         "ww": 13,
@@ -414,9 +449,9 @@
                 "time": "2026-01-29 22:22:41"
             }
         ],
-        "current_alias": "現場猫"
+        "current_alias": "現場獲"
     },
-    "12": {
+    "13": {
         "name": "Ae Viét Nam",
         "score": 22146,
         "ww": 12,
@@ -458,33 +493,6 @@
             }
         ],
         "current_alias": "Ae Viét Nam"
-    },
-    "13": {
-        "name": "Padawan Wizards",
-        "score": 21980,
-        "ww": 11,
-        "time": "2026-02-02 11:56:25",
-        "history": [
-            {
-                "score": 21980,
-                "time": "2026-02-02 11:56:25"
-            },
-            {
-                "score": 21689,
-                "time": "2026-01-29 10:48:43"
-            }
-        ],
-        "display_history_patched": [
-            {
-                "score": 21980,
-                "time": "2026-02-02 11:56:25"
-            },
-            {
-                "score": 21689,
-                "time": "2026-01-29 10:48:43"
-            }
-        ],
-        "current_alias": "Padawan Wizards"
     },
     "14": {
         "name": "Momineen",
