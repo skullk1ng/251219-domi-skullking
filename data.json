@@ -165,10 +165,14 @@
     },
     "5": {
         "name": "Ctrl Alt Exiles",
-        "score": 23150,
-        "ww": 12,
-        "time": "2026-02-02 10:49:50",
+        "score": 22931,
+        "ww": 13,
+        "time": "2026-02-04 14:38:11",
         "history": [
+            {
+                "score": 22931,
+                "time": "2026-02-04 14:38:11"
+            },
             {
                 "score": 23150,
                 "time": "2026-02-02 10:49:50"
@@ -179,6 +183,10 @@
             }
         ],
         "display_history_patched": [
+            {
+                "score": 22931,
+                "time": "2026-02-04 14:38:11"
+            },
             {
                 "score": 23150,
                 "time": "2026-02-02 10:49:50"
@@ -409,6 +417,49 @@
         "current_alias": "現場猫"
     },
     "12": {
+        "name": "Ae Viét Nam",
+        "score": 22146,
+        "ww": 12,
+        "time": "2026-02-04 14:38:11 [순위권 재진입]",
+        "history": [
+            {
+                "score": 22146,
+                "time": "2026-02-04 14:38:11 [순위권 재진입]"
+            },
+            {
+                "score": 21828,
+                "time": "2026-02-02 02:17:21"
+            },
+            {
+                "score": 21700,
+                "time": "2026-01-30 21:25:02"
+            },
+            {
+                "score": 21922,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "display_history_patched": [
+            {
+                "score": 22146,
+                "time": "2026-02-04 14:38:11 [순위권 재진입]"
+            },
+            {
+                "score": 21828,
+                "time": "2026-02-02 02:17:21"
+            },
+            {
+                "score": 21700,
+                "time": "2026-01-30 21:25:02"
+            },
+            {
+                "score": 21922,
+                "time": "2026-01-29 10:48:43"
+            }
+        ],
+        "current_alias": "Ae Viét Nam"
+    },
+    "13": {
         "name": "Padawan Wizards",
         "score": 21980,
         "ww": 11,
@@ -435,7 +486,7 @@
         ],
         "current_alias": "Padawan Wizards"
     },
-    "13": {
+    "14": {
         "name": "Momineen",
         "score": 21953,
         "ww": 13,
@@ -477,24 +528,5 @@
             }
         ],
         "current_alias": "Momineen"
-    },
-    "14": {
-        "name": "Kstar",
-        "score": 21936,
-        "ww": 13,
-        "time": "UnKnown [순위권 신규 진입]",
-        "history": [
-            {
-                "score": 21936,
-                "time": "UnKnown [순위권 신규 진입]"
-            }
-        ],
-        "display_history_patched": [
-            {
-                "score": 21936,
-                "time": "UnKnown [순위권 신규 진입]"
-            }
-        ],
-        "current_alias": "ESH go"
     }
 }
