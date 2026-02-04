@@ -164,7 +164,7 @@
             document.getElementById('locked-screen').classList.add('hidden');
             document.getElementById('main-content').style.display = 'block';
             loadData(); 
-            setInterval(loadData, 30000); 
+            setInterval(loadData, 60000); //갱신 주기
         } else {
             alert("비밀번호가 틀렸습니다.");
             document.getElementById('pw-input').value = "";
