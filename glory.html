@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GLORY TRACKER</title>
+  <title>RANK & SCORE</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="./style.css" />
   
   <style>
     /* ================= 스타일 정의 ================= */
-    .glory-table { display:grid; gap:8px; margin-top:20px; }
+    .glory-table { display:grid; gap:8px; margin-top:10px; }
     
     /* 랭킹 박스 (클릭 가능하도록 커서 변경) */
     .glory-row {
@@ -80,6 +80,24 @@
         padding: 10px 20px; border-radius: 8px; border: none;
         background: var(--yellow); color: #000; font-weight: bold; cursor: pointer;
     }
+    
+    /* 헤더 스타일 커스텀 (이미지 아래 텍스트 배치용) */
+    .glory-header {
+        padding: 0 20px;
+        margin-bottom: 20px;
+    }
+    .glory-header h1 {
+        font-size: 20px;
+        font-weight: 800;
+        margin: 0 0 6px 0;
+        color: #fff;
+    }
+    .glory-header .sub {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.4;
+        margin: 0;
+    }
   </style>
 </head>
 
@@ -102,16 +120,16 @@
       <a class="top-nav-btn active" href="./index.html">MAIN</a>
     </nav>
 
-    <header class="app-header">
-      <h1>GLORY TRACKER</h1>
-      <p class="sub">48시간 이내 점수 변동 발생 시 [비정상 감지⚠️]가 표기됩니다.</p>
-    </header>
-
-    <div class="container hero">
+    <div class="container hero" style="margin-top:20px; margin-bottom:20px;">
       <a class="image-card calc-hero" href="#" onclick="return false;" aria-label="RANK & SCORE 배너">
         <img src="./image/banner/glory.png" alt="RANK & SCORE" />
       </a>
     </div>
+
+    <header class="container glory-header">
+      <h1>GLORY TRACKER</h1>
+      <p class="sub">48시간 이내 점수 변동 발생 시 [비정상 감지⚠️]가 표기됩니다.</p>
+    </header>
 
     <main class="container">
         
