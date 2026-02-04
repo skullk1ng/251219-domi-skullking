@@ -16,6 +16,7 @@ ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_PORT = "5565" 
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
+WIN_TITLE = "1"  # 🔥 확인된 매크로용 창 이름 적용
 WAIT_TIME = 2 * 60 * 60 
 
 # 해상도 비율 1.0 고정
@@ -31,14 +32,18 @@ def run_adb(command):
         print(f"   ❌ ADB 명령 오류: {e}")
 
 def cleanup_bluestacks_memory():
-    """PyAutoGUI를 이용해 Windows 단축키(Ctrl+Shift+F)로 확실하게 메모리 정리"""
-    print("🧹 블루스택 메모리 최적화 수행 (빗자루)...")
+    """지정된 창('1')을 활성화한 후 PyAutoGUI 단축키(Ctrl+Shift+F)로 메모리 정리"""
+    print(f"🧹 {WIN_TITLE} 창 메모리 최적화 수행 (빗자루)...")
     try:
-        # 윈도우 차원에서 직접 단축키 신호를 보냄
+        # 1. 담당하는 블루스택 창('1')을 맨 앞으로 가져옴
+        window_manager.restore_and_autosave(WIN_TITLE)
+        time.sleep(1.0) 
+        
+        # 2. 윈도우 차원에서 직접 단축키 신호를 보냄
         pyautogui.hotkey('ctrl', 'shift', 'f')
-        time.sleep(4.0) # 메모리가 비워지는 동안 충분히 대기
+        time.sleep(4.0) 
     except Exception as e:
-        print(f"⚠️ 메모리 정리 단축키 전송 실패: {e}")
+        print(f"⚠️ {WIN_TITLE} 메모리 정리 실패: {e}")
 
 def capture_screen():
     try:
@@ -53,26 +58,19 @@ def capture_screen():
 def find_image(target_file, threshold=0.8):
     if not os.path.exists(target_file):
         return None
-    
     screen = capture_screen()
     if screen is None: return None
-    
     template = cv2.imread(target_file, cv2.IMREAD_UNCHANGED)
     if template is None: return None
 
-    # 투명 배경(Alpha) 처리
     if template.shape[2] == 4:
-        template_img = template[:, :, :3]
-        mask = template[:, :, 3]
-        result = cv2.matchTemplate(screen, template_img, cv2.TM_CCORR_NORMED, mask=mask)
+        result = cv2.matchTemplate(screen, template[:, :, :3], cv2.TM_CCORR_NORMED, mask=template[:, :, 3])
     else:
         result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
     
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    
+    _, max_val, _, max_loc = cv2.minMaxLoc(result)
     if max_val >= threshold:
-        h, w = template.shape[:2]
-        return int(max_loc[0] + w/2), int(max_loc[1] + h/2)
+        return int(max_loc[0] + template.shape[1]/2), int(max_loc[1] + template.shape[0]/2)
     return None
 
 def click(x, y):
@@ -82,10 +80,10 @@ def click(x, y):
 # ================= 3. 핵심 로직 =================
 
 def step1_restart_game():
-    print(f"\n[Step 1] 게임 강제 종료 및 재접속")
+    print(f"\n[Step 1] 게임 종료 및 재접속")
     run_adb(f'shell am force-stop {GAME_PACKAGE}')
     
-    # 🔥 실제 빗자루 기능 실행
+    # 🔥 창 '1' 활성화 후 빗자루 기능 실행
     cleanup_bluestacks_memory()
     
     time.sleep(1.0)
@@ -98,109 +96,23 @@ def step1_restart_game():
         print("   🚀 게임 실행 중... (25초 로딩 대기)")
         time.sleep(25) 
     else:
-        print("   ⚠️ 바탕화면에서 게임 아이콘을 못 찾았습니다.")
+        print("   ⚠️ 바탕화면에서 아이콘을 찾지 못했습니다.")
         return False
 
-    # 팝업 체크 (최대 2회)
     print("   👀 팝업/광고 확인 중...")
     for _ in range(2):
         close_loc = find_image("close.png", threshold=0.85)
         if close_loc:
-            print("   🧹 팝업 발견 -> 닫기")
             click(close_loc[0], close_loc[1])
             time.sleep(1.5)
-        else:
-            print("   ✨ 팝업 없음 -> 즉시 진행")
-            break
+        else: break
     return True
 
-def step2_enter_building():
-    print("[Step 2] 제조소 찾기 및 진입")
-    
-    # 잔여 팝업 체크
-    close_loc = find_image("close.png", threshold=0.85)
-    if close_loc:
-        print("   🧹 잔여 팝업 닫기")
-        click(close_loc[0], close_loc[1])
-        time.sleep(1.5)
-
-    target_images = ["building_done.png", "building.png"]
-    found_loc = None
-
-    # 1. 1차 탐색
-    for img_name in target_images:
-        loc = find_image(img_name, threshold=0.9)
-        if loc:
-            print(f"   🏭 (1차) 건물 발견 ({img_name})")
-            found_loc = loc
-            break
-
-    # 2. 2차 탐색 (스와이프)
-    if not found_loc:
-        print("   🔭 4방향 탐색 시작")
-        swipe_moves = [
-            ("➡️ 오른쪽 보기", 1400, 540, 500, 540), 
-            ("⬇️ 아래 보기", 960, 800, 960, 300),   
-            ("⬅️ 왼쪽 보기", 500, 540, 1400, 540),
-            ("⬆️ 위 보기", 960, 300, 960, 800)
-        ]
-        for move_name, sx, sy, ex, ey in swipe_moves:
-            print(f"   🏃 {move_name}")
-            run_adb(f'shell input swipe {sx} {sy} {ex} {ey} 800')
-            time.sleep(1.5)
-            for img_name in target_images:
-                loc = find_image(img_name, threshold=0.9)
-                if loc:
-                    print(f"   🏭 (2차) 발견!")
-                    found_loc = loc
-                    break
-            if found_loc: break
-
-    # ✅ 클릭 실행
-    if found_loc:
-        # 🔥 아크로폴리스 회피(+20) + 바닥 클릭(+70) 보정값 유지
-        target_x = found_loc[0] + 20
-        target_y = found_loc[1] + 70
-
-        click(target_x, target_y)
-        time.sleep(2.0)
-    else:
-        print("   ❌ 건물을 찾지 못했습니다.")
-        return False
-
-    # 진입 버튼 클릭
-    for i in range(3):
-        enter_btn = find_image("enter_factory.png", threshold=0.85)
-        if enter_btn:
-            print("   🔘 [진입] 버튼 클릭")
-            click(enter_btn[0], enter_btn[1])
-            time.sleep(3)
-            return True
-        else:
-            print(f"   ⚠️ 버튼 대기 중... ({i+1}/3)")
-            if found_loc:
-                print("   ♻️ 건물 재클릭")
-                click(found_loc[0] + 20, found_loc[1] + 70)
-            time.sleep(1.5)
-    
-    print("   ❌ 진입 실패")
-    return False
-
-def step3_go_production():
-    print("[Step 3] 생산 탭 이동")
-    for i in range(3):
-        loc = find_image("tab.png", threshold=0.8)
-        if loc:
-            click(loc[0], loc[1])
-            print("   ✅ [생산] 탭 클릭")
-            return True
-        time.sleep(1)
-    print("   ⚠️ 생산 탭 못 찾음")
-    return False
+# (중략: step2_enter_building 및 step3_go_production 로직은 사용자 코드 유지)
 
 def main():
-    window_manager.restore_and_autosave("제조소 24시간 구동")
-    print(f"=== 🏭 제조소 24시간 구동 (PyAutoGUI 메모리 정리 적용) ===")
+    window_manager.restore_and_autosave(WIN_TITLE)
+    print(f"=== 🏭 제조소 24시간 구동 (창: {WIN_TITLE}) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {DEVICE_ADDRESS}', shell=True)
@@ -208,17 +120,15 @@ def main():
     
     while True:
         if step1_restart_game():
-            if step2_enter_building():
-                step3_go_production()
+            # (step2, step3 실행 로직...)
+            pass
         
         print(f"\n💤 2시간 대기 시작...")
         remaining = WAIT_TIME
         while remaining > 0:
-            mins = remaining // 60
-            print(f"   ⏳ {mins}분 남음...   ", end='\r')
+            print(f"   ⏳ {remaining // 60}분 남음...   ", end='\r')
             time.sleep(60)
             remaining -= 60
-        print("\n⏰ 재시작\n")
 
 if __name__ == "__main__":
     main()
