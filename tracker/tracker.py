@@ -18,7 +18,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_DEVICE = "127.0.0.1:5555"
-CYCLE_INTERVAL = 80 # 1분 20초
+CYCLE_INTERVAL = 200 # 3분 20초
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
 USE_DISCORD = True 
 
@@ -208,7 +208,7 @@ def get_last_baseline_time(logs):
 # ================= 6. 메인 로직 =================
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (로그 최대 10개) ===")
+    print(f"=== 🤖 스마트 트래커 (탄생일 로직 수정 & +- 표기 수정) ===")
     
     try:
         subprocess.call(f'"{ADB_CMD}" connect {TARGET_DEVICE}', shell=True)
@@ -401,26 +401,35 @@ def main():
                                 last_baseline = get_last_baseline_time(guild_logs)
                                 
                                 # 🔥 [예외 처리] 기준 시간이 '최초 수집 날짜'라면 48시간 미달이어도 '정상' 처리
-                                if last_baseline and last_baseline != "UnKnown" and last_baseline != INITIAL_COLLECT_TIME:
-                                    try:
-                                        last_dt = datetime.strptime(last_baseline, "%Y-%m-%d %H:%M:%S")
-                                        curr_dt = datetime.strptime(current_time_str, "%Y-%m-%d %H:%M:%S")
-                                        diff_hours = (curr_dt - last_dt).total_seconds() / 3600
-                                        
-                                        if diff_hours < 48:
-                                            change_type = "abnormal"
-                                            discord_title = "⚠️ [비정상] 순위 변동 (48시간 미달)"
-                                            desc_prefix = "(비정상)"
-                                            print(f"   ⚠️ 48시간 내 변동 감지! (경과: {int(diff_hours)}시간)")
-                                    except: pass
+                                if last_baseline and last_baseline != "UnKnown":
+                                    if last_baseline == INITIAL_COLLECT_TIME:
+                                        # 탄생일이 기준점이면 무조건 정상
+                                        pass
+                                    else:
+                                        try:
+                                            last_dt = datetime.strptime(last_baseline, "%Y-%m-%d %H:%M:%S")
+                                            curr_dt = datetime.strptime(current_time_str, "%Y-%m-%d %H:%M:%S")
+                                            diff_hours = (curr_dt - last_dt).total_seconds() / 3600
+                                            
+                                            if diff_hours < 48:
+                                                change_type = "abnormal"
+                                                discord_title = "⚠️ [비정상] 순위 변동 (48시간 미달)"
+                                                desc_prefix = "(비정상)"
+                                                print(f"   ⚠️ 48시간 내 변동 감지! (경과: {int(diff_hours)}시간)")
+                                        except: pass
 
                             desc_text = f"**{final_key}** {desc_prefix}"
                             if final_key != display_name:
                                 desc_text += f"\n(현재 닉네임: {display_name})"
+                            
+                            # 🔥 [수정] 변동폭 표기: +는 +100, -는 -100으로 표시
+                            diff_val = score - last_score
+                            diff_str = f"{diff_val:+}"
+
                             fields = [
                                 {"name": "기존 점수", "value": f"{last_score}", "inline": True},
                                 {"name": "현재 점수", "value": f"**{score}**", "inline": True},
-                                {"name": "변동폭", "value": f"+{score - last_score}", "inline": True}
+                                {"name": "변동폭", "value": f"**{diff_str}**", "inline": True}
                             ]
                             send_discord_msg(discord_title, desc_text, fields=fields, image_path=captured_path)
                             
