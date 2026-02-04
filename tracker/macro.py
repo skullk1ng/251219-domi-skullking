@@ -29,6 +29,13 @@ def run_adb(command):
     except Exception as e:
         print(f"   ❌ ADB 명령 오류: {e}")
 
+def cleanup_bluestacks_memory():
+    """블루스택 메모리 최적화 (단축키 Ctrl+Shift+F 전송)"""
+    print("🧹 블루스택 메모리 최적화 중 (빗자루 기능)...")
+    # Ctrl(113) + Shift(115) + F(34) 단축키 전송
+    run_adb('shell input keyevent --longpress 113 115 34')
+    time.sleep(3.0) 
+
 def capture_screen():
     try:
         filename = "view.png"
@@ -42,14 +49,11 @@ def capture_screen():
 def find_image(target_file, threshold=0.8):
     if not os.path.exists(target_file):
         return None
-    
     screen = capture_screen()
     if screen is None: return None
-    
     template = cv2.imread(target_file, cv2.IMREAD_UNCHANGED)
     if template is None: return None
 
-    # 투명 배경(Alpha) 처리
     if template.shape[2] == 4:
         template_img = template[:, :, :3]
         mask = template[:, :, 3]
@@ -58,15 +62,12 @@ def find_image(target_file, threshold=0.8):
         result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
     
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    
     if max_val >= threshold:
         h, w = template.shape[:2]
-        # 이미지 중앙 좌표 리턴
         return int(max_loc[0] + w/2), int(max_loc[1] + h/2)
     return None
 
 def click(x, y):
-    # Swipe로 꾹 누르기 (좌표 변환 없음)
     run_adb(f'shell input swipe {x} {y} {x} {y} 100')
     print(f"   👆 클릭: ({x}, {y})")
 
@@ -75,7 +76,11 @@ def click(x, y):
 def step1_restart_game():
     print(f"\n[Step 1] 게임 강제 종료 및 재접속")
     run_adb(f'shell am force-stop {GAME_PACKAGE}')
-    time.sleep(2.0)
+    
+    # 🔥 메모리 정리 수행
+    cleanup_bluestacks_memory()
+    
+    time.sleep(1.0)
     run_adb('shell input keyevent KEYCODE_HOME')
     time.sleep(1.0)
     
@@ -88,7 +93,6 @@ def step1_restart_game():
         print("   ⚠️ 바탕화면에서 게임 아이콘을 못 찾았습니다.")
         return False
 
-    # 팝업 체크 (최대 2회)
     print("   👀 팝업/광고 확인 중...")
     for _ in range(2):
         close_loc = find_image("close.png", threshold=0.85)
@@ -103,18 +107,13 @@ def step1_restart_game():
 
 def step2_enter_building():
     print("[Step 2] 제조소 찾기 및 진입")
-    
-    # 잔여 팝업 체크
     close_loc = find_image("close.png", threshold=0.85)
     if close_loc:
-        print("   🧹 잔여 팝업 닫기")
         click(close_loc[0], close_loc[1])
         time.sleep(1.5)
 
     target_images = ["building_done.png", "building.png"]
     found_loc = None
-
-    # 1. 1차 탐색
     for img_name in target_images:
         loc = find_image(img_name, threshold=0.9)
         if loc:
@@ -122,7 +121,6 @@ def step2_enter_building():
             found_loc = loc
             break
 
-    # 2. 2차 탐색 (스와이프)
     if not found_loc:
         print("   🔭 4방향 탐색 시작")
         swipe_moves = [
@@ -132,45 +130,27 @@ def step2_enter_building():
             ("⬆️ 위 보기", 960, 300, 960, 800)
         ]
         for move_name, sx, sy, ex, ey in swipe_moves:
-            print(f"   🏃 {move_name}")
             run_adb(f'shell input swipe {sx} {sy} {ex} {ey} 800')
             time.sleep(1.5)
             for img_name in target_images:
                 loc = find_image(img_name, threshold=0.9)
                 if loc:
-                    print(f"   🏭 (2차) 발견!")
                     found_loc = loc
                     break
             if found_loc: break
 
-    # ✅ 클릭 실행
     if found_loc:
-        # 🔥 [최종 보정] 아크로폴리스 회피(+20) + 바닥 클릭(+70)
-        target_x = found_loc[0] + 20
-        target_y = found_loc[1] + 70
-
-        click(target_x, target_y)
+        click(found_loc[0] + 20, found_loc[1] + 70)
         time.sleep(2.0)
-    else:
-        print("   ❌ 건물을 찾지 못했습니다.")
-        return False
-
-    # 진입 버튼 클릭
-    for i in range(3):
-        enter_btn = find_image("enter_factory.png", threshold=0.85)
-        if enter_btn:
-            print("   🔘 [진입] 버튼 클릭")
-            click(enter_btn[0], enter_btn[1])
-            time.sleep(3)
-            return True
-        else:
-            print(f"   ⚠️ 버튼 대기 중... ({i+1}/3)")
-            if found_loc:
-                print("   ♻️ 건물 재클릭")
+        for i in range(3):
+            enter_btn = find_image("enter_factory.png", threshold=0.85)
+            if enter_btn:
+                click(enter_btn[0], enter_btn[1])
+                time.sleep(3)
+                return True
+            else:
                 click(found_loc[0] + 20, found_loc[1] + 70)
-            time.sleep(1.5)
-    
-    print("   ❌ 진입 실패")
+                time.sleep(1.5)
     return False
 
 def step3_go_production():
@@ -179,16 +159,13 @@ def step3_go_production():
         loc = find_image("tab.png", threshold=0.8)
         if loc:
             click(loc[0], loc[1])
-            print("   ✅ [생산] 탭 클릭")
             return True
         time.sleep(1)
-    print("   ⚠️ 생산 탭 못 찾음")
     return False
 
 def main():
     window_manager.restore_and_autosave("제조소 24시간 구동")
-    print(f"=== 🏭 제조소 24시간 구동 (Final Ver.) ===")
-    
+    print(f"=== 🏭 제조소 24시간 구동 (메모리 정리 포함) ===")
     try:
         subprocess.call(f'"{ADB_CMD}" connect {DEVICE_ADDRESS}', shell=True)
     except: pass
@@ -198,14 +175,11 @@ def main():
             if step2_enter_building():
                 step3_go_production()
         
-        print(f"\n💤 2시간 대기 시작...")
         remaining = WAIT_TIME
         while remaining > 0:
-            mins = remaining // 60
-            print(f"   ⏳ {mins}분 남음...   ", end='\r')
+            print(f"   ⏳ {remaining // 60}분 남음...   ", end='\r')
             time.sleep(60)
             remaining -= 60
-        print("\n⏰ 재시작\n")
 
 if __name__ == "__main__":
     main()
