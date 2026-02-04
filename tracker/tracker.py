@@ -448,9 +448,9 @@ def main():
                             t_str = log['time']
                             t_type = log.get('type', 'normal')
                             
-                            if t_type == 'abnormal': t_str += " (비정상⚠️)"
-                            elif t_type == 'new': t_str += " (신규)"
-                            elif t_type == 're_entry': t_str += " (재진입)"
+                            if t_type == 'abnormal': t_str += " [비정상 감지⚠️]"
+                            elif t_type == 'new': t_str += " [순위권 신규 진입]"
+                            elif t_type == 're_entry': t_str += " [순위권 재진입]"
                             
                             display_history.append({
                                 'score': log['score'],
