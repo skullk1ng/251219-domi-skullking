@@ -45,19 +45,21 @@ def cleanup_bluestacks_memory():
     """PyAutoGUI를 이용해 Windows 단축키(Ctrl+Shift+F)로 메모리 정리 수행"""
     print("🧹 블루스택 메모리 최적화 수행 (10회 주기)...")
     try:
-        # 실제 키보드 신호 전송
         pyautogui.hotkey('ctrl', 'shift', 'f')
-        time.sleep(4.0) # 정리 대기 시간
+        time.sleep(4.0) 
     except Exception as e:
         print(f"⚠️ 단축키 전송 오류: {e}")
 
-def send_discord_msg(title, desc, color=5763719, fields=None, image_path=None):
+def send_discord_msg(title, desc, color=5763719, fields=None, image_path=None, custom_time=None):
     if not USE_DISCORD: return
     try:
+        # 🔥 수동 입력 시 사용자가 입력한 시간을 측정 시간으로 표기
+        display_time = custom_time if custom_time else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
         embed = {
             "title": title, "description": desc, "color": color,
             "fields": fields if fields else [],
-            "footer": {"text": f"측정 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"},
+            "footer": {"text": f"측정 시간: {display_time}"},
             "image": {"url": "attachment://capture.png"} if image_path else {}
         }
         embed_data = {"embeds": [embed]}
@@ -71,28 +73,21 @@ def send_discord_msg(title, desc, color=5763719, fields=None, image_path=None):
     except Exception as e: print(f"   ⚠️ 디스코드 발송 실패: {e}")
 
 def run_adb(command):
-    full_cmd = f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}'
-    subprocess.call(full_cmd, shell=True)
+    subprocess.call(f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}', shell=True)
 
 def force_close_app(should_cleanup):
-    print(f"💀 게임 강제 종료 (패키지: {GAME_PACKAGE})")
+    print(f"💀 게임 강제 종료")
     run_adb(f'shell am force-stop {GAME_PACKAGE}')
-    
-    # 🔥 10회 주기에 해당하면 메모리 정리 실행
     if should_cleanup:
         cleanup_bluestacks_memory()
-        
-    time.sleep(2)
+    time.sleep(1)
     run_adb('shell input keyevent KEYCODE_HOME')
-    print("✨ 종료 및 홈 이동 완료")
 
 def imread_unicode(path, flags=cv2.IMREAD_COLOR):
     try:
         n = np.fromfile(path, np.uint8)
         return cv2.imdecode(n, flags)
-    except Exception as e:
-        print(f"⚠️ 이미지 읽기 실패: {e}")
-        return None
+    except: return None
 
 def capture_screen(is_ocr=False):
     try:
@@ -103,20 +98,16 @@ def capture_screen(is_ocr=False):
         if os.path.exists(local_path):
             return imread_unicode(local_path, cv2.IMREAD_COLOR), local_path 
         return None, None
-    except Exception as e:
-        print(f"캡처 오류: {e}")
-        return None, None
+    except: return None, None
 
 def find_image(target_filename, threshold=0.8):
     target_path = os.path.join(BASE_DIR, target_filename)
-    if not os.path.exists(target_path): return None
     screen, _ = capture_screen(is_ocr=False) 
-    if screen is None: return None
+    if screen is None or not os.path.exists(target_path): return None
     template = imread_unicode(target_path, cv2.IMREAD_UNCHANGED)
     if template is None: return None
     if template.shape[2] == 4:
         res = cv2.matchTemplate(screen, template[:,:,:3], cv2.TM_CCORR_NORMED, mask=template[:,:,3])
-        if threshold < 0.9: threshold = 0.9 
     else:
         res = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(res)
@@ -124,38 +115,17 @@ def find_image(target_filename, threshold=0.8):
         return int(max_loc[0] + template.shape[1]/2), int(max_loc[1] + template.shape[0]/2)
     return None
 
-def preprocess_image(roi, is_number=False):
-    roi = cv2.resize(roi, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    threshold_value = 140 if is_number else 120
-    _, thresh = cv2.threshold(gray, threshold_value, 255, cv2.THRESH_BINARY)
-    thresh = cv2.bitwise_not(thresh)
-    return thresh
+def extract_number(img, x, y, w, h):
+    roi = cv2.bitwise_not(cv2.threshold(cv2.cvtColor(cv2.resize(img[y:y+h, x:x+w], None, fx=2, fy=2), cv2.COLOR_BGR2GRAY), 140, 255, cv2.THRESH_BINARY)[1])
+    text = pytesseract.image_to_string(roi, config='--psm 7 outputbase digits')
+    clean = ''.join(filter(str.isdigit, text))
+    return int(clean) if clean else 0
 
-def extract_number(image, x, y, w, h):
-    if y+h > image.shape[0] or x+w > image.shape[1]: return 0
-    roi = image[y:y+h, x:x+w]
-    processed = preprocess_image(roi, is_number=True)
-    text = pytesseract.image_to_string(processed, config='--psm 7 outputbase digits')
-    try:
-        clean = ''.join(filter(str.isdigit, text))
-        return int(clean) if clean else 0
-    except:
-        return 0
-
-def extract_guild_name(image, rank):
-    y = int(START_Y + (rank * ROW_GAP))
-    x = GUILD_START_X
-    w = GUILD_WIDTH
-    h = HEIGHT
-    if y+h > image.shape[0] or x+w > image.shape[1]: return ""
-    roi = image[y:y+h, x:x+w]
-    processed = preprocess_image(roi, is_number=False)
-    try:
-        text = pytesseract.image_to_string(processed, lang='kor+eng+rus+chi_tra+jpn', config='--psm 7')
-        return text.strip()
-    except:
-        return ""
+def extract_guild_name(img, rank):
+    y, x, w, h = int(START_Y + (rank * ROW_GAP)), GUILD_START_X, GUILD_WIDTH, HEIGHT
+    roi = cv2.bitwise_not(cv2.threshold(cv2.cvtColor(cv2.resize(img[y:y+h, x:x+w], None, fx=2, fy=2), cv2.COLOR_BGR2GRAY), 120, 255, cv2.THRESH_BINARY)[1])
+    try: return pytesseract.image_to_string(roi, lang='kor+eng+rus+chi_tra+jpn', config='--psm 7').strip()
+    except: return ""
 
 def load_history():
     if os.path.exists(HISTORY_FILE_PATH):
@@ -169,11 +139,7 @@ def save_history(data):
     with open(HISTORY_FILE_PATH, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
 
 def load_aliases():
-    if os.path.exists(ALIAS_FILE_PATH):
-        try:
-            with open(ALIAS_FILE_PATH, "r", encoding="utf-8") as f: return json.load(f)
-        except: pass
-    return {}
+    return json.load(open(ALIAS_FILE_PATH, "r", encoding="utf-8")) if os.path.exists(ALIAS_FILE_PATH) else {}
 
 def save_aliases(data):
     with open(ALIAS_FILE_PATH, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
@@ -191,15 +157,16 @@ def upload_to_github():
 
 def get_last_baseline_time(logs):
     for log in logs:
-        if log.get('type', 'normal') != 'abnormal' and log['time'] != 'UnKnown':
-            return log['time']
+        l_t = log.get('type', 'normal')
+        if "manual" in l_t or "abnormal" not in l_t:
+            if log['time'] != 'UnKnown': return log['time']
     return None
 
 # ================= 4. 메인 로직 =================
 
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (PyAutoGUI 10회 주기 메모리 정리) ===")
+    print(f"=== 🤖 스마트 트래커 (수동체크 최적화 버전) ===")
     
     try: run_adb(f"connect {TARGET_DEVICE}")
     except: return
@@ -208,153 +175,140 @@ def main():
     known_aliases = load_aliases()
     previous_active_guilds = set()
     cycle_count = 0
-    INITIAL_COLLECT_TIME = "2026-01-29 10:48:43"
+    INITIAL_TIME = "2026-01-29 10:48:43"
 
     while True:
         cycle_count += 1
         start_loop = time.time()
-        
-        # 🔥 10회 주기에 맞춰 메모리 정리 여부 결정
         should_cleanup = (cycle_count % 10 == 0)
-        
+
         force_close_app(should_cleanup)
         time.sleep(2)
         
-        icon_loc = find_image("icon.png")
-        if icon_loc:
-            run_adb(f'shell input tap {icon_loc[0]} {icon_loc[1]}')
-            print(f"🚀 게임 실행 (로딩 대기 / 정리수행: {should_cleanup})")
-            time.sleep(25)
-        else:
-            print("⚠️ 아이콘 못 찾음"); time.sleep(5); continue 
+        icon = find_image("icon.png")
+        if not icon:
+            print("⚠️ 아이콘 못 찾음"); time.sleep(5); continue
 
-        # 토너먼트 진입 로직
-        entered_tournament = False
-        for _ in range(12): 
-            close_loc = find_image("close.png")
-            if close_loc: run_adb(f"shell input tap {close_loc[0]} {close_loc[1]}"), time.sleep(2)
-            tour_loc = find_image("tournament.png", threshold=0.7)
-            if tour_loc:
-                run_adb(f"shell input tap {tour_loc[0]} {tour_loc[1]}")
-                entered_tournament = True; break
+        run_adb(f'shell input tap {icon[0]} {icon[1]}')
+        print(f"🚀 실행 중... (정리수행: {should_cleanup})")
+        time.sleep(25)
+
+        entered = False
+        for _ in range(12):
+            close = find_image("close.png")
+            if close: 
+                run_adb(f"shell input tap {close[0]} {close[1]}")
+                time.sleep(2)
+            tour = find_image("tournament.png", threshold=0.7)
+            if tour:
+                run_adb(f"shell input tap {tour[0]} {tour[1]}")
+                entered = True
+                break
             time.sleep(5)
 
-        if entered_tournament:
-            print("📊 상위 14개 길드 스캔 및 분석 중...")
+        if entered:
             time.sleep(5)
-            img, captured_path = capture_screen(is_ocr=True)
-            
+            img, cap_path = capture_screen(is_ocr=True)
             if img is not None:
-                current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"\n[Check: {current_time_str}]")
-                scanned_items = []
-
+                curr_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                scanned = []
                 for i in range(14):
-                    y_pos = int(START_Y + (i * ROW_GAP))
-                    scanned_items.append({
-                        'rank': i + 1,
-                        'display_name': extract_guild_name(img, i) or "Unknown",
-                        'score': extract_number(img, SCORE_START_X, y_pos, SCORE_WIDTH, HEIGHT),
-                        'ww': extract_number(img, WW_START_X, y_pos, WW_WIDTH, HEIGHT),
+                    y_p = int(START_Y + (i * ROW_GAP))
+                    scanned.append({
+                        'rank': i+1, 'display_name': extract_guild_name(img, i) or "Unknown",
+                        'score': extract_number(img, SCORE_START_X, y_p, SCORE_WIDTH, HEIGHT),
+                        'ww': extract_number(img, WW_START_X, y_p, WW_WIDTH, HEIGHT),
                         'real_key': None
                     })
 
-                # ✅ 유효성 검사 (화면 로딩 실패 방지)
-                if scanned_items[0]['score'] == 0:
-                    print("⚠️ 1위 점수 0점 -> 스킵"); continue
-                
-                valid_count = sum(1 for item in scanned_items if item['display_name'] != "Unknown" and item['score'] > 0)
-                if valid_count < 5:
-                    print(f"⚠️ 유효 데이터 부족({valid_count}) -> 스킵"); continue
+                if scanned[0]['score'] == 0:
+                    print("⚠️ 데이터 유효하지 않음 (1위 0점)"); continue
 
-                current_cycle_guilds = set()
-                matched_db_keys = set()
-                
-                # 매칭 로직 (이름/지문)
-                for item in scanned_items:
+                matched_keys = set()
+                for item in scanned:
                     if item['display_name'] in history_db:
                         item['real_key'] = item['display_name']
-                        matched_db_keys.add(item['display_name'])
-
-                for item in scanned_items:
-                    if item['real_key'] is None:
-                        for db_key, logs in history_db.items():
-                            if not logs or db_key in matched_db_keys: continue
+                        matched_keys.add(item['display_name'])
+                
+                for item in scanned:
+                    if not item['real_key']:
+                        for k, logs in history_db.items():
+                            if k in matched_keys or not logs: continue
                             if item['score'] == logs[0]['score'] and item['ww'] == logs[0]['ww']:
-                                item['real_key'] = db_key; matched_db_keys.add(db_key); break
+                                item['real_key'] = k
+                                matched_keys.add(k)
+                                break
                         if not item['real_key']: item['real_key'] = item['display_name']
 
-                # 데이터 처리 및 디스코드 알림
-                current_display_data = {}
-                for item in scanned_items:
-                    final_key = item['real_key']
-                    score, ww, rank, display_name = item['score'], item['ww'], item['rank'], item['display_name']
-                    current_cycle_guilds.add(final_key)
-
-                    # 닉네임 감지
-                    if final_key != display_name:
-                        if (final_key not in known_aliases) or (known_aliases[final_key] != display_name):
-                            fields = [{"name": "원래 이름", "value": f"**{final_key}**", "inline": True},
-                                      {"name": "현재 표시", "value": f"**{display_name}**", "inline": True}]
-                            send_discord_msg("🏷️ 길드명 변경 감지", f"**{final_key}** 길드 이름 변경됨", color=3447003, fields=fields, image_path=captured_path)
-                            known_aliases[final_key] = display_name; save_aliases(known_aliases)
-                    elif final_key in known_aliases:
-                        del known_aliases[final_key]; save_aliases(known_aliases)
-
-                    # 로그 업데이트
-                    if final_key not in history_db: history_db[final_key] = []; is_new, is_re = True, False
-                    else: is_new, is_re = False, (final_key not in previous_active_guilds and len(previous_active_guilds) > 0)
+                website_display = {}
+                for item in scanned:
+                    key = item['real_key']
+                    score, ww, rank, d_name = item['score'], item['ww'], item['rank'], item['display_name']
                     
-                    guild_logs = history_db[final_key]
-                    last_score = guild_logs[0]['score'] if guild_logs else 0
+                    if key not in history_db: 
+                        history_db[key] = []
+                        is_new, is_re = True, False
+                    else: 
+                        is_new = False
+                        is_re = (key not in previous_active_guilds and len(previous_active_guilds) > 0)
+
+                    logs = history_db[key]
                     
-                    if score != 0 and score != last_score:
-                        change_type, d_title, pref = "normal", "📈 순위 변동 감지", ""
-                        log_time = current_time_str
-                        
-                        if is_new: change_type, d_title, pref, log_time = "new", "🆕 신규 길드 진입", "(신규)", "UnKnown"
-                        elif is_re: change_type, d_title, pref = "re_entry", "🔄 [재진입] 복귀", "(재진입)"
+                    # 🔥 [수동 입력 처리 및 알림]
+                    if logs and "manual" in logs[0].get('type', '') and not logs[0].get('announced', False):
+                        is_ab = "abnormal" in logs[0]['type']
+                        d_title = "⚠️ [비정상] 순위 변동 감지 (수동 체크 건)" if is_ab else "📈 순위 변동 감지 (수동 체크 건)"
+                        diff = logs[0]['score'] - (logs[1]['score'] if len(logs)>1 else 0)
+                        fields = [{"name":"이전 점수","value":str(logs[1]['score'] if len(logs)>1 else 0),"inline":True},
+                                  {"name":"수동입력","value":f"**{logs[0]['score']}**","inline":True},
+                                  {"name":"변동폭","value":f"**{diff:+}**","inline":True}]
+                        send_discord_msg(d_title, f"**{key}** (관리자 수동 입력 데이터)", fields=fields, custom_time=logs[0]['time'])
+                        logs[0]['announced'] = True
+
+                    last_s = logs[0]['score'] if logs else 0
+                    if score != 0 and score != last_s:
+                        c_type, title, pref = "normal", "📈 순위 변동 감지", ""
+                        if is_new: c_type, title, pref = "new", "🆕 신규 길드 진입", "(신규)"
+                        elif is_re: c_type, title, pref = "re_entry", "🔄 [재진입] 복귀", "(재진입)"
                         else:
-                            baseline = get_last_baseline_time(guild_logs)
-                            if baseline and baseline not in ["UnKnown", INITIAL_COLLECT_TIME]:
-                                diff_h = (datetime.now() - datetime.strptime(baseline, "%Y-%m-%d %H:%M:%S")).total_seconds()/3600
-                                if diff_h < 48: change_type, d_title, pref = "abnormal", "⚠️ [비정상] 변동", "(비정상)"
-                        
-                        diff_str = f"{score - last_score:+}"
-                        fields = [{"name": "기존", "value": str(last_score), "inline": True},
-                                  {"name": "현재", "value": f"**{score}**", "inline": True},
-                                  {"name": "변동", "value": f"**{diff_str}**", "inline": True}]
-                        send_discord_msg(d_title, f"**{final_key}** {pref}", fields=fields, image_path=captured_path)
-                        
-                        guild_logs.insert(0, {'score': score, 'ww': ww, 'time': log_time, 'type': change_type})
-                        history_db[final_key] = guild_logs[:10]
+                            base = get_last_baseline_time(logs)
+                            if base and base != INITIAL_TIME:
+                                try:
+                                    diff_h = (datetime.now() - datetime.strptime(base, "%Y-%m-%d %H:%M:%S")).total_seconds()/3600
+                                    if diff_h < 48: c_type, title, pref = "abnormal", "⚠️ [비정상] 순위 변동 감지", "(비정상)"
+                                except: pass
 
-                    # 웹사이트용 패치
-                    patched_hist = []
-                    for log in history_db[final_key]:
-                        t = log['time']
-                        if log.get('type') == 'abnormal': t += " [비정상 감지⚠️]"
-                        elif log.get('type') == 'new': t += " [순위권 신규 진입)"
-                        elif log.get('type') == 're_entry': t += " [순위권 재진입]"
-                        patched_hist.append({'score': log['score'], 'time': t})
+                        fields = [{"name":"기존","value":str(last_s),"inline":True},
+                                  {"name":"현재","value":f"**{score}**","inline":True},
+                                  {"name":"변동","value":f"**{score-last_s:+}**","inline":True}]
+                        send_discord_msg(title, f"**{key}** {pref}", fields=fields, image_path=cap_path)
+                        logs.insert(0, {'score':score, 'ww':ww, 'time':curr_ts if c_type!="new" else "UnKnown", 'type':c_type})
+                        history_db[key] = logs[:10]
+                    elif logs: logs[0]['ww'] = ww
 
-                    current_display_data[rank] = {
-                        'name': final_key, 'score': score, 'ww': ww,
-                        'time': patched_hist[0]['time'] if patched_hist else "UnKnown",
-                        'history': patched_hist, 'current_alias': display_name
+                    patched = []
+                    for l in history_db[key]:
+                        t_str, l_t = l['time'], l.get('type', 'normal')
+                        if "abnormal" in l_t: t_str += " [비정상 감지⚠️]"
+                        if "manual" in l_t: t_str += " (수동 체크 건)"
+                        elif l_t == 'new': t_str += " (신규)"
+                        elif l_t == 're_entry': t_str += " [재진입]"
+                        patched.append({'score': l['score'], 'time': t_str})
+
+                    website_display[rank] = {
+                        'name': key, 'score': score, 'ww': ww,
+                        'time': patched[0]['time'] if patched else "UnKnown",
+                        'history': patched, 'current_alias': d_name
                     }
-                    print(f"#{rank} | {final_key} | {score}")
                 
-                previous_active_guilds = current_cycle_guilds.copy()
+                previous_active_guilds = matched_keys.copy()
                 save_history(history_db)
-                with open(DATA_FILE_PATH, "w", encoding="utf-8") as f: json.dump(current_display_data, f, ensure_ascii=False, indent=4)
+                with open(DATA_FILE_PATH, "w", encoding="utf-8") as f: json.dump(website_display, f, ensure_ascii=False, indent=4)
                 upload_to_github()
 
-        elapsed = time.time() - start_loop
-        wait = int(max(0, CYCLE_INTERVAL - elapsed))
+        wait = int(max(0, CYCLE_INTERVAL - (time.time() - start_loop)))
         while wait > 0:
-            print(f"⏳ 다음 사이클까지 {wait}초 대기... (사이클: {cycle_count})", end='\r')
-            time.sleep(1); wait -= 1
+            print(f"⏳ 다음 사이클까지 {wait}초 대기... (사이클: {cycle_count})", end='\r'); time.sleep(1); wait -= 1
 
 if __name__ == "__main__":
     main()
