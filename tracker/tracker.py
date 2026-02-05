@@ -18,12 +18,12 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_DEVICE = "127.0.0.1:5555"
-WIN_TITLE = "[data] RANK TRACKER"
 CYCLE_INTERVAL = 150 
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
+USE_DISCORD = True
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json") 
+DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json")
 HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
 ALIAS_FILE_PATH = os.path.join(BASE_DIR, "aliases.json")
 
@@ -36,33 +36,43 @@ START_Y, ROW_GAP, HEIGHT = 275, 50.8, 30
 # ================= 2. 기본 함수들 =================
 
 def imread_unicode(path, flags=cv2.IMREAD_COLOR):
-    """한글 경로('바탕 화면')의 이미지를 읽기 위한 함수"""
+    """한글 경로 이미지 로딩 지원"""
     try:
         n = np.fromfile(path, np.uint8)
         return cv2.imdecode(n, flags)
     except: return None
 
-def upload_to_github():
-    print("☁️ GitHub 업로드 시도...")
+def send_discord_msg(guild_name, time_str, fields, is_manual=False, image_path=None):
+    """요청하신 가시성 강화 레이아웃 적용 (Name/Time -> Score -> Image)"""
+    if not USE_DISCORD: return
     try:
-        repo_dir = os.path.dirname(BASE_DIR)
-        subprocess.run(["git", "add", "."], cwd=repo_dir, check=True)
-        ts = datetime.now().strftime("%H:%M:%S")
-        subprocess.run(["git", "commit", "-m", f"Auto update: {ts}"], cwd=repo_dir, check=True, capture_output=True)
-        subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=True)
-        print("🚀 GitHub Push 완료!")
-    except: print("ℹ️ 업로드 실패 (명령 위치 확인 필요)")
+        title = "📈 순위 변동 감지"
+        if is_manual: title += " [수동 입력 데이터]" # 수동 입력 시 제목 강조
 
-def send_discord_msg(title, desc, color=5763719, fields=None, image_path=None, custom_time=None):
-    try:
-        display_time = custom_time if custom_time else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        embed = {"title": title, "description": desc, "color": color, "fields": fields if fields else [], "footer": {"text": f"측정 시간: {display_time}"}}
+        # 본문 구성: 이름(# 강조) -> 시간 -> 점수 정보
+        desc = f"# {guild_name}\n"
+        if is_manual: desc = f"# {guild_name} #수동 입력 데이터\n"
+        
+        desc += f"**측정 시간: {time_str}**\n\n"
+        
+        # 점수 정보를 필드가 아닌 본문에 가로로 배치하여 가시성 확보
+        score_info = f"기존: {fields[0]['value']}  |  현재: {fields[1]['value']}  |  변동폭: {fields[2]['value']}"
+        desc += score_info
+
+        embed = {
+            "title": title,
+            "description": desc,
+            "color": 16776960 if is_manual else 5763719, # 수동은 노란색 계열
+            "image": {"url": "attachment://capture.png"} if image_path else {}
+        }
+
         if image_path and os.path.exists(image_path):
             with open(image_path, "rb") as f:
                 requests.post(DISCORD_WEBHOOK_URL, files={"file": ("capture.png", f, "image/png"), "payload_json": (None, json.dumps({"embeds": [embed]}))})
-        else: requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed]})
-        print("   📨 디스코드 알림 발송 완료")
-    except Exception as e: print(f"   ⚠️ 디스코드 발송 실패: {e}")
+        else:
+            requests.post(DISCORD_WEBHOOK_URL, json={"embeds": [embed]})
+        print(f"   📨 디스코드 알림 완료 ({guild_name})")
+    except Exception as e: print(f"   ⚠️ 알림 발송 실패: {e}")
 
 def run_adb(command): subprocess.call(f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}', shell=True)
 
@@ -76,7 +86,7 @@ def find_image(target, threshold=0.8):
     target_path = os.path.join(BASE_DIR, target)
     screen, _ = capture_screen()
     template = imread_unicode(target_path, cv2.IMREAD_UNCHANGED)
-    if screen is None or template is None: return None 
+    if screen is None or template is None: return None
     res = cv2.matchTemplate(screen, template[:,:,:3], cv2.TM_CCORR_NORMED, mask=template[:,:,3]) if template.shape[2]==4 else cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(res)
     return (int(max_loc[0] + template.shape[1]/2), int(max_loc[1] + template.shape[0]/2)) if max_val >= threshold else None
@@ -93,40 +103,56 @@ def extract_guild_name(img, rank):
     try: return pytesseract.image_to_string(roi, lang='kor+eng+rus+chi_tra+jpn', config='--psm 7').strip()
     except: return ""
 
-def get_last_baseline_time(logs):
-    for log in logs:
-        l_t = log.get('type', 'normal')
-        if "manual" in l_t or "abnormal" not in l_t:
-            if log['time'] != 'UnKnown': return log['time']
-    return None
+def load_history():
+    if os.path.exists(HISTORY_FILE_PATH):
+        with open(HISTORY_FILE_PATH, "r", encoding="utf-8") as f: return json.load(f)
+    return {}
+
+def save_history(data):
+    with open(HISTORY_FILE_PATH, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
+
+def upload_to_github():
+    try:
+        repo_dir = os.path.dirname(BASE_DIR)
+        subprocess.run(["git", "add", "."], cwd=repo_dir, check=True)
+        ts = datetime.now().strftime("%H:%M:%S")
+        subprocess.run(["git", "commit", "-m", f"Auto update: {ts}"], cwd=repo_dir, check=True, capture_output=True)
+        subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=True)
+        print("🚀 GitHub Push 완료!")
+    except: pass
 
 # ================= 3. 메인 로직 =================
 
 def main():
-    window_manager.restore_and_autosave(WIN_TITLE)
-    print(f"=== 🤖 스마트 트래커 (전체 기능 복구 버전) ===")
+    window_manager.restore_and_autosave("영예점수 모니터링 실행")
+    print(f"=== 🤖 스마트 트래커 (20260205A: 수동 입력 최적화 버전) ===")
     run_adb(f"connect {TARGET_DEVICE}")
     
-    history_db = {}
-    try:
-        if os.path.exists(HISTORY_FILE_PATH):
-            with open(HISTORY_FILE_PATH, "r", encoding="utf-8") as f: history_db = json.load(f)
-    except: pass
-    
+    history_db = load_history()
     previous_active_guilds = set()
-    INITIAL_TIME = "2026-01-29 10:48:43"
 
     while True:
         start_loop = time.time()
+        
+        # 1. 사이클 시작 시 수동 입력 데이터(manual) 체크 및 알림
+        history_db = load_history() # 최신 상태 로드
+        updated_manual = False
+        for guild, logs in history_db.items():
+            if logs and logs[0].get('type') == "manual" and not logs[0].get('announced'):
+                prev_s = logs[1]['score'] if len(logs) > 1 else 0
+                fields = [{"value": str(prev_s)}, {"value": f"**{logs[0]['score']}**"}, {"value": f"**{logs[0]['score']-prev_s:+}**"}]
+                send_discord_msg(guild, logs[0]['time'], fields, is_manual=True)
+                logs[0]['announced'] = True
+                updated_manual = True
+        
+        if updated_manual: save_history(history_db)
+
+        # 2. 게임 실행 및 스캔
         run_adb(f'shell am force-stop {GAME_PACKAGE}')
         time.sleep(2)
-        
         icon = find_image("icon.png")
-        if not icon: 
-            print("⚠️ 아이콘 못 찾음 - 대기 중"); time.sleep(5); continue
-            
-        run_adb(f'shell input tap {icon[0]} {icon[1]}')
-        time.sleep(25)
+        if not icon: time.sleep(5); continue
+        run_adb(f'shell input tap {icon[0]} {icon[1]}'); time.sleep(25)
 
         entered = False
         for _ in range(12):
@@ -135,14 +161,13 @@ def main():
             tour = find_image("tournament.png", threshold=0.7)
             if tour:
                 run_adb(f"shell input tap {tour[0]} {tour[1]}")
-                entered = True
-                break
+                entered = True; break
             time.sleep(5)
 
         if entered:
             time.sleep(5)
             img, cap_path = capture_screen()
-            if img is not None:
+            if img is not None and extract_number(img, SCORE_START_X, START_Y, SCORE_WIDTH, HEIGHT) != 0:
                 curr_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 scanned = []
                 for i in range(14):
@@ -150,90 +175,51 @@ def main():
                     scanned.append({
                         'rank': i+1, 'display_name': extract_guild_name(img, i) or "Unknown",
                         'score': extract_number(img, SCORE_START_X, y_p, SCORE_WIDTH, HEIGHT),
-                        'ww': extract_number(img, WW_START_X, y_p, WW_WIDTH, HEIGHT),
-                        'real_key': None
+                        'ww': extract_number(img, WW_START_X, y_p, WW_WIDTH, HEIGHT)
                     })
 
-                if scanned[0]['score'] != 0:
-                    matched_keys = set()
-                    for item in scanned:
-                        if item['display_name'] in history_db:
-                            item['real_key'] = item['display_name']
-                            matched_keys.add(item['display_name'])
+                current_keys = set()
+                website_display = {}
+                for item in scanned:
+                    # 지문 매칭 로직 (이름/점수+WW 대조)
+                    real_key = item['display_name']
+                    if real_key not in history_db:
+                        for k, l in history_db.items():
+                            if l and item['score'] == l[0]['score'] and item['ww'] == l[0]['ww']:
+                                real_key = k; break
                     
-                    for item in scanned:
-                        if not item['real_key']:
-                            for k, logs in history_db.items():
-                                if k in matched_keys or not logs: continue
-                                if item['score'] == logs[0]['score'] and item['ww'] == logs[0]['ww']:
-                                    item['real_key'] = k
-                                    matched_keys.add(k)
-                                    break
-                            if not item['real_key']: item['real_key'] = item['display_name']
-
-                    website_display = {}
-                    for item in scanned:
-                        key = item['real_key']
-                        score, ww, rank, d_name = item['score'], item['ww'], item['rank'], item['display_name']
-                        
-                        if key not in history_db: 
-                            history_db[key] = []
-                            is_new, is_re = True, False
-                        else: 
-                            is_new = False
-                            is_re = (key not in previous_active_guilds and len(previous_active_guilds) > 0)
-
-                        logs = history_db[key]
-                        
-                        # 🔥 수동 입력 감지 및 알림 (사용자님 수정 단어 반영)
-                        if logs and "manual" in logs[0].get('type', '') and not logs[0].get('announced', False):
-                            is_ab = "abnormal" in logs[0]['type']
-                            d_title = "⚠️ [비정상] 순위 변동 감지 [수동 체크 건]" if is_ab else "📈 순위 변동 감지 [수동 체크 건]"
-                            prev_s = logs[1]['score'] if len(logs) > 1 else 0
-                            fields = [{"name":"이전 점수","value":str(prev_s),"inline":True},
-                                      {"name":"수동입력","value":f"**{logs[0]['score']}**","inline":True},
-                                      {"name":"변동폭","value":f"**{logs[0]['score']-prev_s:+}**","inline":True}]
-                            send_discord_msg(d_title, f"**{key}** [수동 입력 데이터]", fields=fields, custom_time=logs[0]['time'])
-                            logs[0]['announced'] = True
-
-                        last_s = logs[0]['score'] if logs else 0
-                        if score != 0 and score != last_s:
-                            c_type, title, pref = "normal", "📈 순위 변동 감지", ""
-                            if is_new: c_type, title, pref = "new", "🆕 신규 길드 진입", "(신규)"
-                            elif is_re: c_type, title, pref = "re_entry", "🔄 [재진입] 복귀", "(재진입)"
-                            else:
-                                base = get_last_baseline_time(logs)
-                                if base and base != INITIAL_TIME:
-                                    try:
-                                        diff_h = (datetime.now() - datetime.strptime(base, "%Y-%m-%d %H:%M:%S")).total_seconds()/3600
-                                        if diff_h < 48: c_type, title, pref = "abnormal", "⚠️ [비정상] 순위 변동 감지", "[비정상]"
-                                    except: pass
-
-                            fields = [{"name":"기존","value":str(last_s),"inline":True}, {"name":"현재","value":f"**{score}**","inline":True}, {"name":"변동","value":f"**{score-last_s:+}**","inline":True}]
-                            send_discord_msg(title, f"**{key}** {pref}", fields=fields, image_path=cap_path)
-                            logs.insert(0, {'score':score, 'ww':ww, 'time':curr_ts if c_type!="new" else "UnKnown", 'type':c_type})
-                            history_db[key] = logs[:10]
-                        elif logs: logs[0]['ww'] = ww
-
-                        patched = []
-                        for l in logs:
-                            t_str, l_t = l['time'], l.get('type', 'normal')
-                            if "abnormal" in l_t: t_str += " [비정상 감지⚠️]"
-                            if "manual" in l_t: t_str += " [수동 체크 건]"
-                            elif l_t == 'new': t_str += " [신규]"
-                            elif l_t == 're_entry': t_str += " [재진입]"
-                            patched.append({'score': l['score'], 'time': t_str})
-
-                        website_display[rank] = {'name': key, 'score': score, 'ww': ww, 'time': patched[0]['time'] if patched else "UnKnown", 'history': patched, 'current_alias': d_name}
+                    if real_key not in history_db: history_db[real_key] = []
+                    logs = history_db[real_key]
+                    last_s = logs[0]['score'] if logs else 0
                     
-                    previous_active_guilds = matched_keys.copy()
-                    with open(HISTORY_FILE_PATH, "w", encoding="utf-8") as f: json.dump(history_db, f, ensure_ascii=False, indent=4)
-                    with open(DATA_FILE_PATH, "w", encoding="utf-8") as f: json.dump(website_display, f, ensure_ascii=False, indent=4)
-                    upload_to_github()
+                    change_type = "normal"
+                    if not logs: change_type = "new"
+                    elif real_key not in previous_active_guilds and len(previous_active_guilds) > 0: change_type = "re_entry"
 
-        wait = int(max(0, CYCLE_INTERVAL - (time.time() - start_loop)))
-        while wait > 0:
-            print(f"⏳ 다음 사이클까지 {wait}초 대기...", end='\r'); time.sleep(1); wait -= 1
+                    if item['score'] != last_s:
+                        fields = [{"value": str(last_s)}, {"value": f"**{item['score']}**"}, {"value": f"**{item['score']-last_s:+}**"}]
+                        send_discord_msg(real_key, curr_ts, fields, image_path=cap_path)
+                        logs.insert(0, {'score': item['score'], 'ww': item['ww'], 'time': curr_ts, 'type': change_type})
+                        history_db[real_key] = logs[:10]
+                    
+                    # 웹사이트용 가공 (비정상 체크 제거됨)
+                    patched = []
+                    for l in logs:
+                        t_str, l_t = l['time'], l.get('type', 'normal')
+                        if l_t == "manual": t_str += " #수동 입력 데이터" # 웹사이트 로그 캡션
+                        elif l_t == "new": t_str += " [신규]"
+                        elif l_t == "re_entry": t_str += " [재진입]"
+                        patched.append({'score': l['score'], 'time': t_str})
+                    
+                    website_display[item['rank']] = {'name': real_key, 'score': item['score'], 'ww': item['ww'], 'history': patched, 'time': patched[0]['time'] if patched else "UnKnown"}
+                    current_keys.add(real_key)
+
+                previous_active_guilds = current_keys.copy()
+                save_history(history_db)
+                with open(DATA_FILE_PATH, "w", encoding="utf-8") as f: json.dump(website_display, f, ensure_ascii=False, indent=4)
+                upload_to_github()
+
+        time.sleep(max(0, CYCLE_INTERVAL - (time.time() - start_loop)))
 
 if __name__ == "__main__":
     main()
