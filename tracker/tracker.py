@@ -1,3 +1,6 @@
+# VERSION: 20260207A
+# DESCRIPTION: 별칭(Alias) 시스템 적용 + 수동 감지 + 안정화
+
 import cv2
 import pytesseract
 import numpy as np
@@ -17,7 +20,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
-TARGET_DEVICE = "127.0.0.1:5555"
+TARGET_DEVICE = "127.0.0.1:5555" # 사용자의 포트 환경에 맞게 유지
 CYCLE_INTERVAL = 150 
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
 USE_DISCORD = True
@@ -36,33 +39,28 @@ START_Y, ROW_GAP, HEIGHT = 275, 50.8, 30
 # ================= 2. 기본 함수들 =================
 
 def imread_unicode(path, flags=cv2.IMREAD_COLOR):
-    """한글 경로 이미지 로딩 지원"""
     try:
         n = np.fromfile(path, np.uint8)
         return cv2.imdecode(n, flags)
     except: return None
 
 def send_discord_msg(guild_name, time_str, fields, is_manual=False, image_path=None):
-    """가시성 강화 레이아웃 (Name -> Time -> Score -> Image)"""
     if not USE_DISCORD: return
     try:
         title = "📈 순위 변동 감지"
         if is_manual: title += " [수동 입력 데이터]"
 
-        # 본문 구성: 이름(# 강조) -> 시간 -> 점수 정보
         desc = f"# {guild_name}\n"
         if is_manual: desc = f"# {guild_name} #수동 입력 데이터\n"
         
         desc += f"**측정 시간: {time_str}**\n\n"
-        
-        # 점수 정보를 가로로 배치
         score_info = f"기존: {fields[0]['value']}  |  현재: {fields[1]['value']}  |  변동폭: {fields[2]['value']}"
         desc += score_info
 
         embed = {
             "title": title,
             "description": desc,
-            "color": 16776960 if is_manual else 5763719, # 수동은 노란색
+            "color": 16776960 if is_manual else 5763719,
             "image": {"url": "attachment://capture.png"} if image_path else {}
         }
 
@@ -103,15 +101,15 @@ def extract_guild_name(img, rank):
     try: return pytesseract.image_to_string(roi, lang='kor+eng+rus+chi_tra+jpn', config='--psm 7').strip()
     except: return ""
 
-def load_history():
-    if os.path.exists(HISTORY_FILE_PATH):
+def load_json(path):
+    if os.path.exists(path):
         try:
-            with open(HISTORY_FILE_PATH, "r", encoding="utf-8") as f: return json.load(f)
+            with open(path, "r", encoding="utf-8") as f: return json.load(f)
         except: return {}
     return {}
 
-def save_history(data):
-    with open(HISTORY_FILE_PATH, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
+def save_json(path, data):
+    with open(path, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=4)
 
 def upload_to_github():
     try:
@@ -127,7 +125,7 @@ def upload_to_github():
 
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (20260205A: 수동 입력 감지 & 안정화) ===")
+    print(f"=== 🤖 스마트 트래커 (Ver. 20260207A: Alias 적용) ===")
     run_adb(f"connect {TARGET_DEVICE}")
     
     cycle_count = 0
@@ -138,8 +136,11 @@ def main():
             cycle_count += 1
             start_loop = time.time()
             
-            # 1. 수동 입력 체크 (announced: true 체크 로직)
-            history_db = load_history()
+            # 0. 설정 파일 로드
+            history_db = load_json(HISTORY_FILE_PATH)
+            alias_db = load_json(ALIAS_FILE_PATH) # 🔥 Alias 로드 추가
+
+            # 1. 수동 입력 체크
             updated_manual = False
             for guild, logs in history_db.items():
                 if logs and logs[0].get('type') == "manual" and not logs[0].get('announced'):
@@ -149,7 +150,7 @@ def main():
                     logs[0]['announced'] = True
                     updated_manual = True
             
-            if updated_manual: save_history(history_db)
+            if updated_manual: save_json(HISTORY_FILE_PATH, history_db)
 
             # 2. 게임 실행 및 자동 스캔
             run_adb(f'shell am force-stop {GAME_PACKAGE}')
@@ -176,23 +177,35 @@ def main():
                 if img is not None and extract_number(img, SCORE_START_X, START_Y, SCORE_WIDTH, HEIGHT) != 0:
                     curr_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     scanned = []
+                    
                     for i in range(14):
+                        # 🔥 이름 추출 및 Alias 즉시 적용
+                        raw_name = extract_guild_name(img, i) or f"Unknown ({chr(65+i)})"
+                        display_name = alias_db.get(raw_name, raw_name) # 별칭이 있으면 교체, 없으면 그대로
+                        
                         y_p = int(START_Y + (i * ROW_GAP))
                         scanned.append({
-                            'rank': i+1, 'display_name': extract_guild_name(img, i) or "Unknown",
+                            'rank': i+1, 
+                            'display_name': display_name,
                             'score': extract_number(img, SCORE_START_X, y_p, SCORE_WIDTH, HEIGHT),
                             'ww': extract_number(img, WW_START_X, y_p, WW_WIDTH, HEIGHT)
                         })
 
                     current_keys = set()
                     website_display = {}
+                    
                     for item in scanned:
-                        # 지문 매칭 로직 (이름/점수+WW 대조)
                         real_key = item['display_name']
+                        
+                        # 지문 매칭 (이름이 달라도 점수+WW가 같으면 기존 길드로 인정)
                         if real_key not in history_db:
                             for k, l in history_db.items():
                                 if l and item['score'] == l[0]['score'] and item['ww'] == l[0]['ww']:
-                                    real_key = k; break
+                                    real_key = k
+                                    # 🔥 지문 매칭 성공 시, Alias 자동 등록 시도
+                                    if item['display_name'] != k:
+                                        print(f"   💡 자동 매칭 발견: {item['display_name']} -> {k}")
+                                    break
                         
                         if real_key not in history_db: history_db[real_key] = []
                         logs = history_db[real_key]
@@ -208,7 +221,6 @@ def main():
                             logs.insert(0, {'score': item['score'], 'ww': item['ww'], 'time': curr_ts, 'type': change_type})
                             history_db[real_key] = logs[:10]
                         
-                        # 웹사이트용 가공 (비정상 체크 제거됨, 수동 캡션 추가)
                         patched = []
                         for l in logs:
                             t_str, l_t = l['time'], l.get('type', 'normal')
@@ -217,15 +229,21 @@ def main():
                             elif l_t == "re_entry": t_str += " [재진입]"
                             patched.append({'score': l['score'], 'time': t_str})
                         
-                        website_display[item['rank']] = {'name': real_key, 'score': item['score'], 'ww': item['ww'], 'history': patched, 'time': patched[0]['time'] if patched else "UnKnown"}
+                        # 🔥 data.json 생성 시 올바른 이름(real_key) 사용
+                        website_display[item['rank']] = {
+                            'name': real_key, 
+                            'score': item['score'], 
+                            'ww': item['ww'], 
+                            'history': patched, 
+                            'time': patched[0]['time'] if patched else "Unknown"
+                        }
                         current_keys.add(real_key)
 
                     previous_active_guilds = current_keys.copy()
-                    save_history(history_db)
+                    save_json(HISTORY_FILE_PATH, history_db)
                     with open(DATA_FILE_PATH, "w", encoding="utf-8") as f: json.dump(website_display, f, ensure_ascii=False, indent=4)
                     upload_to_github()
 
-            # 3. 가시적인 대기 카운트다운
             elapsed = time.time() - start_loop
             wait_seconds = int(max(0, CYCLE_INTERVAL - elapsed))
             while wait_seconds > 0:
@@ -233,7 +251,6 @@ def main():
         
         except Exception as e:
             print(f"\n🚨 사이클 도중 에러 발생: {e}")
-            print("🔄 10초 후 재시도...")
             time.sleep(10)
 
 if __name__ == "__main__":
