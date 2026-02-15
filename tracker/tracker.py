@@ -1,5 +1,5 @@
-# VERSION: 20260207A
-# DESCRIPTION: 별칭(Alias) 시스템 적용 + 수동 감지 + 안정화
+# VERSION: 202602016A
+# DESCRIPTION: 별칭(Alias) 시스템 + 네트워크 오류 창 오인식 방지(상태 검증) 적용
 
 import cv2
 import pytesseract
@@ -125,7 +125,7 @@ def upload_to_github():
 
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (Ver. 20260207A: Alias 적용) ===")
+    print(f"=== 🤖 스마트 트래커 (Ver. 20260207B: 네트워크 오류 예외 처리) ===")
     run_adb(f"connect {TARGET_DEVICE}")
     
     cycle_count = 0
@@ -138,7 +138,7 @@ def main():
             
             # 0. 설정 파일 로드
             history_db = load_json(HISTORY_FILE_PATH)
-            alias_db = load_json(ALIAS_FILE_PATH) # 🔥 Alias 로드 추가
+            alias_db = load_json(ALIAS_FILE_PATH)
 
             # 1. 수동 입력 체크
             updated_manual = False
@@ -172,77 +172,90 @@ def main():
                 time.sleep(5)
 
             if entered:
+                print("    ⏳ 순위표 화면 로딩 대기 중 (5초)...")
                 time.sleep(5)
-                img, cap_path = capture_screen()
-                if img is not None and extract_number(img, SCORE_START_X, START_Y, SCORE_WIDTH, HEIGHT) != 0:
-                    curr_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    scanned = []
+                
+                # 🔥 [핵심 추가] 오류 창 예외 처리 (보상 버튼 앵커 확인)
+                reward_anchor = find_image("reward_btn.png", threshold=0.85)
+                
+                if not reward_anchor:
+                    print("    🚨 [검증 실패] '보상 보기' 버튼이 보이지 않습니다!")
+                    print("    🚨 네트워크 오류나 로딩 지연으로 판단하여 이번 스캔을 취소합니다.")
+                else:
+                    print("    ✅ [검증 성공] 순위표 화면 확인 완료. 스캔을 시작합니다.")
                     
-                    for i in range(14):
-                        # 🔥 이름 추출 및 Alias 즉시 적용
-                        raw_name = extract_guild_name(img, i) or f"Unknown ({chr(65+i)})"
-                        display_name = alias_db.get(raw_name, raw_name) # 별칭이 있으면 교체, 없으면 그대로
-                        
-                        y_p = int(START_Y + (i * ROW_GAP))
-                        scanned.append({
-                            'rank': i+1, 
-                            'display_name': display_name,
-                            'score': extract_number(img, SCORE_START_X, y_p, SCORE_WIDTH, HEIGHT),
-                            'ww': extract_number(img, WW_START_X, y_p, WW_WIDTH, HEIGHT)
-                        })
-
-                    current_keys = set()
-                    website_display = {}
+                    img, cap_path = capture_screen()
+                    first_score = extract_number(img, SCORE_START_X, START_Y, SCORE_WIDTH, HEIGHT)
                     
-                    for item in scanned:
-                        real_key = item['display_name']
+                    # 🔥 [안전장치] 1위 점수가 0점이면 스캔 취소 (추가 방어선)
+                    if img is not None and first_score > 0:
+                        curr_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        scanned = []
                         
-                        # 지문 매칭 (이름이 달라도 점수+WW가 같으면 기존 길드로 인정)
-                        if real_key not in history_db:
-                            for k, l in history_db.items():
-                                if l and item['score'] == l[0]['score'] and item['ww'] == l[0]['ww']:
-                                    real_key = k
-                                    # 🔥 지문 매칭 성공 시, Alias 자동 등록 시도
-                                    if item['display_name'] != k:
-                                        print(f"   💡 자동 매칭 발견: {item['display_name']} -> {k}")
-                                    break
-                        
-                        if real_key not in history_db: history_db[real_key] = []
-                        logs = history_db[real_key]
-                        last_s = logs[0]['score'] if logs else 0
-                        
-                        change_type = "normal"
-                        if not logs: change_type = "new"
-                        elif real_key not in previous_active_guilds and len(previous_active_guilds) > 0: change_type = "re_entry"
+                        for i in range(14):
+                            raw_name = extract_guild_name(img, i) or f"Unknown ({chr(65+i)})"
+                            display_name = alias_db.get(raw_name, raw_name)
+                            
+                            y_p = int(START_Y + (i * ROW_GAP))
+                            scanned.append({
+                                'rank': i+1, 
+                                'display_name': display_name,
+                                'score': extract_number(img, SCORE_START_X, y_p, SCORE_WIDTH, HEIGHT),
+                                'ww': extract_number(img, WW_START_X, y_p, WW_WIDTH, HEIGHT)
+                            })
 
-                        if item['score'] != last_s:
-                            fields = [{"value": str(last_s)}, {"value": f"**{item['score']}**"}, {"value": f"**{item['score']-last_s:+}**"}]
-                            send_discord_msg(real_key, curr_ts, fields, image_path=cap_path)
-                            logs.insert(0, {'score': item['score'], 'ww': item['ww'], 'time': curr_ts, 'type': change_type})
-                            history_db[real_key] = logs[:10]
+                        current_keys = set()
+                        website_display = {}
                         
-                        patched = []
-                        for l in logs:
-                            t_str, l_t = l['time'], l.get('type', 'normal')
-                            if l_t == "manual": t_str += " #수동 입력 데이터"
-                            elif l_t == "new": t_str += " [신규]"
-                            elif l_t == "re_entry": t_str += " [재진입]"
-                            patched.append({'score': l['score'], 'time': t_str})
-                        
-                        # 🔥 data.json 생성 시 올바른 이름(real_key) 사용
-                        website_display[item['rank']] = {
-                            'name': real_key, 
-                            'score': item['score'], 
-                            'ww': item['ww'], 
-                            'history': patched, 
-                            'time': patched[0]['time'] if patched else "Unknown"
-                        }
-                        current_keys.add(real_key)
+                        for item in scanned:
+                            real_key = item['display_name']
+                            
+                            # 지문 매칭
+                            if real_key not in history_db:
+                                for k, l in history_db.items():
+                                    if l and item['score'] == l[0]['score'] and item['ww'] == l[0]['ww']:
+                                        real_key = k
+                                        if item['display_name'] != k:
+                                            print(f"   💡 자동 매칭 발견: {item['display_name']} -> {k}")
+                                        break
+                            
+                            if real_key not in history_db: history_db[real_key] = []
+                            logs = history_db[real_key]
+                            last_s = logs[0]['score'] if logs else 0
+                            
+                            change_type = "normal"
+                            if not logs: change_type = "new"
+                            elif real_key not in previous_active_guilds and len(previous_active_guilds) > 0: change_type = "re_entry"
 
-                    previous_active_guilds = current_keys.copy()
-                    save_json(HISTORY_FILE_PATH, history_db)
-                    with open(DATA_FILE_PATH, "w", encoding="utf-8") as f: json.dump(website_display, f, ensure_ascii=False, indent=4)
-                    upload_to_github()
+                            if item['score'] != last_s:
+                                fields = [{"value": str(last_s)}, {"value": f"**{item['score']}**"}, {"value": f"**{item['score']-last_s:+}**"}]
+                                send_discord_msg(real_key, curr_ts, fields, image_path=cap_path)
+                                logs.insert(0, {'score': item['score'], 'ww': item['ww'], 'time': curr_ts, 'type': change_type})
+                                history_db[real_key] = logs[:10]
+                            
+                            patched = []
+                            for l in logs:
+                                t_str, l_t = l['time'], l.get('type', 'normal')
+                                if l_t == "manual": t_str += " #수동 입력 데이터"
+                                elif l_t == "new": t_str += " [신규]"
+                                elif l_t == "re_entry": t_str += " [재진입]"
+                                patched.append({'score': l['score'], 'time': t_str})
+                            
+                            website_display[item['rank']] = {
+                                'name': real_key, 
+                                'score': item['score'], 
+                                'ww': item['ww'], 
+                                'history': patched, 
+                                'time': patched[0]['time'] if patched else "Unknown"
+                            }
+                            current_keys.add(real_key)
+
+                        previous_active_guilds = current_keys.copy()
+                        save_json(HISTORY_FILE_PATH, history_db)
+                        with open(DATA_FILE_PATH, "w", encoding="utf-8") as f: json.dump(website_display, f, ensure_ascii=False, indent=4)
+                        upload_to_github()
+                    else:
+                        print("    🚨 [검증 실패] 점수를 정상적으로 읽지 못했습니다. (0점 오인식 방어)")
 
             elapsed = time.time() - start_loop
             wait_seconds = int(max(0, CYCLE_INTERVAL - elapsed))
