@@ -3,8 +3,9 @@
         {
             "score": 25523,
             "ww": 21,
-            "time": "2026-02-19 05:10:18",
-            "type": "normal"
+            "time": "2026-02-18 21:30:00",
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 25200,
@@ -66,8 +67,9 @@
         {
             "score": 24319,
             "ww": 19,
-            "time": "2026-02-19 05:10:18",
-            "type": "normal"
+            "time": "2026-02-18 21:30:00",
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 24435,
