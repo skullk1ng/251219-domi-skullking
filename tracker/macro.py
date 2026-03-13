@@ -1,5 +1,5 @@
-# VERSION: 20260206A
-# DESCRIPTION: 홀수 시간(01, 03...23시) 정각 실행 스케줄러 + 엄격 검증 모드
+# VERSION: MUMUPLAYER_260313A
+# DESCRIPTION: 홀수 시간 정각 실행 스케줄러 + 엄격 검증 모드
 
 import cv2
 import numpy as np
@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 sys.stdout.reconfigure(encoding='utf-8')
 
 # ================= 1. 기본 설정 =================
-ADB_CMD = r"C:\Program Files\BlueStacks_nxt\HD-Adb.exe"
+ADB_CMD = r"C:\Program Files\Netease\MuMuPlayer\nx_main\adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
-TARGET_PORT = "5565"
+TARGET_PORT = "16416"
 DEVICE_ADDRESS = f"127.0.0.1:{TARGET_PORT}"
 
 # ================= 2. 기본 함수들 =================
@@ -77,12 +77,10 @@ def step1_restart_and_popups():
     time.sleep(2.0)
     run_adb('shell input keyevent KEYCODE_HOME')
     
-    loc = find_image("icon.png")
-    if loc:
-        click(loc[0], loc[1])
-        print("    🚀 게임 실행 중... (초기 로딩 30초)")
-        time.sleep(30)
-    else: return False
+    print("    🚀 게임 실행 중... (초기 로딩 30초)")
+    # 이미지 클릭 대신 ADB 명령어로 즉시 게임 실행
+    run_adb(f'shell monkey -p {GAME_PACKAGE} -c android.intent.category.LAUNCHER 1')
+    time.sleep(30)
 
     print("    👀 팝업/광고 스캔 중...")
     
