@@ -722,7 +722,25 @@ function mountDmgAutoBoxes() {
       </div>
     </div>
 
-    
+    <div 임시 비활성화 class="auto-box" id="mongolBox">
+      <div class="auto-title">[AUTO] 연맹: 몽골 DMG+</div>
+      <div class="auto-checks">
+        <div>
+          <label class="label">연맹 레벨</label>
+          <select id="mongolLevel" class="input"></select>
+        </div>
+        ${ALLIANCE_EXTRA_OPTIONS.map(o => `
+          <label class="check-item">
+            <input type="checkbox" id="mongol_${o.key}" />
+            <span>${o.name}</span>
+          </label>
+        `).join("")}
+      </div>
+      <div class="auto-sum">
+        <span>합계</span>
+        <b id="mongolAutoOut">0%</b>
+      </div>
+    </div임시 비활성화>
 
     <div class="auto-box" id="scoutBox">
       <div class="auto-title">[AUTO] 정찰기 기본 스캔 데미지</div>
