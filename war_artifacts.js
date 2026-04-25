@@ -341,36 +341,41 @@ function renderList() {
 
 /* ---------- data load ---------- */
 async function loadArtifacts() {
-  const list = document.getElementById("artifactList");
-  if (list) list.innerHTML = `<div class="artifact-empty">데이터 불러오는 중...</div>`;
+  const list = document.getElementById("artifactList");
+  if (list) list.innerHTML = `<div class="artifact-empty">데이터 불러오는 중...</div>`;
 
-  try {
-    const res = await fetch(DATA_API_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  try {
+    // ✅ 구글 서버의 캐싱을 막기 위해 현재 시간(Timestamp)을 주소 끝에 추가합니다.
+    const timestamp = new Date().getTime();
+    const fetchUrl = `${DATA_API_URL}&t=${timestamp}`;
 
-    const data = await res.json();
-    if (!Array.isArray(data)) throw new Error("JSON is not an array");
+    // ✅ 수정된 주소(fetchUrl)로 요청을 보냅니다.
+    const res = await fetch(fetchUrl, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    ARTIFACTS = data.map((x) => {
-      const unique = canonicalizeUniqueFromApi(x);
-      return {
-        ko: x.ko ?? "",
-        en: x.en ?? "",
-        type: x.type ?? "",
-        unique,
-        price: x.price ?? "",
-      };
-    });
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("JSON is not an array");
 
-    renderUniqueFilterChips();
-    renderList();
-  } catch (err) {
-    if (list) {
-      list.innerHTML = `<div class="artifact-empty">데이터 로드 실패: ${escapeHtml(
-        err.message || String(err)
-      )}</div>`;
-    }
-  }
+    ARTIFACTS = data.map((x) => {
+      const unique = canonicalizeUniqueFromApi(x);
+      return {
+        ko: x.ko ?? "",
+        en: x.en ?? "",
+        type: x.type ?? "",
+        unique,
+        price: x.price ?? "",
+      };
+    });
+
+    renderUniqueFilterChips();
+    renderList();
+  } catch (err) {
+    if (list) {
+      list.innerHTML = `<div class="artifact-empty">데이터 로드 실패: ${escapeHtml(
+        err.message || String(err)
+      )}</div>`;
+    }
+  }
 }
 
 /* ---------- ui ---------- */
