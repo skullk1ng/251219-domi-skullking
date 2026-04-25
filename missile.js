@@ -103,7 +103,7 @@ const BONUS_DEFS = {
     hideInList: true,
   },
 
-  hp_auto_egypt: { name: "[AUTO] 연맹:이집트", pctDefault: 0, hideInList: true, lockName: true, color: "#e5e7eb" },
+  hp_auto_Indo: { name: "[AUTO] 연맹:이집트", pctDefault: 0, hideInList: true, lockName: true, color: "#e5e7eb" },
   hp_auto_guild: { name: "[AUTO] 길드 레벨",   pctDefault: 0, hideInList: true, lockName: true, color: "#e5e7eb" },
 
   dmg_auto_mongol: { name: "[AUTO] 연맹:몽골", pctDefault: 0, hideInList: true, lockName: true, color: "#e5e7eb" },
@@ -125,7 +125,7 @@ const BONUS_DEFS = {
 const DEFAULT_HP_BONUS_IDS = [
   "hp_lib_rocket","hp_lib_guided","hp_law_overwhelm",
   "hp_def_council_tower","hp_def_relic_tower","hp_att_relic_enemy_tower",
-  "hp_auto_egypt","hp_auto_guild",
+  "hp_auto_Indo","hp_auto_guild",
 ];
 
 const DEFAULT_DMG_BONUS_IDS = [
@@ -616,23 +616,23 @@ function mountHpAutoBoxes() {
     </div>
   </div>
 
-  <div class="auto-box" id="egyptBox">
-    <div class="auto-title">[AUTO] 연맹: 이집트 HP+</div>
+  <div class="auto-box" id="IndoBox">
+    <div class="auto-title">[AUTO] 연맹: 인도 HP+</div>
     <div class="auto-checks">
       <div>
-        <label class="label">이집트 레벨</label>
-        <select id="egyptLevel" class="input"></select>
+        <label class="label">인도 레벨</label>
+        <select id="IndoLevel" class="input"></select>
       </div>
       ${ALLIANCE_EXTRA_OPTIONS.map(o => `
         <label class="check-item">
-          <input type="checkbox" id="egypt_${o.key}" />
+          <input type="checkbox" id="Indo_${o.key}" />
           <span>${o.name}</span>
         </label>
       `).join("")}
     </div>
     <div class="auto-sum">
       <span>합계</span>
-      <b id="egyptAutoOut">0%</b>
+      <b id="IndoAutoOut">0%</b>
     </div>
   </div>
 
@@ -654,7 +654,7 @@ function mountHpAutoBoxes() {
   </div>
   `;
 
-  const sel = $("egyptLevel");
+  const sel = $("IndoLevel");
   if (sel) {
     sel.innerHTML = "";
     sel.appendChild(new Option("적용 안함 (0%)", "0"));
@@ -665,8 +665,8 @@ function mountHpAutoBoxes() {
   }
 
   FIXED_HP_CHECK_ITEMS.forEach(it => $(`fixedhp_${it.id}`)?.addEventListener("change", applyFixedHpToBonuses));
-  $("egyptLevel")?.addEventListener("change", applyEgyptAutoToHpBonus);
-  ALLIANCE_EXTRA_OPTIONS.forEach(o => $(`egypt_${o.key}`)?.addEventListener("change", applyEgyptAutoToHpBonus));
+  $("IndoLevel")?.addEventListener("change", applyEgyptAutoToHpBonus);
+  ALLIANCE_EXTRA_OPTIONS.forEach(o => $(`Indo_${o.key}`)?.addEventListener("change", applyEgyptAutoToHpBonus));
   GUILD_LEVEL_HP_PARTS.forEach(p => $(`guild_${p.key}`)?.addEventListener("change", applyGuildAutoToHpBonus));
 
   $("allHpResearchApply")?.addEventListener("change", (e) => {
@@ -674,9 +674,9 @@ function mountHpAutoBoxes() {
 
     FIXED_HP_CHECK_ITEMS.forEach(it => { const cb = $(`fixedhp_${it.id}`); if (cb) cb.checked = on; });
 
-    const egyptLevel = $("egyptLevel");
-    if (egyptLevel) egyptLevel.value = on ? "8" : "0";
-    ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`egypt_${o.key}`); if (cb) cb.checked = on; });
+    const IndoLevel = $("IndoLevel");
+    if (IndoLevel) IndoLevel.value = on ? "8" : "0";
+    ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`Indo_${o.key}`); if (cb) cb.checked = on; });
 
     GUILD_LEVEL_HP_PARTS.forEach(p => { const cb = $(`guild_${p.key}`); if (cb) cb.checked = on; });
 
@@ -722,7 +722,7 @@ function mountDmgAutoBoxes() {
       </div>
     </div>
 
-    <div 임시 비활성화 class="auto-box" id="mongolBox">
+    <div class="auto-box" id="mongolBox" style="display: none;">
       <div class="auto-title">[AUTO] 연맹: 몽골 DMG+</div>
       <div class="auto-checks">
         <div>
@@ -740,7 +740,7 @@ function mountDmgAutoBoxes() {
         <span>합계</span>
         <b id="mongolAutoOut">0%</b>
       </div>
-    </div임시 비활성화>
+    </div>
 
     <div class="auto-box" id="scoutBox">
       <div class="auto-title">[AUTO] 정찰기 기본 스캔 데미지</div>
@@ -877,19 +877,19 @@ function applyFixedHpToBonuses() {
 }
 
 function applyEgyptAutoToHpBonus() {
-  const lvl = Number($("egyptLevel")?.value || 0);
+  const lvl = Number($("IndoLevel")?.value || 0);
 
   let finalPct = 0;
   if (lvl !== 0) {
     const base = EGYPT_HP_PCT_BY_LEVEL[lvl] || 0;
-    const extraSum = ALLIANCE_EXTRA_OPTIONS.reduce((acc, o) => acc + ($(`egypt_${o.key}`)?.checked ? o.pct : 0), 0);
+    const extraSum = ALLIANCE_EXTRA_OPTIONS.reduce((acc, o) => acc + ($(`Indo_${o.key}`)?.checked ? o.pct : 0), 0);
     finalPct = Math.floor(base * (1 + extraSum / 100));
   }
 
-  const out = $("egyptAutoOut");
+  const out = $("IndoAutoOut");
   if (out) out.textContent = `${finalPct}%`;
 
-  const idx = findBonusIndex(hpBonuses, "hp_auto_egypt");
+  const idx = findBonusIndex(hpBonuses, "hp_auto_Indo");
   if (idx >= 0) hpBonuses[idx].pct = String(finalPct);
 
   scheduleRecalc(true);
@@ -1059,8 +1059,8 @@ function resetHpSectionToZero() {
   if ($("hp_att_relic_enemy_tower")) $("hp_att_relic_enemy_tower").value = "0%";
 
   FIXED_HP_CHECK_ITEMS.forEach(it => { const cb = $(`fixedhp_${it.id}`); if (cb) cb.checked = false; });
-  if ($("egyptLevel")) $("egyptLevel").value = "0";
-  ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`egypt_${o.key}`); if (cb) cb.checked = false; });
+  if ($("IndoLevel")) $("IndoLevel").value = "0";
+  ALLIANCE_EXTRA_OPTIONS.forEach(o => { const cb = $(`Indo_${o.key}`); if (cb) cb.checked = false; });
   GUILD_LEVEL_HP_PARTS.forEach(p => { const cb = $(`guild_${p.key}`); if (cb) cb.checked = false; });
 
   applyFixedHpToBonuses();
