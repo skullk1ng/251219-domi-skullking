@@ -4,7 +4,8 @@
             "score": 21510,
             "ww": 3,
             "time": "2026-04-26 10:09:13",
-            "type": "normal"
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 21130,
@@ -13,12 +14,13 @@
             "type": "new"
         }
     ],
-    "LaTTe라떼마을": [
+    "ESH YES OR NO": [
         {
             "score": 21250,
             "ww": 3,
             "time": "2026-04-26 18:25:20",
-            "type": "normal"
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 20833,
@@ -32,7 +34,8 @@
             "score": 21117,
             "ww": 3,
             "time": "2026-04-25 22:38:55",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "РОССИЯНЕ": [
@@ -40,7 +43,8 @@
             "score": 21082,
             "ww": 2,
             "time": "2026-04-25 22:38:55",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "HaBb": [
@@ -48,7 +52,8 @@
             "score": 21029,
             "ww": 2,
             "time": "2026-04-25 22:38:55",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "태극기휘날리며 GNA": [
@@ -56,7 +61,8 @@
             "score": 20849,
             "ww": 2,
             "time": "2026-04-25 22:38:55",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "CCCP-USSR": [
@@ -64,7 +70,8 @@
             "score": 21188,
             "ww": 3,
             "time": "2026-04-26 06:39:55",
-            "type": "normal"
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 20829,
@@ -78,7 +85,8 @@
             "score": 20808,
             "ww": 2,
             "time": "2026-04-25 22:38:55",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "Elegides": [
@@ -86,7 +94,8 @@
             "score": 20787,
             "ww": 2,
             "time": "2026-04-25 22:38:55",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "Aequalitas": [
@@ -94,7 +103,8 @@
             "score": 20886,
             "ww": 3,
             "time": "2026-04-26 15:15:49",
-            "type": "re_entry"
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 20752,
@@ -103,12 +113,13 @@
             "type": "new"
         }
     ],
-    "Kstar": [
+    "Yes": [
         {
             "score": 20848,
             "ww": 3,
             "time": "2026-04-26 08:44:30",
-            "type": "re_entry"
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 20733,
@@ -122,7 +133,8 @@
             "score": 21110,
             "ww": 3,
             "time": "2026-04-26 14:18:29",
-            "type": "re_entry"
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 20705,
@@ -136,7 +148,8 @@
             "score": 20701,
             "ww": 2,
             "time": "2026-04-25 22:38:55",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "Rebel Asylum": [
@@ -144,7 +157,8 @@
             "score": 21077,
             "ww": 3,
             "time": "2026-04-26 10:09:13",
-            "type": "re_entry"
+            "type": "manual",
+            "announced": true
         },
         {
             "score": 20695,
@@ -158,7 +172,8 @@
             "score": 20947,
             "ww": 3,
             "time": "2026-04-26 01:45:46",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "SYNERGY": [
@@ -166,7 +181,8 @@
             "score": 20769,
             "ww": 3,
             "time": "2026-04-26 02:23:09",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "Fight Club": [
@@ -174,7 +190,8 @@
             "score": 20937,
             "ww": 3,
             "time": "2026-04-26 07:29:45",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ],
     "Momineen": [
@@ -182,7 +199,8 @@
             "score": 20814,
             "ww": 3,
             "time": "2026-04-26 21:58:35",
-            "type": "new"
+            "type": "manual",
+            "announced": true
         }
     ]
 }
