@@ -1,5 +1,5 @@
-# VERSION: 20260313C_1080p
-# DESCRIPTION: MuMu 1080p 최종 황금 좌표(8차 보정) + 다이렉트 실행 + 로그 클린업
+# VERSION: 20260426A_1080p
+# DESCRIPTION: MuMu 1080p 황금 좌표 + 키워드 부분 일치(aliases.json) 지원
 
 import cv2
 import pytesseract
@@ -22,7 +22,7 @@ ADB_CMD = r"C:\Program Files\Netease\MuMuPlayer\nx_main\adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_DEVICE = "127.0.0.1:16448" 
 CYCLE_INTERVAL = 150 
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2"
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4EC_example_dummy" # 실제 URL로 유지하세요
 USE_DISCORD = True
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -30,7 +30,7 @@ DATA_FILE_PATH = os.path.join(os.path.dirname(BASE_DIR), "data.json")
 HISTORY_FILE_PATH = os.path.join(BASE_DIR, "history.json")
 ALIAS_FILE_PATH = os.path.join(BASE_DIR, "aliases.json")
 
-# 🔥 8차 튜닝으로 완성된 1080p 황금 좌표
+# 🔥 8차 튜닝 황금 좌표 유지
 SCORE_START_X, SCORE_WIDTH = 1119, 91
 WW_START_X, WW_WIDTH = 1002, 60
 GUILD_START_X, GUILD_WIDTH = 415, 220
@@ -68,7 +68,6 @@ def send_discord_msg(guild_name, time_str, fields, is_manual=False, image_path=N
     except Exception as e: print(f"   ⚠️ 알림 발송 실패: {e}")
 
 def run_adb(command):
-    # 🔥 지저분한 로그(bash arg...)를 숨기기 위해 stdout/stderr 무시 설정
     subprocess.call(f'"{ADB_CMD}" -s {TARGET_DEVICE} {command}', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def capture_screen():
@@ -122,7 +121,7 @@ def upload_to_github():
 
 def main():
     window_manager.restore_and_autosave("영예점수 모니터링 실행")
-    print(f"=== 🤖 스마트 트래커 (Ver. 20260313C: MuMu 1080p 최종본) ===")
+    print(f"=== 🤖 스마트 트래커 (Ver. 20260313D: 키워드 매칭 지원) ===")
     run_adb(f"connect {TARGET_DEVICE}")
     
     cycle_count = 0
@@ -167,12 +166,10 @@ def main():
                 print("    ⏳ 순위표 로딩 대기...")
                 time.sleep(5)
                 
-                # 1080p 전용 보상 버튼 이미지 확인
                 if not find_image("reward_btn_1080.png", threshold=0.85):
                     print("    🚨 [검증 실패] 순위표 진입 불가. 사이클 취소.")
                 else:
                     img, cap_path = capture_screen()
-                    # 1위 점수 읽기 시도 (0점 방어)
                     if img is not None and extract_number(img, SCORE_START_X, START_Y, SCORE_WIDTH, HEIGHT) > 0:
                         print("    ✅ [검증 성공] 데이터 스캔 및 분석 중...")
                         curr_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -180,7 +177,17 @@ def main():
                         
                         for i in range(14):
                             raw_name = extract_guild_name(img, i) or f"Unknown ({chr(65+i)})"
-                            display_name = alias_db.get(raw_name, raw_name)
+                            
+                            # 🔥 [핵심 변경] 키워드 부분 일치 매칭 로직
+                            display_name = raw_name
+                            for key, target in alias_db.items():
+                                if key.startswith("*"): # 부분 일치 모드
+                                    keyword = key[1:]
+                                    if keyword in raw_name:
+                                        display_name = target; break
+                                elif key == raw_name: # 정확히 일치 모드
+                                    display_name = target; break
+
                             y_p = int(START_Y + (i * ROW_GAP))
                             scanned.append({
                                 'rank': i+1, 'display_name': display_name,
