@@ -22,7 +22,7 @@ ADB_CMD = r"C:\Program Files\Netease\MuMuPlayer\nx_main\adb.exe"
 GAME_PACKAGE = "com.nexon.dominations.asia.g"
 TARGET_DEVICE = "127.0.0.1:16448" 
 CYCLE_INTERVAL = 150 
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4EC_example_dummy" # 실제 URL로 유지하세요
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1467971942135894127/ydmq_4ECyEQXdGRNe-TrTlQgnJrYDczkjfSMfkcm--bgxzzxUPrxbzX4Peze37VTfVA2" # 실제 URL로 유지하세요
 USE_DISCORD = True
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
