@@ -214,5 +214,13 @@
             "type": "manual",
             "announced": true
         }
+    ],
+    "Elegidgs": [
+        {
+            "score": 20902,
+            "ww": 3,
+            "time": "2026-04-27 16:13:04",
+            "type": "new"
+        }
     ]
 }
