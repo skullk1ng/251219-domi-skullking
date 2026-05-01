@@ -38,57 +38,57 @@
   }
 
   function enableCommaInt(inputEl, onCommit) {
-  if (!inputEl) return;
+    if (!inputEl) return;
 
-  // ✅ 포커스 시: 콤마 제거 + 전체 선택(0이어도 바로 덮어쓰기 가능)
-  bindOnce(
-    inputEl,
-    "focus",
-    () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
+    // ✅ 포커스 시: 콤마 제거 + 전체 선택(0이어도 바로 덮어쓰기 가능)
+    bindOnce(
+      inputEl,
+      "focus",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/,/g, "");
 
-      // iOS/모바일에서 selection 타이밍 이슈가 있어 setTimeout 사용
-      setTimeout(() => {
-        try { inputEl.select(); } catch {}
-      }, 0);
-    },
-    "comma_focus"
-  );
+        // iOS/모바일에서 selection 타이밍 이슈가 있어 setTimeout 사용
+        setTimeout(() => {
+          try { inputEl.select(); } catch {}
+        }, 0);
+      },
+      "comma_focus"
+    );
 
-  // ✅ 엔터/완료/줄바꿈 누르면 키패드 내리기(blur)
-  bindOnce(
-    inputEl,
-    "keydown",
-    (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        inputEl.blur();
-      }
-    },
-    "enter_blur"
-  );
+    // ✅ 엔터/완료/줄바꿈 누르면 키패드 내리기(blur)
+    bindOnce(
+      inputEl,
+      "keydown",
+      (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          inputEl.blur();
+        }
+      },
+      "enter_blur"
+    );
 
-  bindOnce(
-    inputEl,
-    "input",
-    () => {
-      inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
-      onCommit?.();
-    },
-    "comma_input"
-  );
+    bindOnce(
+      inputEl,
+      "input",
+      () => {
+        inputEl.value = String(inputEl.value ?? "").replace(/[^\d]/g, "");
+        onCommit?.();
+      },
+      "comma_input"
+    );
 
-  bindOnce(
-    inputEl,
-    "blur",
-    () => {
-      const raw = String(inputEl.value ?? "").replace(/,/g, "");
-      inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
-      onCommit?.();
-    },
-    "comma_blur"
-  );
-}
+    bindOnce(
+      inputEl,
+      "blur",
+      () => {
+        const raw = String(inputEl.value ?? "").replace(/,/g, "");
+        inputEl.value = raw === "" ? "0" : Number(raw).toLocaleString("ko-KR");
+        onCommit?.();
+      },
+      "comma_blur"
+    );
+  }
 
 
   /* -------------------------------
@@ -113,7 +113,7 @@
   /* -------------------------------
      Exchange rate cache
   ------------------------------- */
-  const RATE_CACHE_KEY = "crownCalc_fx_cache_v3";
+  const RATE_CACHE_KEY = "crownCalc_fx_cache_v4"; // 캐시 키 버전 업데이트
   const RATE_CACHE_MS = 60 * 60 * 1000;
 
   function setRateLoading(isLoading) {
@@ -158,8 +158,11 @@
     } catch {}
   }
 
+  /* -------------------------------
+     Exchange Rate Fetch (다중 API 구조)
+  ------------------------------- */
   async function fetchFxRates() {
-    // 1) Frankfurter (USD -> KRW,CNY)
+    // 1순위: Frankfurter (유럽중앙은행 기준, 매우 안정적이나 업데이트 주기가 약간 긺)
     try {
       const url1 = "https://api.frankfurter.app/latest?from=USD&to=KRW,CNY";
       const res1 = await fetch(url1, { cache: "no-store" });
@@ -167,24 +170,37 @@
         const data1 = await res1.json();
         const krw = Number(data1?.rates?.KRW);
         const cny = Number(data1?.rates?.CNY);
-        if (Number.isFinite(krw) && krw > 0 && Number.isFinite(cny) && cny > 0) {
-          return { usdKrw: krw, usdCny: cny };
-        }
+        if (krw > 0 && cny > 0) return { usdKrw: krw, usdCny: cny };
       }
-    } catch {}
+    } catch (e) { console.warn("Frankfurter API 실패, 다음 API 시도"); }
 
-    // 2) fallback: exchangerate.host
-    const url2 = "https://api.exchangerate.host/latest?base=USD&symbols=KRW,CNY";
-    const res2 = await fetch(url2, { cache: "no-store" });
-    if (!res2.ok) throw new Error("rate fetch failed");
-    const data2 = await res2.json();
-    const krw = Number(data2?.rates?.KRW);
-    const cny = Number(data2?.rates?.CNY);
-    if (!Number.isFinite(krw) || krw <= 0 || !Number.isFinite(cny) || cny <= 0) {
-      throw new Error("rate invalid");
-    }
-    return { usdKrw: krw, usdCny: cny };
+    // 2순위: ExchangeRate-API (무료 오픈 엔드포인트, 응답 속도 빠름)
+    try {
+      const url2 = "https://open.er-api.com/v6/latest/USD";
+      const res2 = await fetch(url2, { cache: "no-store" });
+      if (res2.ok) {
+        const data2 = await res2.json();
+        const krw = Number(data2?.rates?.KRW);
+        const cny = Number(data2?.rates?.CNY);
+        if (krw > 0 && cny > 0) return { usdKrw: krw, usdCny: cny };
+      }
+    } catch (e) { console.warn("ExchangeRate-API 실패, 다음 API 시도"); }
+
+    // 3순위: Currency-API (GitHub 기반 CDN, 백업용으로 우수)
+    try {
+      const url3 = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json";
+      const res3 = await fetch(url3, { cache: "no-store" });
+      if (res3.ok) {
+        const data3 = await res3.json();
+        const krw = Number(data3?.usd?.krw);
+        const cny = Number(data3?.usd?.cny);
+        if (krw > 0 && cny > 0) return { usdKrw: krw, usdCny: cny };
+      }
+    } catch (e) { console.warn("Currency-API 실패"); }
+
+    throw new Error("모든 환율 API 호출에 실패했습니다.");
   }
+
 
   // FX: USD 기준 환율
   let FX = { usdKrw: 0, usdCny: 0 };
@@ -215,12 +231,17 @@
     setRateBtnDisabled(true);
 
     try {
-      const rates = await fetchFxRates();
+      const rates = await fetchFxRates(); // 다중 API 호출
       FX = rates;
       saveRateCache(rates);
       renderRateTexts();
-    } catch {
-      // 실패 시 기존 표시 유지
+    } catch (error) {
+      console.error(error);
+      // 만약 3개의 API가 모두 죽는 최악의 상황이 오면 작동 중지를 막기 위해 임시값 세팅
+      if (FX.usdKrw === 0) {
+        FX = { usdKrw: 1350, usdCny: 7.2 };
+        renderRateTexts();
+      }
     } finally {
       setRateLoading(false);
       setRateBtnDisabled(false);
